@@ -13,3 +13,8 @@ hook.Add("CreateEntityRagdoll", Constants.ADDON_NAME .. MODULE_NAME .. "CreateEn
     local ctx = AnimationPlayer:Play(ragdoll, animationName)
     ctx.state = state
 end)
+
+hook.Add("ScalePlayerDamage", Constants.ADDON_NAME .. MODULE_NAME .. "ScalePlayerDamage",
+    function(ply, hitgroup, dmginfo)
+        dmginfo:ScaleDamage(100)
+    end)

@@ -2,7 +2,8 @@
 local Constants = {}
 
 Constants.ADDON_NAME = "EnhancedDeathAnimationExtended"
-Constants.ANIMATION_PLAYER_DEFAULT_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
+Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
+Constants.ANIMATION_PLAYER_PROXY_MODEL_NAME = "models/editor/cube_small.mdl"
 Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE = {
     teleportdistance = 0,
     secondstoarrive = 0.01,

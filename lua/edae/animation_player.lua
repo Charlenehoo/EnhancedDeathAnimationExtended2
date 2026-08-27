@@ -188,10 +188,9 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         return nil
     end
 
-    local animationModelName = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_MODEL_NAME
+    local animationModelName = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME
     local animationModel = ents.Create("prop_dynamic")
     animationModel:SetModel(animationModelName)
-    animationModel:Spawn()
     if animationModel:GetModel() ~= animationModelName then
         log.warn("Invalid animationModelName: ", tostring(animationModelName))
         animationModel:Remove()
@@ -206,15 +205,22 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     end
     local animationEndTime = CurTime() + animationDuration
 
-    local ragdollStandPos  = helper.GetStandPos(ragdoll)
+    local ragdollStandPos = helper.GetStandPos(ragdoll)
     animationModel:SetPos(ragdollStandPos)
 
     local ragdollAngles = ragdoll:GetAngles()
     local ragdollYaw = Angle(0, ragdollAngles.yaw, 0)
     animationModel:SetAngles(ragdollYaw)
+    animationModel:Spawn()
 
     animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when release
     animationModel:Fire("SetAnimation", animationName)
+
+    local gravityProxy = ents.Create("prop_sphere")
+    proxy:SetModel(Constants.ANIMATION_PLAYER_PROXY_MODEL_NAME)
+    proxy:SetKeyValue("radius", "4")
+    gravityProxy:SetPos(ragdollStandPos)
+    gravityProxy:Spawn()
 
     local shadowParams = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
     if opts.shadowParamsTemplate then
@@ -226,6 +232,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     local ctx = {
         ragdoll = ragdoll,
         animationModel = animationModel,
+        gravityProxy = gravityProxy,
+
         animationName = animationName,
 
         animationEndTime = animationEndTime,
