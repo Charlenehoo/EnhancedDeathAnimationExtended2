@@ -22,6 +22,11 @@ local function cleanUp(ctx)
     if IsValid(animationModel) then
         animationModel:Remove()
     end
+
+    local gravityProxy = ctx.gravityProxy
+    if IsValid(gravityProxy) then
+        gravityProxy:Remove()
+    end
 end
 
 local function enableMotion(ragdoll, enable, ragdollPhysicsObjectCount)
@@ -77,9 +82,11 @@ end
 local function playAnimationCoroutine(ctx)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
+    local gravityProxy = ctx.gravityProxy
+    local gravityProxyPhysObj = ctx.gravityProxyPhysObj
     local collisionStrategy = ctx.collisionStrategy or DummyCollisionStrategy
 
-    if not IsValid(ragdoll) or not IsValid(animationModel) then
+    if not IsValid(ragdoll) or not IsValid(animationModel) or not IsValid(gravityProxy) then
         cleanUp(ctx)
         return
     end
@@ -101,9 +108,9 @@ local function playAnimationCoroutine(ctx)
     end
     coroutine.yield()
 
-    local controlingBones = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
+    local activeBoneMappings = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
 
-    while IsValid(ragdoll) and IsValid(animationModel) do
+    while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) do
         local now = CurTime()
         local deltaTime = FrameTime()
 
@@ -117,14 +124,22 @@ local function playAnimationCoroutine(ctx)
             break
         end
 
-        if ragdollPhysicsObjectCount - #controlingBones < Constants.MIN_CONTROL_BONE then
-            break
-        end
+        -- if ragdollPhysicsObjectCount - #controlingBones < Constants.MIN_CONTROL_BONE then
+        --     break
+        -- end
 
-        for i = #controlingBones, 1, -1 do
-            local boneName = controlingBones[i].boneName
-            local amBoneID = controlingBones[i].amBoneID
-            local ragdollPhysObj = controlingBones[i].ragdollPhysObj
+        local ragdollPos = ragdoll:GetPos()
+        local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
+        local gravityProxyPhysObjPosZ = gravityProxyPhysObjPos.z
+        gravityProxyPhysObj:SetPos(Vector(ragdollPos.x, ragdollPos.y, gravityProxyPhysObjPosZ), true)
+
+        local animationModelPos = animationModel:GetPos()
+        animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y, gravityProxyPhysObjPosZ))
+
+        for i = #activeBoneMappings, 1, -1 do
+            local boneName = activeBoneMappings[i].boneName
+            local amBoneID = activeBoneMappings[i].amBoneID
+            local ragdollPhysObj = activeBoneMappings[i].ragdollPhysObj
 
             -- The bone's position relative to the world. It can return nothing if the requested bone is out of bounds, or the entity has no model.
             -- The bone's angle relative to the world.
@@ -216,11 +231,20 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when release
     animationModel:Fire("SetAnimation", animationName)
 
+    -- ============================================
+    -- GRAVITY_PROXY START
+    -- ============================================
     local gravityProxy = ents.Create("prop_sphere")
-    gravityProxy:SetModel(Constants.ANIMATION_PLAYER_PROXY_MODEL_NAME)
-    gravityProxy:SetKeyValue("radius", "4")
+    gravityProxy:SetModel(Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME)
+    gravityProxy:SetKeyValue("radius", Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS)
     gravityProxy:SetPos(ragdollStandPos)
     gravityProxy:Spawn()
+    gravityProxy:SetCustomCollisionCheck(true)
+
+    local gravityProxyPhysObj = gravityProxy:GetPhysicsObject()
+    -- ============================================
+    -- GRAVITY_PROXY END
+    -- ============================================
 
     local shadowParams = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
     if opts.shadowParamsTemplate then
@@ -233,6 +257,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         ragdoll = ragdoll,
         animationModel = animationModel,
         gravityProxy = gravityProxy,
+        gravityProxyPhysObj = gravityProxyPhysObj,
 
         animationName = animationName,
 
@@ -248,8 +273,22 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
     ctx.coro = coro
 
+    ragdoll[Constants.RAGDOLL_CONTEXT_KEY] = ctx
+
     return ctx
 end
+
+hook.Add("ShouldCollide", Constants.ADDON_NAME .. MODULE_NAME .. "ShouldCollide", function(ent1, ent2)
+    if ent1[Constants.RAGDOLL_CONTEXT_KEY] then
+        return ent2 ~= ent1[Constants.RAGDOLL_CONTEXT_KEY].gravityProxy
+    end
+
+    if ent2[Constants.RAGDOLL_CONTEXT_KEY] then
+        return ent1 ~= ent2[Constants.RAGDOLL_CONTEXT_KEY].gravityProxy
+    end
+
+    return true
+end)
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = AnimationPlayer
 return AnimationPlayer

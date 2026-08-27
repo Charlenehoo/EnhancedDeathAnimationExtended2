@@ -309,6 +309,7 @@ local runnings = {
 function Selector:Select()
     -- local animation = animations[math.random(#animations)]
     local animation = runnings[math.random(#runnings)]
+    log.trace("Select: ", animation)
     return animation
 end
 
