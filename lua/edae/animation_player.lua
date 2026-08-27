@@ -229,12 +229,12 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     local animationModelHeight = standOffset:Length()
 
     local ragdollStandPos = helper.GetStandPos(ragdoll)
-    local ragdollAngles = ragdoll:GetAngles()
-    local ragdollYaw = Angle(0, ragdollAngles.yaw, 0)
+    local yaw = opts.yaw or ragdoll:GetAngles().yaw
 
-    standOffset:Rotate(ragdollYaw)
+    local targetAngle = Angle(0, yaw, 0)
+    standOffset:Rotate(targetAngle)
     animationModel:SetPos(ragdollStandPos - standOffset)
-    animationModel:SetAngles(ragdollYaw)
+    animationModel:SetAngles(targetAngle)
 
     animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when release
     animationModel:Fire("SetAnimation", animationName)
