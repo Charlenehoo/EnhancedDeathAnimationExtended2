@@ -185,7 +185,6 @@ function AnimationPlayer:Play(ragdoll, animationName, animationModelName)
         animationModelName = animationModelName,
 
         animationEndTime = animationEndTime,
-
         shadowParamsTemplate = shadowParamsTemplate,
 
         stopSignal = nil,
