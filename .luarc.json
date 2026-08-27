@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime.version": "LuaJIT",
+  "runtime.special": {
+    "IncludeCS": "dofile",
+    "include": "dofile"
+  },
+  "runtime.nonstandardSymbol": [
+    "!",
+    "!=",
+    "&&",
+    "||",
+    "//",
+    "/**/",
+    "continue"
+  ],
+  "workspace.library": [
+    "C:/Users/CharleneHoo/Dev/Gmod/2026-05-29_06-23-16.lua/"
+  ],
+  "workspace.checkThirdParty": false
+}
