@@ -5,7 +5,7 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants = include("autorun/edae_sh_constants.lua")
+local Constants = include("edae/constants.lua")
 local log = include("edae/log/init.lua")
 local Scheduler = include("edae/coroutine_scheduler.lua")
 
@@ -73,6 +73,8 @@ local function playAnimationCoroutine(ctx)
     coroutine.yield()
 
     while IsValid(ragdoll) and IsValid(animationModel) and not ctx.stopSignal do
+        local deltaTime = FrameTime()
+
         for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
             local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
 
@@ -93,6 +95,7 @@ local function playAnimationCoroutine(ctx)
             if not ragdollPhysObj then continue end
 
             local shadowParams = ctx.shadowParamsTemplate
+            shadowParams.delta = deltaTime
             shadowParams.pos = amBonePos
             shadowParams.angle = amBoneAngle
 
