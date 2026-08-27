@@ -12,6 +12,11 @@ local helper = include("edae/helper.lua")
 
 local AnimationPlayer = {}
 
+local DummyCollisionStrategy = {}
+function DummyCollisionStrategy:Evaluate(physObj, currentPos, desiredPos, context)
+    return "free", desiredPos
+end
+
 local function cleanUp(ctx)
     local animationModel = ctx.animationModel
     if IsValid(animationModel) then
@@ -50,6 +55,7 @@ end
 local function playAnimationCoroutine(ctx)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
+    local collisionStrategy = ctx.collisionStrategy or DummyCollisionStrategy
 
     if not IsValid(ragdoll) or not IsValid(animationModel) then
         cleanUp(ctx)
@@ -61,13 +67,13 @@ local function playAnimationCoroutine(ctx)
         return
     end
 
-    if not enableMotion(ragdoll, false) then
+    if not enableMotion(ragdoll, false, ragdollPhysicsObjectCount) then
         cleanUp(ctx)
         return
     end
     coroutine.yield()
 
-    if not enableMotion(ragdoll, true) then
+    if not enableMotion(ragdoll, true, ragdollPhysicsObjectCount) then
         cleanUp(ctx)
         return
     end
@@ -106,6 +112,20 @@ local function playAnimationCoroutine(ctx)
             local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
             if not ragdollPhysObj then continue end
 
+            local currentPos = ragdollPhysObj:GetPos()
+            local context = {
+                ragdoll = ragdoll,
+                animModel = animationModel,
+                boneName = boneName,
+                physObj = ragdollPhysObj,
+            }
+            local status, fallbackPos = collisionStrategy:Evaluate(
+                ragdollPhysObj,
+                currentPos,
+                amBonePos,
+                context
+            )
+
             local shadowParams = ctx.shadowParamsTemplate
             -- shadowParams.delta = deltaTime
             shadowParams.pos = amBonePos
@@ -125,7 +145,7 @@ end
 --- @param animationName string
 --- @param opts table|nil
 ---   opts.animationModelName string
----   opts.collisionChecker table
+---   opts.collisionStrategy table
 ---   opts.shadowParamsTemplate table
 function AnimationPlayer:Play(ragdoll, animationName, opts)
     opts = opts or {}
@@ -184,7 +204,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
         animationModelName = animationModelName,
         shadowParamsTemplate = shadowParams,
-        collisionChecker = opts.collisionChecker,
+        collisionStrategy = opts.collisionStrategy,
 
         stopSignal = nil,
         coro = nil,
