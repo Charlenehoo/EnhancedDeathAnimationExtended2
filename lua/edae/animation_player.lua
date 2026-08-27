@@ -217,8 +217,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     animationModel:Fire("SetAnimation", animationName)
 
     local gravityProxy = ents.Create("prop_sphere")
-    proxy:SetModel(Constants.ANIMATION_PLAYER_PROXY_MODEL_NAME)
-    proxy:SetKeyValue("radius", "4")
+    gravityProxy:SetModel(Constants.ANIMATION_PLAYER_PROXY_MODEL_NAME)
+    gravityProxy:SetKeyValue("radius", "4")
     gravityProxy:SetPos(ragdollStandPos)
     gravityProxy:Spawn()
 
