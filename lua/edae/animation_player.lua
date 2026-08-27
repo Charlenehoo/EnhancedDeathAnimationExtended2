@@ -14,7 +14,7 @@ local AnimationPlayer = {}
 
 local DummyCollisionStrategy = {}
 function DummyCollisionStrategy:Evaluate(physObj, currentPos, desiredPos, context)
-    return "free", desiredPos
+    return "free", nil
 end
 
 local function cleanUp(ctx)
@@ -52,6 +52,28 @@ local function enableMotion(ragdoll, enable, ragdollPhysicsObjectCount)
     return success > 0
 end
 
+local function makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
+    local map = {}
+    for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
+        local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
+
+        -- "__INVALIDBONE__" in case the name cannot be read or the index is out of range, or we failed or entity doesn't have a model.
+        local boneName = ragdoll:GetBoneName(ragdollBoneID)
+
+        -- Index of the given bone name, or nil if the bone doesn't exist on the Entity.
+        local amBoneID = animationModel:LookupBone(boneName)
+        if not amBoneID then continue end
+
+        -- The physics object or nil if not found
+        local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
+        if not ragdollPhysObj then continue end
+
+        local data = { boneName = boneName, ragdollPhysObj = ragdollPhysObj, amBoneID = amBoneID }
+        table.insert(map, data)
+    end
+    return map
+end
+
 local function playAnimationCoroutine(ctx)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
@@ -79,6 +101,8 @@ local function playAnimationCoroutine(ctx)
     end
     coroutine.yield()
 
+    local controlingBones = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
+
     while IsValid(ragdoll) and IsValid(animationModel) do
         local now = CurTime()
         local deltaTime = FrameTime()
@@ -93,24 +117,19 @@ local function playAnimationCoroutine(ctx)
             break
         end
 
-        for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
-            local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
+        if ragdollPhysicsObjectCount - #controlingBones < Constants.MIN_CONTROL_BONE then
+            break
+        end
 
-            -- "__INVALIDBONE__" in case the name cannot be read or the index is out of range, or we failed or entity doesn't have a model.
-            local boneName = ragdoll:GetBoneName(ragdollBoneID)
-
-            -- Index of the given bone name, or nil if the bone doesn't exist on the Entity.
-            local amBoneID = animationModel:LookupBone(boneName)
-            if not amBoneID then continue end
+        for i = #controlingBones, 1, -1 do
+            local boneName = controlingBones[i].boneName
+            local amBoneID = controlingBones[i].amBoneID
+            local ragdollPhysObj = controlingBones[i].ragdollPhysObj
 
             -- The bone's position relative to the world. It can return nothing if the requested bone is out of bounds, or the entity has no model.
             -- The bone's angle relative to the world.
             local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
             if not amBonePos then continue end
-
-            -- The physics object or nil if not found
-            local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
-            if not ragdollPhysObj then continue end
 
             local currentPos = ragdollPhysObj:GetPos()
             local context = {
@@ -127,9 +146,18 @@ local function playAnimationCoroutine(ctx)
             )
 
             local shadowParams = ctx.shadowParamsTemplate
-            -- shadowParams.delta = deltaTime
-            shadowParams.pos = amBonePos
-            shadowParams.angle = amBoneAngle
+
+            if status == "free" then
+                -- shadowParams.delta = deltaTime
+                shadowParams.pos = amBonePos
+                shadowParams.angle = amBoneAngle
+            elseif status == "fallback" then
+                shadowParams.pos = fallbackPos
+                shadowParams.angle = amBoneAngle
+            else
+                table.remove(controlingBones, i)
+                continue
+            end
 
             ragdollPhysObj:Wake()
             ragdollPhysObj:ComputeShadowControl(shadowParams)
