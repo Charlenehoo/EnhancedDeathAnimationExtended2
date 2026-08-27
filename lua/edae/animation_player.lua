@@ -32,7 +32,7 @@ local function enableMotion(ragdoll, enable, ragdollPhysicsObjectCount)
     end
 
     local success = 0
-    for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount do
+    for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
         local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
         if not ragdollPhysObj then continue end
 
@@ -73,7 +73,7 @@ local function playAnimationCoroutine(ctx)
     coroutine.yield()
 
     while IsValid(ragdoll) and IsValid(animationModel) and not ctx.stopSignal do
-        for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount do
+        for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
             local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
 
             -- "__INVALIDBONE__" in case the name cannot be read or the index is out of range, or we failed or entity doesn't have a model.
