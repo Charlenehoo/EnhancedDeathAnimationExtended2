@@ -84,6 +84,9 @@ local function playAnimationCoroutine(ctx)
     local animationModel = ctx.animationModel
     local gravityProxy = ctx.gravityProxy
     local gravityProxyPhysObj = ctx.gravityProxyPhysObj
+
+    local heightDifference = ctx.animationModelHeight - ctx.gravityProxyRadius
+
     local collisionStrategy = ctx.collisionStrategy or DummyCollisionStrategy
 
     if not IsValid(ragdoll) or not IsValid(animationModel) or not IsValid(gravityProxy) then
@@ -134,7 +137,7 @@ local function playAnimationCoroutine(ctx)
         gravityProxyPhysObj:SetPos(Vector(ragdollPos.x, ragdollPos.y, gravityProxyPhysObjPosZ), true)
 
         local animationModelPos = animationModel:GetPos()
-        animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y, gravityProxyPhysObjPosZ))
+        animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y, gravityProxyPhysObjPosZ + heightDifference))
 
         for i = #activeBoneMappings, 1, -1 do
             local boneName = activeBoneMappings[i].boneName
@@ -170,7 +173,7 @@ local function playAnimationCoroutine(ctx)
                 shadowParams.pos = fallbackPos
                 shadowParams.angle = amBoneAngle
             else
-                table.remove(controlingBones, i)
+                table.remove(activeBoneMappings, i)
                 continue
             end
 
@@ -211,6 +214,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         animationModel:Remove()
         return nil
     end
+    animationModel:Spawn()
 
     local _, animationDuration = animationModel:LookupSequence(animationName)
     if not animationDuration or animationDuration <= 0 then
@@ -220,13 +224,17 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     end
     local animationEndTime = CurTime() + animationDuration
 
-    local ragdollStandPos = helper.GetStandPos(ragdoll)
-    animationModel:SetPos(ragdollStandPos)
+    local animationModelStandPos = helper.GetStandPos(animationModel)
+    local standOffset = animationModelStandPos - animationModel:GetPos()
+    local animationModelHeight = standOffset:Length()
 
+    local ragdollStandPos = helper.GetStandPos(ragdoll)
     local ragdollAngles = ragdoll:GetAngles()
     local ragdollYaw = Angle(0, ragdollAngles.yaw, 0)
+
+    standOffset:Rotate(ragdollYaw)
+    animationModel:SetPos(ragdollStandPos - standOffset)
     animationModel:SetAngles(ragdollYaw)
-    animationModel:Spawn()
 
     animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when release
     animationModel:Fire("SetAnimation", animationName)
@@ -235,11 +243,14 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     -- GRAVITY_PROXY START
     -- ============================================
     local gravityProxy = ents.Create("prop_sphere")
+    local radius = Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS
+    gravityProxy:SetKeyValue("radius", tostring(radius))
     gravityProxy:SetModel(Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME)
-    gravityProxy:SetKeyValue("radius", Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS)
-    gravityProxy:SetPos(ragdollStandPos)
+    -- gravityProxy:GetModelScale(Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_SCALE)
     gravityProxy:Spawn()
+    gravityProxy:SetPos(ragdollStandPos + Vector(0, 0, radius))
     gravityProxy:SetCustomCollisionCheck(true)
+    -- gravityProxy:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 
     local gravityProxyPhysObj = gravityProxy:GetPhysicsObject()
     -- ============================================
@@ -259,11 +270,14 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         gravityProxy = gravityProxy,
         gravityProxyPhysObj = gravityProxyPhysObj,
 
-        animationName = animationName,
+        animationModelName = animationModelName,
+        animationModelHeight = animationModelHeight,
 
+        gravityProxyRadius = radius,
+
+        animationName = animationName,
         animationEndTime = animationEndTime,
 
-        animationModelName = animationModelName,
         shadowParamsTemplate = shadowParams,
         collisionStrategy = opts.collisionStrategy,
 
