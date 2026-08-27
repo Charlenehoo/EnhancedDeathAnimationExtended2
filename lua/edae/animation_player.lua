@@ -139,7 +139,16 @@ local function playAnimationCoroutine(ctx)
     cleanUp(ctx)
 end
 
-function AnimationPlayer:Play(ragdoll, animationName, animationModelName)
+--- 播放动画
+--- @param ragdoll Entity
+--- @param animationName string
+--- @param opts table|nil
+---   opts.animationModelName string
+---   opts.collisionChecker table
+---   opts.shadowParamsTemplate table
+function AnimationPlayer:Play(ragdoll, animationName, opts)
+    opts = opts or {}
+
     if not IsValid(ragdoll) then
         log.warn("Invalid ragdoll: ", tostring(ragdoll))
         return nil
@@ -150,44 +159,54 @@ function AnimationPlayer:Play(ragdoll, animationName, animationModelName)
         return nil
     end
 
-    if not animationModelName then
-        animationModelName = Constants.ANIMATION_PLAYER_DEFAULT_MODEL_NAME
-    end
+    local animationModelName = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_MODEL_NAME
     local animationModel = ents.Create("prop_dynamic")
     animationModel:SetModel(animationModelName)
+    animationModel:Spawn()
     if animationModel:GetModel() ~= animationModelName then
         log.warn("Invalid animationModelName: ", tostring(animationModelName))
+        animationModel:Remove()
         return nil
     end
 
-    local animationStartTime = CurTime()
     local _, animationDuration = animationModel:LookupSequence(animationName)
-    local animationEndTime = animationStartTime + animationDuration
+    if not animationDuration or animationDuration <= 0 then
+        log.warn("Invalid animation sequence: ", animationName)
+        animationModel:Remove()
+        return nil
+    end
+    local animationEndTime = CurTime() + animationDuration
 
-    local ragdollStandPos = helper.GetStandPos(ragdoll)
-    -- local startPos = ragdoll:GetPos()
+    local ragdollStandPos  = helper.GetStandPos(ragdoll)
+    animationModel:SetPos(ragdollStandPos)
+
     local startAngles = ragdoll:GetAngles()
     local startYaw = Angle(0, startAngles.yaw, 0)
-
-    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1)
-    animationModel:SetPos(ragdollStandPos)
     animationModel:SetAngles(startYaw)
 
-    animationModel:Spawn()
+    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1)
     animationModel:Fire("SetAnimation", animationName)
 
-    local shadowParamsTemplate = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
+    local shadowParams = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
+    if opts.shadowParamsTemplate then
+        for k, v in pairs(opts.shadowParamsTemplate) do
+            shadowParams[k] = v
+        end
+    end
 
     local ctx = {
         ragdoll = ragdoll,
         animationModel = animationModel,
         animationName = animationName,
-        animationModelName = animationModelName,
 
         animationEndTime = animationEndTime,
-        shadowParamsTemplate = shadowParamsTemplate,
+
+        animationModelName = animationModelName,
+        shadowParamsTemplate = shadowParams,
+        collisionChecker = opts.collisionChecker,
 
         stopSignal = nil,
+        coro = nil,
     }
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
     ctx.coro = coro
