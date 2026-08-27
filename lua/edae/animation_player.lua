@@ -94,6 +94,25 @@ local function playAnimationCoroutine(ctx)
             local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
             if not ragdollPhysObj then continue end
 
+            -- -- ============ 调试日志埋点（Start）============
+            -- if boneName == "ValveBiped.Bip01_Pelvis" then
+            --     local actualPos = ragdollPhysObj:GetPos()
+            --     local errorVec = actualPos - amBonePos
+            --     local errorDist = errorVec:Length()
+            --     local velocity = ragdollPhysObj:GetVelocity()
+            --     local speed = velocity:Length()
+
+            --     -- 写入 CSV: 时间, 距离误差, 速度, 误差X, 误差Y, 误差Z
+            --     local csvLine = string.format("%.6f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
+            --         CurTime(),
+            --         errorDist,
+            --         speed,
+            --         errorVec.x, errorVec.y, errorVec.z
+            --     )
+            --     file.Append("edae_shadow_debug.csv", csvLine)
+            -- end
+            -- -- ============ 调试日志埋点（End）============
+
             local shadowParams = ctx.shadowParamsTemplate
             shadowParams.delta = deltaTime
             shadowParams.pos = amBonePos

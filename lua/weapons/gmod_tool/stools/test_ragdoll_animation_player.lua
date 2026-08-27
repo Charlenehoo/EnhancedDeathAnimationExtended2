@@ -278,15 +278,25 @@ function TOOL:LeftClick(tr)
     if self.ctx then
         self.ctx.stopSignal = true
     end
-    local clickEnt = tr.Entity
-    if not IsValid(clickEnt) or not clickEnt:IsRagdoll() then return false end
-    local animation = animations[math.random(#animations)]
-    local ctx = AnimationPlayer:Play(clickEnt, animation)
-    self.ctx = ctx
+
+    local clickPos = tr.HitPos
+    local ragdoll = ents.Create("prop_ragdoll")
+    ragdoll:SetModel(self:GetOwner():GetModel())
+    ragdoll:SetPos(clickPos)
+    ragdoll:Spawn()
+
+    self.ragdoll = ragdoll
     return true
 end
 
 function TOOL:RightClick(tr)
+    local animation = animations[math.random(#animations)]
+    local ctx = AnimationPlayer:Play(self.ragdoll, animation)
+    self.ctx = ctx
+    return true
+end
+
+function TOOL:Reload(tr)
     if self.ctx then
         self.ctx.stopSignal = true
     end
