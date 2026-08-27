@@ -8,6 +8,7 @@ end
 local Constants = include("edae/constants.lua")
 local log = include("edae/log/init.lua")
 local Scheduler = include("edae/coroutine_scheduler.lua")
+local helper = include("edae/helper.lua")
 
 local AnimationPlayer = {}
 
@@ -125,7 +126,7 @@ local function playAnimationCoroutine(ctx)
             -- -- ============ 调试日志埋点（End）============
 
             local shadowParams = ctx.shadowParamsTemplate
-            shadowParams.delta = deltaTime
+            -- shadowParams.delta = deltaTime
             shadowParams.pos = amBonePos
             shadowParams.angle = amBoneAngle
 
@@ -163,12 +164,13 @@ function AnimationPlayer:Play(ragdoll, animationName, animationModelName)
     local _, animationDuration = animationModel:LookupSequence(animationName)
     local animationEndTime = animationStartTime + animationDuration
 
-    local startPos = ragdoll:GetPos()
+    local ragdollStandPos = helper.GetStandPos(ragdoll)
+    -- local startPos = ragdoll:GetPos()
     local startAngles = ragdoll:GetAngles()
     local startYaw = Angle(0, startAngles.yaw, 0)
 
-    -- animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1)
-    animationModel:SetPos(startPos)
+    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1)
+    animationModel:SetPos(ragdollStandPos)
     animationModel:SetAngles(startYaw)
 
     animationModel:Spawn()

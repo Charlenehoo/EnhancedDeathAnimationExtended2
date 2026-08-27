@@ -1,0 +1,27 @@
+local helper = {}
+
+local function getStandPosByBone(ent)
+    local LEFT_FOOT = "ValveBiped.Bip01_L_Foot"
+    local RIGHT_FOOT = "ValveBiped.Bip01_R_Foot"
+
+    local leftFoot = ent:LookupBone(LEFT_FOOT)
+    local rightFoot = ent:LookupBone(RIGHT_FOOT)
+    if not leftFoot or not rightFoot then return nil end
+
+    local leftPos, _ = ent:GetBonePosition(leftFoot)
+    local rightPos, _ = ent:GetBonePosition(rightFoot)
+    if not leftPos or not rightPos then return nil end
+
+    return (leftPos + rightPos) * 0.5
+end
+
+function helper.GetStandPos(ent)
+    if not IsValid(ent) then return end
+
+    local standPos = getStandPosByBone(ent)
+    if standPos then return standPos end
+
+    return ent:GetPos()
+end
+
+return helper

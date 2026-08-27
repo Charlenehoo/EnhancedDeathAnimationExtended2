@@ -1,6 +1,14 @@
-TOOL.Category = "Debug"
+local MODULE_NAME = "AnimationSelector"
 
-local AnimationPlayer = include("edae/animation_player.lua")
+_EnhancedDeathAnimationExtendedSingletons = _EnhancedDeathAnimationExtendedSingletons or {}
+if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
+    return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
+end
+
+local Constants = include("edae/constants.lua")
+local log = include("edae/log/init.lua")
+
+local Selector = {}
 
 local animations = {
     "16back",
@@ -274,42 +282,35 @@ local animations = {
     "writhing2",
 }
 
-function TOOL:LeftClick(tr)
-    if self.ctx then
-        self.ctx.stopSignal = true
-    end
+local runnings = {
+    "DeathRunning_01",
+    "DeathRunning_03",
+    "DeathRunning_04",
+    "DeathRunning_05",
+    "DeathRunning_06",
+    "DeathRunning_07",
+    "DeathRunning_08",
+    "DeathRunning_09",
+    "DeathRunning_10",
+    "DeathRunning_11a",
+    "DeathRunning_11b",
+    "DeathRunning_11c",
+    "DeathRunning_11d",
+    "DeathRunning_11e",
+    "DeathRunning_11f",
+    "DeathRunning_11g",
+    "DeathRunning_12",
+    "DeathRunning_13",
+    "DeathRunning_14",
+    "DeathRunning_15",
+    "DeathRunning_16",
+}
 
-    local clickPos = tr.HitPos
-
-    local tr = util.TraceLine({
-        start = clickPos,
-        endpos = clickPos + Vector(0, 0, -100)
-    })
-    local groupPos = tr.HitPos
-
-    local ragdoll = ents.Create("prop_ragdoll")
-    ragdoll:SetModel(self:GetOwner():GetModel())
-    ragdoll:SetPos(groupPos)
-    ragdoll:Spawn()
-    local animation = animations[math.random(#animations)]
-    local ctx = AnimationPlayer:Play(ragdoll, animation)
-    self.ctx = ctx
-
-    undo.SetPlayer(self:GetOwner())
-    undo.Create("Ragdoll Animation")
-    undo.AddEntity(ragdoll)
-    undo.Finish()
-
-    return true
+function Selector:Select()
+    -- local animation = animations[math.random(#animations)]
+    local animation = runnings[math.random(#runnings)]
+    return animation
 end
 
-function TOOL:RightClick(tr)
-    return true
-end
-
-function TOOL:Reload(tr)
-    if self.ctx then
-        self.ctx.stopSignal = true
-    end
-    return true
-end
+_EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = Selector
+return Selector
