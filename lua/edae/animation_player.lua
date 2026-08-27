@@ -72,8 +72,19 @@ local function playAnimationCoroutine(ctx)
     end
     coroutine.yield()
 
-    while IsValid(ragdoll) and IsValid(animationModel) and not ctx.stopSignal do
+    while IsValid(ragdoll) and IsValid(animationModel) do
+        local now = CurTime()
         local deltaTime = FrameTime()
+
+        if ctx.stopSignal then
+            log.trace("Animation end due to ctx.stopSignal")
+            break
+        end
+
+        if (now > ctx.animationEndTime) then
+            log.trace("Animation end due to now: ", now, " > ", "ctx.animationEndTime: ", ctx.animationEndTime)
+            break
+        end
 
         for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
             local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
@@ -148,11 +159,15 @@ function AnimationPlayer:Play(ragdoll, animationName, animationModelName)
         return nil
     end
 
+    local animationStartTime = CurTime()
+    local _, animationDuration = animationModel:LookupSequence(animationName)
+    local animationEndTime = animationStartTime + animationDuration
+
     local startPos = ragdoll:GetPos()
     local startAngles = ragdoll:GetAngles()
     local startYaw = Angle(0, startAngles.yaw, 0)
 
-    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1)
+    -- animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1)
     animationModel:SetPos(startPos)
     animationModel:SetAngles(startYaw)
 
@@ -166,6 +181,9 @@ function AnimationPlayer:Play(ragdoll, animationName, animationModelName)
         animationModel = animationModel,
         animationName = animationName,
         animationModelName = animationModelName,
+
+        animationEndTime = animationEndTime,
+
         shadowParamsTemplate = shadowParamsTemplate,
 
         stopSignal = nil,

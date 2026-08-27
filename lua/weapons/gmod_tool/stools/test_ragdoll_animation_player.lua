@@ -284,15 +284,16 @@ function TOOL:LeftClick(tr)
     ragdoll:SetModel(self:GetOwner():GetModel())
     ragdoll:SetPos(clickPos)
     ragdoll:Spawn()
+    local animation = animations[math.random(#animations)]
+    local ctx = AnimationPlayer:Play(ragdoll, animation)
+    self.ctx = ctx
 
-    self.ragdoll = ragdoll
+    undo.SetPlayer(self:GetOwner())
+    undo.AddEntity(ragdoll)
     return true
 end
 
 function TOOL:RightClick(tr)
-    local animation = animations[math.random(#animations)]
-    local ctx = AnimationPlayer:Play(self.ragdoll, animation)
-    self.ctx = ctx
     return true
 end
 
