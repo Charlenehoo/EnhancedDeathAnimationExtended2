@@ -131,13 +131,13 @@ local function playAnimationCoroutine(ctx)
         --     break
         -- end
 
-        local ragdollPos = ragdoll:GetPos()
-        local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
-        local gravityProxyPhysObjPosZ = gravityProxyPhysObjPos.z
-        gravityProxyPhysObj:SetPos(Vector(ragdollPos.x, ragdollPos.y, gravityProxyPhysObjPosZ), true)
+        local ragdollVelocity = ragdoll:GetVelocity()
+        gravityProxyPhysObj:SetVelocityInstantaneous(ragdollVelocity)
 
+        local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
         local animationModelPos = animationModel:GetPos()
-        animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y, gravityProxyPhysObjPosZ + heightDifference))
+        animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y,
+            gravityProxyPhysObjPos.z + heightDifference))
 
         for i = #activeBoneMappings, 1, -1 do
             local boneName = activeBoneMappings[i].boneName
@@ -251,8 +251,12 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     gravityProxy:SetPos(ragdollStandPos + Vector(0, 0, radius))
     gravityProxy:SetCustomCollisionCheck(true)
     -- gravityProxy:SetCollisionGroup(COLLISION_GROUP_WEAPON)
+    gravityProxy:SetFriction(0)
+    gravityProxy:SetGravity(10)
 
     local gravityProxyPhysObj = gravityProxy:GetPhysicsObject()
+    gravityProxyPhysObj:EnableDrag(false)
+    gravityProxyPhysObj:EnableGravity(true)
     -- ============================================
     -- GRAVITY_PROXY END
     -- ============================================
