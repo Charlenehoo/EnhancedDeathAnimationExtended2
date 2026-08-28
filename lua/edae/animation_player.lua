@@ -94,12 +94,10 @@ local function playAnimationCoroutine(ctx)
         return
     end
     local ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
-    if not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 then
-        cleanUp(ctx)
-        return
-    end
-
-    if not enableMotion(ragdoll, false, ragdollPhysicsObjectCount) then
+    if
+        not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 or
+        not enableMotion(ragdoll, false, ragdollPhysicsObjectCount)
+    then
         cleanUp(ctx)
         return
     end
@@ -293,7 +291,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         ragdollStandPos       = helper.GetStandPos(ragdoll),
 
         loop                  = loop, -- 循环配置：false/0 不循环，true/-1 无限循环，正整数 n 循环 n 次（总播放 n+1 次）
-        loopCount             = 0, -- 已循环次数（初始 0）
+        loopCount             = 0,    -- 已循环次数（初始 0）
 
         yaw                   = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName    = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME,
