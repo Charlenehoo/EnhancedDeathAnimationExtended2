@@ -15,10 +15,27 @@ local function getStandPosByBone(ent)
     return (leftPos + rightPos) * 0.5
 end
 
+local function getStandPosByTrace(ent)
+    local startPos = ent:GetPos()
+    local endPos = startPos - Vector(0, 0, 200)
+    local trace = util.TraceLine({
+        start = startPos,
+        endpos = endPos,
+        mask = MASK_SOLID_BRUSHONLY,
+    })
+    if trace.Hit then
+        return trace.HitPos
+    end
+    return nil
+end
+
 function helper.GetStandPos(ent)
     if not IsValid(ent) then return end
 
-    local standPos = getStandPosByBone(ent)
+    local standPos = getStandPosByTrace(ent)
+    if standPos then return standPos end
+
+    standPos = getStandPosByBone(ent)
     if standPos then return standPos end
 
     return ent:GetPos()
