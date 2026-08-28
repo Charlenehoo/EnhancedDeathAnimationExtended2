@@ -111,7 +111,6 @@ local function playAnimationCoroutine(ctx)
     end
     coroutine.yield()
 
-
     local animationEndTime = CurTime() + ctx.animationDuration
     animationModel:Fire("SetAnimation", animationName)
 
@@ -202,7 +201,7 @@ local function fillShadowParamsTemplate(ctx)
 end
 
 local function checkAnimationName(ctx)
-    local _, animationDuration = ctx.animationModel:LookupSequence(ctx.ctxanimationName)
+    local _, animationDuration = ctx.animationModel:LookupSequence(ctx.animationName)
     if not animationDuration or animationDuration <= 0 then
         log.warn("Invalid animation sequence: ", ctx.animationName)
         return false
@@ -283,6 +282,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     local ctx = {
         ragdoll               = ragdoll,
+        animationName         = animationName,
         ragdollStandPos       = helper.GetStandPos(ragdoll),
 
         yaw                   = opts.yaw or ragdoll:GetAngles().yaw,
