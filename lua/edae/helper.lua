@@ -1,6 +1,6 @@
 local helper = {}
 
-local function getStandPosByBone(ent)
+function helper.GetStandPosByBone(ent)
     local LEFT_FOOT = "ValveBiped.Bip01_L_Foot"
     local RIGHT_FOOT = "ValveBiped.Bip01_R_Foot"
 
@@ -15,7 +15,7 @@ local function getStandPosByBone(ent)
     return (leftPos + rightPos) * 0.5
 end
 
-local function getStandPosByTrace(ent)
+function helper.GetStandPosByTrace(ent)
     local startPos = ent:GetPos()
     local endPos = startPos - Vector(0, 0, 200)
     local trace = util.TraceLine({
@@ -32,10 +32,10 @@ end
 function helper.GetStandPos(ent)
     if not IsValid(ent) then return end
 
-    local standPos = getStandPosByTrace(ent)
+    local standPos = helper.GetStandPosByTrace(ent)
     if standPos then return standPos end
 
-    standPos = getStandPosByBone(ent)
+    standPos = helper.GetStandPosByBone(ent)
     if standPos then return standPos end
 
     return ent:GetPos()
