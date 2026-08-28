@@ -111,15 +111,8 @@ local function playAnimationCoroutine(ctx)
     end
     coroutine.yield()
 
-    local _, animationDuration = animationModel:LookupSequence(animationName)
-    if not animationDuration or animationDuration <= 0 then
-        log.warn("Invalid animation sequence: ", animationName)
-        cleanUp(ctx)
-        return
-    end
-    local animationEndTime = CurTime() + animationDuration
-    ctx.animationEndTime = animationEndTime
 
+    local animationEndTime = CurTime() + ctx.animationDuration
     animationModel:Fire("SetAnimation", animationName)
 
     local activeBoneMappings = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
@@ -197,16 +190,36 @@ local function playAnimationCoroutine(ctx)
     cleanUp(ctx)
 end
 
+local function fillShadowParamsTemplate(ctx)
+    local shadowParams = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
+    if ctx.shadowParamsTemplate then
+        for k, v in pairs(ctx.shadowParamsTemplate) do
+            shadowParams[k] = v
+        end
+    end
+    ctx.shadowParamsTemplate = shadowParams
+    return true
+end
+
+local function checkAnimationName(ctx)
+    local _, animationDuration = ctx.animationModel:LookupSequence(ctx.ctxanimationName)
+    if not animationDuration or animationDuration <= 0 then
+        log.warn("Invalid animation sequence: ", ctx.animationName)
+        return false
+    end
+    ctx.animationDuration = animationDuration
+    return true
+end
+
 local function creatGravityProxy(ctx)
     local gravityProxy = ents.Create("prop_sphere")
     ctx.gravityProxy = gravityProxy
 
     local radius = ctx.gravityProxyRadius
     gravityProxy:SetKeyValue("radius", tostring(radius))
-
     gravityProxy:SetModel(ctx.gravityProxyModelName)
-
     gravityProxy:Spawn()
+
     gravityProxy:SetPos(ctx.ragdollStandPos + Vector(0, 0, radius))
     gravityProxy:SetCustomCollisionCheck(true)
     gravityProxy:SetFriction(0)
@@ -217,6 +230,8 @@ local function creatGravityProxy(ctx)
 
     gravityProxyPhysObj:EnableDrag(false)
     gravityProxyPhysObj:EnableGravity(true)
+
+    return true
 end
 
 local function createAnimationModel(ctx)
@@ -229,7 +244,6 @@ local function createAnimationModel(ctx)
         log.warn("Invalid animationModelName: ", tostring(animationModelName))
         return false
     end
-
     animationModel:Spawn()
 
     local animationModelStandPos = helper.GetStandPos(animationModel)
@@ -262,22 +276,20 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     if not animationName then
         log.warn("No animationName")
+        return nil
     end
 
     opts = opts or {}
 
-    local ragdollStandPos = helper.GetStandPos(ragdoll)
-    local yaw = opts.yaw or ragdoll:GetAngles().yaw
-
     local ctx = {
         ragdoll               = ragdoll,
-        ragdollStandPos       = ragdollStandPos,
-        yaw                   = yaw,
+        ragdollStandPos       = helper.GetStandPos(ragdoll),
 
+        yaw                   = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName    = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME,
         gravityProxyModelName = opts.gravityProxyModelName or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME,
-        collisionStrategy     = opts.collisionStrategy,
-        gravityProxyRadius    = opts.radius,
+        gravityProxyRadius    = opts.radius or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS,
+        collisionStrategy     = opts.collisionStrategy or DummyCollisionStrategy,
 
         -- ===============================
         -- 以下由 createAnimationModel 填充
@@ -286,33 +298,34 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         -- ===============================
 
         -- ===============================
+        -- 以下由 checkAnimationName 填充
+        animationDuration     = nil,
+        -- ===============================
+
+        -- ===============================
         -- 以下由 creatGravityProxy 填充
         gravityProxy          = nil,
         gravityProxyPhysObj   = nil,
         -- ===============================
 
-        shadowParamsTemplate  = nil,
+        -- ===============================
+        -- 以下由 fillShadowParamsTemplate 填充
+        shadowParamsTemplate  = opts.shadowParamsTemplate,
+        -- ===============================
+
         coro                  = nil,
         stopSignal            = nil,
     }
 
-    if not createAnimationModel(ctx) then
+    if
+        not createAnimationModel(ctx) or
+        not checkAnimationName(ctx) or
+        not creatGravityProxy(ctx) or
+        not fillShadowParamsTemplate(ctx)
+    then
         cleanUp(ctx)
         return nil
     end
-
-    if not creatGravityProxy(ctx) then
-        cleanUp(ctx)
-        return nil
-    end
-
-    local shadowParams = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
-    if opts.shadowParamsTemplate then
-        for k, v in pairs(opts.shadowParamsTemplate) do
-            shadowParams[k] = v
-        end
-    end
-    ctx.shadowParamsTemplate = shadowParams
 
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
     ctx.coro = coro
