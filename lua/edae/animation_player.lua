@@ -109,11 +109,10 @@ local function playAnimationCoroutine(ctx)
     end
     -- coroutine.yield()
 
-    local animationEndTime = CurTime() + ctx.animationDuration
-    animationModel:Fire("SetAnimation", animationName)
-
     local activeBoneMappings = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
 
+    local animationEndTime = CurTime() + ctx.animationDuration
+    animationModel:Fire("SetAnimation", animationName)
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) do
         local now = CurTime()
         local deltaTime = FrameTime()
@@ -278,20 +277,13 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     opts = opts or {}
 
-    local loop = opts.loop
-    if loop == nil then
-        loop = false
-    elseif type(loop) ~= "boolean" and type(loop) ~= "number" then
-        loop = false -- 非法类型视为不循环
-    end
-
     local ctx = {
         ragdoll               = ragdoll,
         animationName         = animationName,
         ragdollStandPos       = helper.GetStandPos(ragdoll),
 
-        loop                  = loop, -- 循环配置：false/0 不循环，true/-1 无限循环，正整数 n 循环 n 次（总播放 n+1 次）
-        loopCount             = 0,    -- 已循环次数（初始 0）
+        loop                  = opts.loop or 1,
+        loopCount             = 0,
 
         yaw                   = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName    = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME,
