@@ -85,8 +85,8 @@ local function playAnimationCoroutine(ctx)
     local gravityProxy = ctx.gravityProxy
     local gravityProxyPhysObj = ctx.gravityProxyPhysObj
 
+    local animationName = ctx.animationName
     local heightDifference = ctx.animationModelHeight - ctx.gravityProxyRadius
-
     local collisionStrategy = ctx.collisionStrategy or DummyCollisionStrategy
 
     if not IsValid(ragdoll) or not IsValid(animationModel) or not IsValid(gravityProxy) then
@@ -111,6 +111,17 @@ local function playAnimationCoroutine(ctx)
     end
     coroutine.yield()
 
+    local _, animationDuration = animationModel:LookupSequence(animationName)
+    if not animationDuration or animationDuration <= 0 then
+        log.warn("Invalid animation sequence: ", animationName)
+        cleanUp(ctx)
+        return
+    end
+    local animationEndTime = CurTime() + animationDuration
+    ctx.animationEndTime = animationEndTime
+
+    animationModel:Fire("SetAnimation", animationName)
+
     local activeBoneMappings = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
 
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) do
@@ -122,8 +133,8 @@ local function playAnimationCoroutine(ctx)
             break
         end
 
-        if (now > ctx.animationEndTime) then
-            log.trace("Animation end due to now: ", now, " > ", "ctx.animationEndTime: ", ctx.animationEndTime)
+        if (now > animationEndTime) then
+            log.trace("Animation end due to now: ", now, " > ", "animationEndTime: ", animationEndTime)
             break
         end
 
@@ -186,6 +197,56 @@ local function playAnimationCoroutine(ctx)
     cleanUp(ctx)
 end
 
+local function creatGravityProxy(ctx)
+    local gravityProxy = ents.Create("prop_sphere")
+    ctx.gravityProxy = gravityProxy
+
+    local radius = ctx.gravityProxyRadius
+    gravityProxy:SetKeyValue("radius", tostring(radius))
+
+    gravityProxy:SetModel(ctx.gravityProxyModelName)
+
+    gravityProxy:Spawn()
+    gravityProxy:SetPos(ctx.ragdollStandPos + Vector(0, 0, radius))
+    gravityProxy:SetCustomCollisionCheck(true)
+    gravityProxy:SetFriction(0)
+    gravityProxy:SetGravity(10)
+
+    local gravityProxyPhysObj = gravityProxy:GetPhysicsObject()
+    ctx.gravityProxyPhysObj = gravityProxyPhysObj
+
+    gravityProxyPhysObj:EnableDrag(false)
+    gravityProxyPhysObj:EnableGravity(true)
+end
+
+local function createAnimationModel(ctx)
+    local animationModel = ents.Create("prop_dynamic")
+    ctx.animationModel = animationModel
+
+    local animationModelName = ctx.animationModelName
+    animationModel:SetModel(animationModelName)
+    if animationModel:GetModel() ~= animationModelName then
+        log.warn("Invalid animationModelName: ", tostring(animationModelName))
+        return false
+    end
+
+    animationModel:Spawn()
+
+    local animationModelStandPos = helper.GetStandPos(animationModel)
+    local standOffset            = animationModelStandPos - animationModel:GetPos()
+
+    local animationModelHeight   = standOffset:Length()
+    ctx.animationModelHeight     = animationModelHeight
+
+    standOffset:Rotate(Angle(0, ctx.yaw, 0)) -- standOffset is Rotated at place
+    animationModel:SetPos(ctx.ragdollStandPos - standOffset)
+    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
+
+    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when release
+
+    return true
+end
+
 --- 播放动画
 --- @param ragdoll Entity
 --- @param animationName string
@@ -194,8 +255,6 @@ end
 ---   opts.collisionStrategy table
 ---   opts.shadowParamsTemplate table
 function AnimationPlayer:Play(ragdoll, animationName, opts)
-    opts = opts or {}
-
     if not IsValid(ragdoll) then
         log.warn("Invalid ragdoll: ", tostring(ragdoll))
         return nil
@@ -203,63 +262,49 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     if not animationName then
         log.warn("No animationName")
-        return nil
     end
 
-    local animationModelName = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME
-    local animationModel = ents.Create("prop_dynamic")
-    animationModel:SetModel(animationModelName)
-    if animationModel:GetModel() ~= animationModelName then
-        log.warn("Invalid animationModelName: ", tostring(animationModelName))
-        animationModel:Remove()
-        return nil
-    end
-    animationModel:Spawn()
-
-    local _, animationDuration = animationModel:LookupSequence(animationName)
-    if not animationDuration or animationDuration <= 0 then
-        log.warn("Invalid animation sequence: ", animationName)
-        animationModel:Remove()
-        return nil
-    end
-    local animationEndTime = CurTime() + animationDuration
-
-    local animationModelStandPos = helper.GetStandPos(animationModel)
-    local standOffset = animationModelStandPos - animationModel:GetPos()
-    local animationModelHeight = standOffset:Length()
+    opts = opts or {}
 
     local ragdollStandPos = helper.GetStandPos(ragdoll)
     local yaw = opts.yaw or ragdoll:GetAngles().yaw
 
-    local targetAngle = Angle(0, yaw, 0)
-    standOffset:Rotate(targetAngle)
-    animationModel:SetPos(ragdollStandPos - standOffset)
-    animationModel:SetAngles(targetAngle)
+    local ctx = {
+        ragdoll               = ragdoll,
+        ragdollStandPos       = ragdollStandPos,
+        yaw                   = yaw,
 
-    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when release
-    animationModel:Fire("SetAnimation", animationName)
+        animationModelName    = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME,
+        gravityProxyModelName = opts.gravityProxyModelName or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME,
+        collisionStrategy     = opts.collisionStrategy,
+        gravityProxyRadius    = opts.radius,
 
-    -- ============================================
-    -- GRAVITY_PROXY START
-    -- ============================================
-    local gravityProxy = ents.Create("prop_sphere")
-    local radius = Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS
-    gravityProxy:SetKeyValue("radius", tostring(radius))
-    gravityProxy:SetModel(Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME)
-    -- gravityProxy:GetModelScale(Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_SCALE)
-    gravityProxy:Spawn()
-    gravityProxy:SetPos(ragdollStandPos + Vector(0, 0, radius))
-    gravityProxy:SetCustomCollisionCheck(true)
-    -- gravityProxy:SetCollisionGroup(COLLISION_GROUP_WEAPON)
-    gravityProxy:SetFriction(0)
-    gravityProxy:SetGravity(10)
+        -- ===============================
+        -- 以下由 createAnimationModel 填充
+        animationModel        = nil,
+        animationModelHeight  = nil,
+        -- ===============================
 
-    local gravityProxyPhysObj = gravityProxy:GetPhysicsObject()
-    gravityProxyPhysObj:EnableDrag(false)
-    gravityProxyPhysObj:EnableGravity(true)
-    -- ============================================
-    -- GRAVITY_PROXY END
-    -- ============================================
+        -- ===============================
+        -- 以下由 creatGravityProxy 填充
+        gravityProxy          = nil,
+        gravityProxyPhysObj   = nil,
+        -- ===============================
+
+        shadowParamsTemplate  = nil,
+        coro                  = nil,
+        stopSignal            = nil,
+    }
+
+    if not createAnimationModel(ctx) then
+        cleanUp(ctx)
+        return nil
+    end
+
+    if not creatGravityProxy(ctx) then
+        cleanUp(ctx)
+        return nil
+    end
 
     local shadowParams = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
     if opts.shadowParamsTemplate then
@@ -267,27 +312,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
             shadowParams[k] = v
         end
     end
+    ctx.shadowParamsTemplate = shadowParams
 
-    local ctx = {
-        ragdoll = ragdoll,
-        animationModel = animationModel,
-        gravityProxy = gravityProxy,
-        gravityProxyPhysObj = gravityProxyPhysObj,
-
-        animationModelName = animationModelName,
-        animationModelHeight = animationModelHeight,
-
-        gravityProxyRadius = radius,
-
-        animationName = animationName,
-        animationEndTime = animationEndTime,
-
-        shadowParamsTemplate = shadowParams,
-        collisionStrategy = opts.collisionStrategy,
-
-        stopSignal = nil,
-        coro = nil,
-    }
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
     ctx.coro = coro
 
