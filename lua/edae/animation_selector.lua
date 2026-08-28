@@ -310,7 +310,7 @@ function Selector:Select()
     -- local animation = animations[math.random(#animations)]
     -- local animation = runnings[math.random(#runnings)]
     -- local animation = "ex_movingonfire"
-    local animation = "ex_runonfire1"
+    local animation = "crawling1_f"
 
     log.trace("Select: ", animation)
     return animation

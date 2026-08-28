@@ -85,7 +85,6 @@ local function playAnimationCoroutine(ctx)
     local gravityProxy = ctx.gravityProxy
     local gravityProxyPhysObj = ctx.gravityProxyPhysObj
 
-    local animationName = ctx.animationName
     local heightDifference = ctx.animationModelHeight - ctx.gravityProxyRadius
     local collisionStrategy = ctx.collisionStrategy or DummyCollisionStrategy
 
@@ -111,76 +110,73 @@ local function playAnimationCoroutine(ctx)
 
     local activeBoneMappings = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
 
-    local animationEndTime = CurTime() + ctx.animationDuration
-    animationModel:Fire("SetAnimation", animationName)
-    while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) do
-        local now = CurTime()
-        local deltaTime = FrameTime()
+    local loop = ctx.loop
+    local playCount = 0
+    while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
+        if loop > 0 and playCount >= loop then break end
+        playCount = playCount + 1
 
-        if ctx.stopSignal then
-            log.trace("Animation end due to ctx.stopSignal")
-            break
-        end
+        local animationEndTime = CurTime() + ctx.animationDuration
+        animationModel:Fire("SetAnimation", ctx.animationName)
 
-        if (now > animationEndTime) then
-            log.trace("Animation end due to now: ", now, " > ", "animationEndTime: ", animationEndTime)
-            break
-        end
+        while CurTime() < animationEndTime do
+            local deltaTime = FrameTime()
 
-        -- if ragdollPhysicsObjectCount - #controlingBones < Constants.MIN_CONTROL_BONE then
-        --     break
-        -- end
+            -- if ragdollPhysicsObjectCount - #controlingBones < Constants.MIN_CONTROL_BONE then
+            --     break
+            -- end
 
-        local ragdollVelocity = ragdoll:GetVelocity()
-        gravityProxyPhysObj:SetVelocityInstantaneous(ragdollVelocity)
+            local ragdollVelocity = ragdoll:GetVelocity()
+            gravityProxyPhysObj:SetVelocityInstantaneous(ragdollVelocity)
 
-        local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
-        local animationModelPos = animationModel:GetPos()
-        animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y,
-            gravityProxyPhysObjPos.z + heightDifference))
+            local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
+            local animationModelPos = animationModel:GetPos()
+            animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y,
+                gravityProxyPhysObjPos.z + heightDifference))
 
-        for i = #activeBoneMappings, 1, -1 do
-            local boneName = activeBoneMappings[i].boneName
-            local amBoneID = activeBoneMappings[i].amBoneID
-            local ragdollPhysObj = activeBoneMappings[i].ragdollPhysObj
+            for i = #activeBoneMappings, 1, -1 do
+                local boneName = activeBoneMappings[i].boneName
+                local amBoneID = activeBoneMappings[i].amBoneID
+                local ragdollPhysObj = activeBoneMappings[i].ragdollPhysObj
 
-            -- The bone's position relative to the world. It can return nothing if the requested bone is out of bounds, or the entity has no model.
-            -- The bone's angle relative to the world.
-            local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
-            if not amBonePos then continue end
+                -- The bone's position relative to the world. It can return nothing if the requested bone is out of bounds, or the entity has no model.
+                -- The bone's angle relative to the world.
+                local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
+                if not amBonePos then continue end
 
-            local currentPos = ragdollPhysObj:GetPos()
-            local context = {
-                ragdoll = ragdoll,
-                animModel = animationModel,
-                boneName = boneName,
-                physObj = ragdollPhysObj,
-            }
-            local status, fallbackPos = collisionStrategy:Evaluate(
-                ragdollPhysObj,
-                currentPos,
-                amBonePos,
-                context
-            )
+                local currentPos = ragdollPhysObj:GetPos()
+                local context = {
+                    ragdoll = ragdoll,
+                    animModel = animationModel,
+                    boneName = boneName,
+                    physObj = ragdollPhysObj,
+                }
+                local status, fallbackPos = collisionStrategy:Evaluate(
+                    ragdollPhysObj,
+                    currentPos,
+                    amBonePos,
+                    context
+                )
 
-            local shadowParams = ctx.shadowParamsTemplate
+                local shadowParams = ctx.shadowParamsTemplate
 
-            if status == "free" then
-                -- shadowParams.delta = deltaTime
-                shadowParams.pos = amBonePos
-                shadowParams.angle = amBoneAngle
-            elseif status == "fallback" then
-                shadowParams.pos = fallbackPos
-                shadowParams.angle = amBoneAngle
-            else
-                table.remove(activeBoneMappings, i)
-                continue
+                if status == "free" then
+                    -- shadowParams.delta = deltaTime
+                    shadowParams.pos = amBonePos
+                    shadowParams.angle = amBoneAngle
+                elseif status == "fallback" then
+                    shadowParams.pos = fallbackPos
+                    shadowParams.angle = amBoneAngle
+                else
+                    table.remove(activeBoneMappings, i)
+                    continue
+                end
+
+                ragdollPhysObj:Wake()
+                ragdollPhysObj:ComputeShadowControl(shadowParams)
             end
-
-            ragdollPhysObj:Wake()
-            ragdollPhysObj:ComputeShadowControl(shadowParams)
+            coroutine.yield()
         end
-        coroutine.yield()
     end
 
     cleanUp(ctx)
