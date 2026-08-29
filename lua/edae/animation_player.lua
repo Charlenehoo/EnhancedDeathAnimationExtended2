@@ -59,18 +59,13 @@ local function playAnimationCoroutine(ctx)
     enableMotion(ctx, true)
     coroutine.yield()
 
-    -- 初始播放动画，并等待一帧让动画状态生效
+    -- 第一次播放动画
     animationModel:Fire("SetAnimation", ctx.animationName)
     coroutine.yield()
-
-    local amRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
-    local amRefGround = helper.GetGroundPosByTrace(amRefBonePos)
-    local groundToAMPos = animationModel:GetPos() - amRefGround
 
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
-        log.trace("Loop: ", ctx.loopCount, "/", ctx.totalLoops)
 
         ctx.animationEndTime = CurTime() + ctx.animationDuration
         while CurTime() < ctx.animationEndTime do
@@ -82,12 +77,12 @@ local function playAnimationCoroutine(ctx)
             gravityProxyPhysObj:SetVelocityInstantaneous(Vector(ragdollVelocity.x, ragdollVelocity.y,
                 gravityProxyPhysObVelocity.z))
 
-            -- 修正 am 实体的绝对高度
+            -- 用重力代理修正动画模型实体的绝对高度（贴地）
             local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
             local currentDatumZ = gravityProxyPhysObjPos.z - ctx.gravityProxyDatumToPos.z
-            local amTargetZ = currentDatumZ + ctx.amDatumToPosZ
-            local amCurrentPos = animationModel:GetPos()
-            animationModel:SetPos(Vector(amCurrentPos.x, amCurrentPos.y, amTargetZ))
+            local targetZ = currentDatumZ + ctx.amDatumToPosZ
+            local amPos = animationModel:GetPos()
+            animationModel:SetPos(Vector(amPos.x, amPos.y, targetZ))
 
             -- 驱动布娃娃骨骼
             for i = #ctx.boneMap, 1, -1 do
@@ -131,14 +126,23 @@ local function playAnimationCoroutine(ctx)
             coroutine.yield()
         end
 
-        animationModel:Fire("SetAnimation", ctx.animationName)
-        coroutine.yield()
+        -- ===== 老实现风格的重复定位 =====
+        -- 从布娃娃当前位置向下 TraceLine 找到地面
+        local ragdollPos = ragdoll:GetPos()
+        local trace = util.TraceLine({
+            start = ragdollPos,
+            endpos = ragdollPos - Vector(0, 0, 200),
+            mask = MASK_SOLID,
+            filter = { ragdoll, animationModel, gravityProxy }
+        })
 
-        amRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
-        amRefGround = helper.GetGroundPosByTrace(amRefBonePos)
-        local amTarget2D = amRefGround + groundToAMPos
-        local amCurrentPos = animationModel:GetPos()
-        animationModel:SetPos(Vector(amTarget2D.x, amTarget2D.y, amCurrentPos.z))
+        local groundPos = trace.Hit and trace.HitPos or ragdollPos
+        -- 设置动画模型实体位置：地面点 + 模型原点偏移
+        animationModel:SetPos(groundPos + ctx.amDatumToPos)
+
+        -- 重新播放动画
+        animationModel:Fire("SetAnimation", ctx.animationName)
+        coroutine.yield() -- 等待一帧让动画状态生效
     end
 
     cleanUp(ctx)
@@ -233,7 +237,7 @@ end
 
 local function alignAnimationModel(ctx)
     local animationModel = ctx.animationModel
-    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
+    -- animationModel:SetAngles(Angle(0, ctx.yaw, 0))
 
     local animationModelDatum = helper.GetStandPos(animationModel)
     if not animationModelDatum then return false end

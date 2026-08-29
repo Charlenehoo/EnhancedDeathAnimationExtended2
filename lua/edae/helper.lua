@@ -26,7 +26,7 @@ function helper.GetGroundPosByTrace(pos)
     if trace.Hit then
         return trace.HitPos
     end
-    return nil
+    return pos
 end
 
 function helper.GetStandPos(ent)
