@@ -53,6 +53,9 @@ local function playAnimationCoroutine(ctx)
     animationModel:Fire("SetAnimation", ctx.animationName)
     coroutine.yield()
 
+    -- 记录初始骨骼数量，用于判断是否提前终止
+    ctx.initialBoneCount = #ctx.boneMap
+
     while IsValid(ragdoll) and IsValid(animationModel) and not ctx.stopSignal do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
@@ -60,24 +63,91 @@ local function playAnimationCoroutine(ctx)
 
         ctx.animationEndTime = CurTime() + ctx.animationDuration
         while IsValid(ragdoll) and IsValid(animationModel) and not ctx.stopSignal and CurTime() < ctx.animationEndTime do
-            -- 驱动布娃娃骨骼
+            -- 逆序遍历骨骼，允许在循环中安全移除
             for i = #ctx.boneMap, 1, -1 do
-                local boneName = ctx.boneMap[i].boneName
-                local amBoneID = ctx.boneMap[i].amBoneID
-                local ragdollPhysObj = ctx.boneMap[i].ragdollPhysObj
+                local bone = ctx.boneMap[i]
+                local boneName = bone.boneName
+                local amBoneID = bone.amBoneID
+                local ragdollPhysObj = bone.ragdollPhysObj
 
                 local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
-                if not amBonePos then continue end
+                if not amBonePos then
+                    -- 无法获取骨骼位置，视为失效并移除
+                    table.remove(ctx.boneMap, i)
+                    if ctx.initialBoneCount - #ctx.boneMap >= 5 then
+                        ctx.stopSignal = true
+                        break
+                    end
+                    continue
+                end
 
+                -- 地面参考点（x,y 取目标位置，z 取动画模型中心）
+                local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
+
+                -- 地面检测
+                local tr1 = util.TraceLine({
+                    start = refer + Vector(0, 0, 10),
+                    endpos = refer - Vector(0, 0, 100),
+                    mask = MASK_SOLID,
+                    filter = { ragdoll, animationModel }
+                })
+
+                local hitDist = refer.z - tr1.HitPos.z
+                local diff = hitDist - bone.lastHitZ
+
+                -- 更新累计修正量和上一帧高度
+                bone.lastAddZ = diff + bone.lastAddZ
+                bone.lastHitZ = hitDist
+
+                -- 悬空判断：高度差过大
+                if not bone.Fall and diff >= 20 then
+                    bone.Fall = true
+                    table.remove(ctx.boneMap, i)
+                    if ctx.initialBoneCount - #ctx.boneMap >= 5 then
+                        ctx.stopSignal = true
+                        break
+                    end
+                    continue
+                end
+
+                -- 修正后的目标位置
+                local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
+
+                -- 撞墙检测
+                local tr2 = util.TraceLine({
+                    start = ragdollPhysObj:GetPos(),
+                    endpos = bone_pos,
+                    mask = MASK_ALL,
+                    filter = { ragdoll, animationModel }
+                })
+
+                if tr2.Hit then
+                    bone.HitWall = true
+                    table.remove(ctx.boneMap, i)
+                    if ctx.initialBoneCount - #ctx.boneMap >= 5 then
+                        ctx.stopSignal = true
+                        break
+                    end
+                    continue
+                end
+
+                -- 未悬空且未撞墙，驱动骨骼
                 local shadowParams = ctx.shadowParamsTemplate
-                shadowParams.pos = amBonePos
+                shadowParams.pos = bone_pos
                 shadowParams.angle = amBoneAngle
                 ragdollPhysObj:Wake()
                 ragdollPhysObj:ComputeShadowControl(shadowParams)
             end
+
+            -- 若骨骼移除过多则跳出循环
+            if ctx.stopSignal then break end
+
             coroutine.yield()
         end
 
+        if ctx.stopSignal then break end
+
+        -- 原有动画模型重新定位逻辑保持不变
         local ragdollPos = ragdoll:GetPos()
         local trace = util.TraceLine({
             start = ragdollPos + Vector(0, 0, 50),
@@ -136,6 +206,14 @@ local function makeBoneMap(ctx)
             amBoneID = amBoneID,
             ragdollPhysObj = ragdollPhysObj,
             ragdollBoneID = ragdollBoneID,
+
+            -- ===============================
+            -- 以下由 playAnimationCoroutine 填充
+            Fall = false,    -- 是否因悬空而失效
+            HitWall = false, -- 是否因撞墙而失效
+            lastHitZ = 0,    -- 上一帧目标位置距地面高度
+            lastAddZ = 0,    -- 累计高度修正量
+            -- ===============================
         }
 
         table.insert(ctx.boneMap, data)
@@ -227,6 +305,11 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         gravityProxyRadius        = opts.radius or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS,
 
         -- ===============================
+        -- 以下由 fillShadowParamsTemplate 填充
+        shadowParamsTemplate      = opts.shadowParamsTemplate,
+        -- ===============================
+
+        -- ===============================
         -- 以下由 createAnimationModel 填充
         animationModel            = nil,
         -- ===============================
@@ -250,11 +333,9 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         -- ===============================
 
         -- ===============================
-        -- 以下由 fillShadowParamsTemplate 填充
-        shadowParamsTemplate      = opts.shadowParamsTemplate,
-        -- ===============================
-
+        -- 以下由 playAnimationCoroutine 填充
         animationEndTime          = nil,
+        -- ===============================
 
         coro                      = nil,
         stopSignal                = nil,
