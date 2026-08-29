@@ -29,54 +29,15 @@ local function cleanUp(ctx)
     end
 end
 
-local function enableMotion(ragdoll, enable, ragdollPhysicsObjectCount)
-    if not IsValid(ragdoll) then
-        return false
-    end
-
-    if not ragdollPhysicsObjectCount then
-        ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
-    end
-
-    if not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 then
-        return false
-    end
-
-    local success = 0
-    for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
-        local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
+local function enableMotion(ctx, enable)
+    for ragdollPhysObjNum = 0, ctx.ragdollPhysicsObjectCount - 1 do
+        local ragdollPhysObj = ctx.ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
         if not ragdollPhysObj then continue end
-
-        success = success + 1
         ragdollPhysObj:EnableMotion(enable)
         if enable then
             ragdollPhysObj:Wake()
         end
     end
-
-    return success > 0
-end
-
-local function makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
-    local map = {}
-    for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
-        local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
-
-        -- "__INVALIDBONE__" in case the name cannot be read or the index is out of range, or we failed or entity doesn't have a model.
-        local boneName = ragdoll:GetBoneName(ragdollBoneID)
-
-        -- Index of the given bone name, or nil if the bone doesn't exist on the Entity.
-        local amBoneID = animationModel:LookupBone(boneName)
-        if not amBoneID then continue end
-
-        -- The physics object or nil if not found
-        local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
-        if not ragdollPhysObj then continue end
-
-        local data = { boneName = boneName, ragdollPhysObj = ragdollPhysObj, amBoneID = amBoneID }
-        table.insert(map, data)
-    end
-    return map
 end
 
 local function playAnimationCoroutine(ctx)
@@ -92,29 +53,25 @@ local function playAnimationCoroutine(ctx)
         cleanUp(ctx)
         return
     end
-    local ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
-    if
-        not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 or
-        not enableMotion(ragdoll, false, ragdollPhysicsObjectCount)
-    then
-        cleanUp(ctx)
-        return
-    end
+
+    enableMotion(ctx, false)
     coroutine.yield()
 
-    if not enableMotion(ragdoll, true, ragdollPhysicsObjectCount) then
-        cleanUp(ctx)
-        return
-    end
+    enableMotion(ctx, true)
     -- coroutine.yield()
 
-    local activeBoneMappings = makeBoneMapping(ragdoll, animationModel, ragdollPhysicsObjectCount)
+    local activeBoneMappings = table.Copy(ctx.boneMap)
 
     local loop = ctx.loop
     local playCount = 0
+    local amEndPos = animationModel:GetPos()
+    local amEndAngles = animationModel:GetAngles()
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
         if loop > 0 and playCount >= loop then break end
         playCount = playCount + 1
+
+        local amStartPos = animationModel:SetPos()
+        local amStartAngles = animationModel:GetAngles()
 
         local animationEndTime = CurTime() + ctx.animationDuration
         animationModel:Fire("SetAnimation", ctx.animationName)
@@ -193,16 +150,6 @@ local function fillShadowParamsTemplate(ctx)
     return true
 end
 
-local function checkAnimationName(ctx)
-    local _, animationDuration = ctx.animationModel:LookupSequence(ctx.animationName)
-    if not animationDuration or animationDuration <= 0 then
-        log.warn("Invalid animation sequence: ", ctx.animationName)
-        return false
-    end
-    ctx.animationDuration = animationDuration
-    return true
-end
-
 local function creatGravityProxy(ctx)
     local gravityProxy = ents.Create("prop_sphere")
     ctx.gravityProxy = gravityProxy
@@ -223,6 +170,52 @@ local function creatGravityProxy(ctx)
     gravityProxyPhysObj:EnableDrag(false)
     gravityProxyPhysObj:EnableGravity(true)
 
+    return true
+end
+
+local function makeBoneMap(ctx)
+    local ragdoll = ctx.ragdoll
+    local animationModel = ctx.animationModel
+
+    local ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
+    if not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 then return false end
+    ctx.ragdollPhysicsObjectCount = ragdollPhysicsObjectCount
+
+    ctx.boneMap = {}
+    for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
+        local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
+        if not ragdollBoneID then continue end
+
+        -- "__INVALIDBONE__" in case the name cannot be read or the index is out of range, or we failed or entity doesn't have a model.
+        local boneName = ragdoll:GetBoneName(ragdollBoneID)
+
+        -- Index of the given bone name, or nil if the bone doesn't exist on the Entity.
+        local amBoneID = animationModel:LookupBone(boneName)
+        if not amBoneID then continue end
+
+        -- The physics object or nil if not found
+        local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
+        if not ragdollPhysObj then continue end
+
+        local data = {
+            boneName = boneName,
+            amBoneID = amBoneID,
+            ragdollPhysObj = ragdollPhysObj,
+            ragdollBoneID = ragdollBoneID,
+        }
+
+        table.insert(ctx.boneMap, data)
+    end
+    return true
+end
+
+local function checkAnimationName(ctx)
+    local _, animationDuration = ctx.animationModel:LookupSequence(ctx.animationName)
+    if not animationDuration or animationDuration <= 0 then
+        log.warn("Invalid animation sequence: ", ctx.animationName)
+        return false
+    end
+    ctx.animationDuration = animationDuration
     return true
 end
 
@@ -274,48 +267,55 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     opts = opts or {}
 
     local ctx = {
-        ragdoll               = ragdoll,
-        animationName         = animationName,
-        ragdollStandPos       = helper.GetStandPos(ragdoll),
+        ragdoll                   = ragdoll,
+        animationName             = animationName,
+        ragdollStandPos           = helper.GetStandPos(ragdoll),
 
-        loop                  = opts.loop or 1,
-        loopCount             = 0,
+        loop                      = opts.loop or 1,
+        loopCount                 = 0,
 
-        yaw                   = opts.yaw or ragdoll:GetAngles().yaw,
-        animationModelName    = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME,
-        gravityProxyModelName = opts.gravityProxyModelName or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME,
-        gravityProxyRadius    = opts.radius or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS,
-        collisionStrategy     = opts.collisionStrategy or DummyCollisionStrategy,
+        yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
+        animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME,
+        gravityProxyModelName     = opts.gravityProxyModelName or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME,
+        gravityProxyRadius        = opts.radius or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS,
+        collisionStrategy         = opts.collisionStrategy or DummyCollisionStrategy,
 
         -- ===============================
         -- 以下由 createAnimationModel 填充
-        animationModel        = nil,
-        animationModelHeight  = nil,
+        animationModel            = nil,
+        animationModelHeight      = nil,
         -- ===============================
 
         -- ===============================
         -- 以下由 checkAnimationName 填充
-        animationDuration     = nil,
+        animationDuration         = nil,
+        -- ===============================
+
+        -- ===============================
+        -- 以下由 makeBoneMap 填充
+        ragdollPhysicsObjectCount = nil,
+        boneMap                   = nil,
         -- ===============================
 
         -- ===============================
         -- 以下由 creatGravityProxy 填充
-        gravityProxy          = nil,
-        gravityProxyPhysObj   = nil,
+        gravityProxy              = nil,
+        gravityProxyPhysObj       = nil,
         -- ===============================
 
         -- ===============================
         -- 以下由 fillShadowParamsTemplate 填充
-        shadowParamsTemplate  = opts.shadowParamsTemplate,
+        shadowParamsTemplate      = opts.shadowParamsTemplate,
         -- ===============================
 
-        coro                  = nil,
-        stopSignal            = nil,
+        coro                      = nil,
+        stopSignal                = nil,
     }
 
     if
         not createAnimationModel(ctx) or
         not checkAnimationName(ctx) or
+        not makeBoneMap(ctx) or
         not creatGravityProxy(ctx) or
         not fillShadowParamsTemplate(ctx)
     then
