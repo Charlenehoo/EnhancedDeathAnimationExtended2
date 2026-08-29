@@ -45,7 +45,7 @@ local function playAnimationCoroutine(ctx)
         return not IsValid(ragdoll) or
             not IsValid(animationModel) or
             ctx.stopSignal or
-            ctx.initialBoneCount - #ctx.boneMap >= 5
+            ctx.initialBoneCount - #ctx.boneMap >= Constants.ANIMATION_PLAYER.MAX_ALLOWED_BONE_REMOVALS
     end
 
     -- 初始实体检查
@@ -98,8 +98,8 @@ local function playAnimationCoroutine(ctx)
                 local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
 
                 local tr1 = util.TraceLine({
-                    start = refer + Vector(0, 0, 10),
-                    endpos = refer - Vector(0, 0, 100),
+                    start = refer + Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET,
+                    endpos = refer + Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET,
                     mask = MASK_SOLID,
                     filter = { ragdoll, animationModel }
                 })
@@ -110,7 +110,7 @@ local function playAnimationCoroutine(ctx)
                 bone.lastAddZ = diff + bone.lastAddZ
                 bone.lastHitZ = hitDist
 
-                if not bone.Fall and diff >= 20 then
+                if not bone.Fall and diff >= Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD then
                     bone.Fall = true
                     log.trace("Bone ", boneName, " fall detected (diff=", diff, "), removing")
                     table.remove(ctx.boneMap, i)
@@ -153,8 +153,8 @@ local function playAnimationCoroutine(ctx)
         -- 正常完成一次动画循环，重新定位动画模型并准备下一次循环
         local ragdollPos = ragdoll:GetPos()
         local trace = util.TraceLine({
-            start = ragdollPos + Vector(0, 0, 50),
-            endpos = ragdollPos - Vector(0, 0, 100),
+            start = ragdollPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET,
+            endpos = ragdollPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET,
             mask = MASK_SOLID,
             filter = { ragdoll, animationModel }
         })
@@ -308,7 +308,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         animationName             = animationName,
         datum                     = helper.GetStandPos(ragdoll),
 
-        totalLoops                = opts.totalLoops or 1,
+        totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
         loopCount                 = 0,
 
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
