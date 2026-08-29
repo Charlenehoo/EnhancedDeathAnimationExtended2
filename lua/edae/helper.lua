@@ -32,10 +32,12 @@ end
 function helper.GetStandPos(ent)
     if not IsValid(ent) then return end
 
-    local standPos = helper.GetStandPosByTrace(ent)
-    if standPos then return standPos end
+    local standPos
 
     standPos = helper.GetStandPosByBone(ent)
+    if standPos then return standPos end
+
+    standPos = helper.GetStandPosByTrace(ent)
     if standPos then return standPos end
 
     return ent:GetPos()

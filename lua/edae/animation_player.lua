@@ -219,29 +219,33 @@ local function checkAnimationName(ctx)
     return true
 end
 
+local function alignAnimationModel(ctx)
+    local animationModel         = ctx.animationModel
+    local animationModelDatum    = helper.GetStandPos(animationModel)
+    local datumToPos             = animationModel:GetPos() - animationModelDatum
+    ctx.animationModelDatumToPos = datumToPos
+
+    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
+    datumToPos:Rotate(Angle(0, ctx.yaw, 0)) -- originToDatum is Rotated at place
+    animationModel:SetPos(ctx.datum + datumToPos)
+
+    return true
+end
+
 local function createAnimationModel(ctx)
     local animationModel = ents.Create("prop_dynamic")
     ctx.animationModel = animationModel
 
     local animationModelName = ctx.animationModelName
     animationModel:SetModel(animationModelName)
+    animationModel:Spawn()
+
     if animationModel:GetModel() ~= animationModelName then
         log.warn("Invalid animationModelName: ", tostring(animationModelName))
         return false
     end
-    animationModel:Spawn()
 
-    local animationModelStandPos = helper.GetStandPos(animationModel)
-    local standOffset            = animationModelStandPos - animationModel:GetPos()
-
-    local animationModelHeight   = standOffset:Length()
-    ctx.animationModelHeight     = animationModelHeight
-
-    standOffset:Rotate(Angle(0, ctx.yaw, 0)) -- standOffset is Rotated at place
-    animationModel:SetPos(ctx.ragdollStandPos - standOffset)
-    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
-
-    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when release
+    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when released
 
     return true
 end
@@ -269,7 +273,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     local ctx = {
         ragdoll                   = ragdoll,
         animationName             = animationName,
-        ragdollStandPos           = helper.GetStandPos(ragdoll),
+        datum                     = helper.GetStandPos(ragdoll),
 
         loop                      = opts.loop or 1,
         loopCount                 = 0,
@@ -283,12 +287,16 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         -- ===============================
         -- 以下由 createAnimationModel 填充
         animationModel            = nil,
-        animationModelHeight      = nil,
         -- ===============================
 
         -- ===============================
         -- 以下由 checkAnimationName 填充
         animationDuration         = nil,
+        -- ===============================
+
+        -- ===============================
+        -- 以下由 alignAnimationModel 填充
+        animationModelDatumToPos  = nil,
         -- ===============================
 
         -- ===============================
@@ -315,6 +323,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     if
         not createAnimationModel(ctx) or
         not checkAnimationName(ctx) or
+        not alignAnimationModel or
         not makeBoneMap(ctx) or
         not creatGravityProxy(ctx) or
         not fillShadowParamsTemplate(ctx)
