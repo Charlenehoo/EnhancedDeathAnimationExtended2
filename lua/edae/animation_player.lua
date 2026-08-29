@@ -127,8 +127,6 @@ local function playAnimationCoroutine(ctx)
             coroutine.yield()
         end
 
-        -- ===== 老实现风格的重复定位 =====
-        -- 从布娃娃当前位置向下 TraceLine 找到地面
         local ragdollPos = ragdoll:GetPos()
         local trace = util.TraceLine({
             start = ragdollPos + Vector(0, 0, 50),
@@ -138,12 +136,10 @@ local function playAnimationCoroutine(ctx)
         })
 
         local groundPos = trace.Hit and trace.HitPos or ragdollPos
-        -- 设置动画模型实体位置：地面点 + 模型原点偏移
         animationModel:SetPos(groundPos + ctx.amDatumToPos)
 
-        -- 重新播放动画
         animationModel:Fire("SetAnimation", ctx.animationName)
-        coroutine.yield() -- 等待一帧让动画状态生效
+        coroutine.yield()
     end
 
     cleanUp(ctx)
