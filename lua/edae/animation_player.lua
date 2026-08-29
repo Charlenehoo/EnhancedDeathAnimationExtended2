@@ -59,43 +59,40 @@ local function playAnimationCoroutine(ctx)
     enableMotion(ctx, true)
     coroutine.yield()
 
+    -- 初始播放动画，并等待一帧让动画状态生效
     animationModel:Fire("SetAnimation", ctx.animationName)
     coroutine.yield()
-
-    local startRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
 
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
-
         ctx.animationEndTime = CurTime() + ctx.animationDuration
+
+        -- 记录本轮动画开始时的参考骨骼世界位置
+        local startRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
+
         while CurTime() < ctx.animationEndTime do
             local deltaTime = FrameTime()
 
-            -- if ragdollPhysicsObjectCount - #controlingBones < Constants.MIN_CONTROL_BONE then
-            --     break
-            -- end
-
+            -- 保持重力代理水平速度与布娃娃一致
             local ragdollVelocity = ragdoll:GetVelocity()
             local gravityProxyPhysObVelocity = gravityProxyPhysObj:GetVelocity()
             gravityProxyPhysObj:SetVelocityInstantaneous(Vector(ragdollVelocity.x, ragdollVelocity.y,
                 gravityProxyPhysObVelocity.z))
 
+            -- 修正 am 实体的绝对高度（而不是累加）
             local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
-            local currentDatum = gravityProxyPhysObjPos - ctx.gravityProxyDatumToPos
-            local currentDatumZ = currentDatum.z
+            local currentDatumZ = gravityProxyPhysObjPos.z - ctx.gravityProxyDatumToPos.z
             local targetZ = currentDatumZ + ctx.amDatumToPosZ
             local amPos = animationModel:GetPos()
-            amPos.z = targetZ
-            animationModel:SetPos(amPos)
+            animationModel:SetPos(Vector(amPos.x, amPos.y, targetZ))
 
+            -- 驱动布娃娃骨骼
             for i = #ctx.boneMap, 1, -1 do
                 local boneName = ctx.boneMap[i].boneName
                 local amBoneID = ctx.boneMap[i].amBoneID
                 local ragdollPhysObj = ctx.boneMap[i].ragdollPhysObj
 
-                -- The bone's position relative to the world. It can return nothing if the requested bone is out of bounds, or the entity has no model.
-                -- The bone's angle relative to the world.
                 local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
                 if not amBonePos then continue end
 
@@ -116,7 +113,6 @@ local function playAnimationCoroutine(ctx)
                 local shadowParams = ctx.shadowParamsTemplate
 
                 if status == "free" then
-                    -- shadowParams.delta = deltaTime
                     shadowParams.pos = amBonePos
                     shadowParams.angle = amBoneAngle
                 elseif status == "fallback" then
@@ -133,19 +129,16 @@ local function playAnimationCoroutine(ctx)
             coroutine.yield()
         end
 
-        -- 一轮结束，计算这一轮的实际根骨位移
+        -- 本轮动画结束，计算参考骨骼的水平位移
         local endRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
-        local rootDelta = endRefBonePos - startRefBonePos
-        local rootDelta2D = Vector(rootDelta.x, rootDelta.y, 0)
+        local delta2D = Vector(endRefBonePos.x - startRefBonePos.x, endRefBonePos.y - startRefBonePos.y, 0)
 
-        -- 移动实体，使下一轮动画起点和上一轮终点水平对齐
-        animationModel:SetPos(animationModel:GetPos() + rootDelta2D)
+        -- 水平平移 am 实体，使下一轮动画起点与上一轮终点水平对齐
+        animationModel:SetPos(animationModel:GetPos() + delta2D)
 
-        -- 重新开始动画，并记录新的起点
+        -- 重新播放动画，并等待一帧确保生效
         animationModel:Fire("SetAnimation", ctx.animationName)
-        coroutine.yield() -- 等一帧，让 Fire 生效
-
-        startRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
+        coroutine.yield()
     end
 
     cleanUp(ctx)
