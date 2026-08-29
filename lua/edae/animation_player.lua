@@ -56,13 +56,24 @@ local function playAnimationCoroutine(ctx)
     -- 记录初始骨骼数量，用于判断是否提前终止
     ctx.initialBoneCount = #ctx.boneMap
 
-    while IsValid(ragdoll) and IsValid(animationModel) and not ctx.stopSignal do
+    while
+        IsValid(ragdoll) and
+        IsValid(animationModel) and
+        not ctx.stopSignal and
+        ctx.initialBoneCount - #ctx.boneMap < 5
+    do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
         log.trace("Loop: ", ctx.loopCount, "/", ctx.totalLoops)
 
         ctx.animationEndTime = CurTime() + ctx.animationDuration
-        while IsValid(ragdoll) and IsValid(animationModel) and not ctx.stopSignal and CurTime() < ctx.animationEndTime do
+        while
+            IsValid(ragdoll) and
+            IsValid(animationModel) and
+            not ctx.stopSignal and
+            ctx.initialBoneCount - #ctx.boneMap < 5 and
+            CurTime() < ctx.animationEndTime
+        do
             -- 逆序遍历骨骼，允许在循环中安全移除
             for i = #ctx.boneMap, 1, -1 do
                 local bone = ctx.boneMap[i]
@@ -74,10 +85,6 @@ local function playAnimationCoroutine(ctx)
                 if not amBonePos then
                     -- 无法获取骨骼位置，视为失效并移除
                     table.remove(ctx.boneMap, i)
-                    if ctx.initialBoneCount - #ctx.boneMap >= 5 then
-                        ctx.stopSignal = true
-                        break
-                    end
                     continue
                 end
 
@@ -103,10 +110,6 @@ local function playAnimationCoroutine(ctx)
                 if not bone.Fall and diff >= 20 then
                     bone.Fall = true
                     table.remove(ctx.boneMap, i)
-                    if ctx.initialBoneCount - #ctx.boneMap >= 5 then
-                        ctx.stopSignal = true
-                        break
-                    end
                     continue
                 end
 
@@ -124,10 +127,6 @@ local function playAnimationCoroutine(ctx)
                 if tr2.Hit then
                     bone.HitWall = true
                     table.remove(ctx.boneMap, i)
-                    if ctx.initialBoneCount - #ctx.boneMap >= 5 then
-                        ctx.stopSignal = true
-                        break
-                    end
                     continue
                 end
 
@@ -138,9 +137,6 @@ local function playAnimationCoroutine(ctx)
                 ragdollPhysObj:Wake()
                 ragdollPhysObj:ComputeShadowControl(shadowParams)
             end
-
-            -- 若骨骼移除过多则跳出循环
-            if ctx.stopSignal then break end
 
             coroutine.yield()
         end
