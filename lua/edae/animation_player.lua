@@ -308,6 +308,9 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         animationName             = animationName,
         datum                     = helper.GetStandPos(ragdoll),
 
+        state                     = opts.state or "falling",
+        damageContext             = opts.damageContext,
+
         totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
         loopCount                 = 0,
 

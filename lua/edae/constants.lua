@@ -2,7 +2,8 @@
 local Constants = {}
 
 Constants.ADDON_NAME = "EnhancedDeathAnimationExtended"
-Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Context"
+Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Ragdoll_Context"
+Constants.PLAYER_NPC_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Player_NPC_Context"
 
 Constants.ANIMATION_PLAYER = {}
 
