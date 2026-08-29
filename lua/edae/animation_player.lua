@@ -63,14 +63,16 @@ local function playAnimationCoroutine(ctx)
     animationModel:Fire("SetAnimation", ctx.animationName)
     coroutine.yield()
 
+    local amRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
+    local amRefGround = helper.GetGroundPosByTrace(amRefBonePos)
+    local groundToAMPos = animationModel:GetPos() - amRefGround
+
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
+        log.trace("Loop: ", ctx.loopCount, "/", ctx.totalLoops)
+
         ctx.animationEndTime = CurTime() + ctx.animationDuration
-
-        -- 记录本轮动画开始时的参考骨骼世界位置
-        local startRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
-
         while CurTime() < ctx.animationEndTime do
             local deltaTime = FrameTime()
 
@@ -80,12 +82,12 @@ local function playAnimationCoroutine(ctx)
             gravityProxyPhysObj:SetVelocityInstantaneous(Vector(ragdollVelocity.x, ragdollVelocity.y,
                 gravityProxyPhysObVelocity.z))
 
-            -- 修正 am 实体的绝对高度（而不是累加）
+            -- 修正 am 实体的绝对高度
             local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
             local currentDatumZ = gravityProxyPhysObjPos.z - ctx.gravityProxyDatumToPos.z
-            local targetZ = currentDatumZ + ctx.amDatumToPosZ
-            local amPos = animationModel:GetPos()
-            animationModel:SetPos(Vector(amPos.x, amPos.y, targetZ))
+            local amTargetZ = currentDatumZ + ctx.amDatumToPosZ
+            local amCurrentPos = animationModel:GetPos()
+            animationModel:SetPos(Vector(amCurrentPos.x, amCurrentPos.y, amTargetZ))
 
             -- 驱动布娃娃骨骼
             for i = #ctx.boneMap, 1, -1 do
@@ -129,16 +131,14 @@ local function playAnimationCoroutine(ctx)
             coroutine.yield()
         end
 
-        -- 本轮动画结束，计算参考骨骼的水平位移
-        local endRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
-        local delta2D = Vector(endRefBonePos.x - startRefBonePos.x, endRefBonePos.y - startRefBonePos.y, 0)
-
-        -- 水平平移 am 实体，使下一轮动画起点与上一轮终点水平对齐
-        animationModel:SetPos(animationModel:GetPos() + delta2D)
-
-        -- 重新播放动画，并等待一帧确保生效
         animationModel:Fire("SetAnimation", ctx.animationName)
         coroutine.yield()
+
+        amRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
+        amRefGround = helper.GetGroundPosByTrace(amRefBonePos)
+        local amTarget2D = amRefGround + groundToAMPos
+        local amCurrentPos = animationModel:GetPos()
+        animationModel:SetPos(Vector(amTarget2D.x, amTarget2D.y, amCurrentPos.z))
     end
 
     cleanUp(ctx)

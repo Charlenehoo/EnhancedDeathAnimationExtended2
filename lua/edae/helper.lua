@@ -15,8 +15,8 @@ function helper.GetStandPosByBone(ent)
     return (leftPos + rightPos) * 0.5
 end
 
-function helper.GetStandPosByTrace(ent)
-    local startPos = ent:GetPos()
+function helper.GetGroundPosByTrace(pos)
+    local startPos = pos + Vector(0, 0, 100)
     local endPos = startPos - Vector(0, 0, 200)
     local trace = util.TraceLine({
         start = startPos,
@@ -35,9 +35,6 @@ function helper.GetStandPos(ent)
     local standPos
 
     standPos = helper.GetStandPosByBone(ent)
-    if standPos then return standPos end
-
-    standPos = helper.GetStandPosByTrace(ent)
     if standPos then return standPos end
 
     return ent:GetPos()
