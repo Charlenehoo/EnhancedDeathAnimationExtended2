@@ -232,9 +232,11 @@ local function alignAnimationModel(ctx)
     animationModel:SetAngles(Angle(0, ctx.yaw, 0))
 
     local animationModelDatum = helper.GetStandPos(animationModel)
-    local datumToPos          = animationModel:GetPos() - animationModelDatum
-    ctx.amDatumToPos          = datumToPos
-    ctx.amDatumToPosZ         = datumToPos.z
+    if not animationModelDatum then return false end
+
+    local datumToPos  = animationModel:GetPos() - animationModelDatum
+    ctx.amDatumToPos  = datumToPos
+    ctx.amDatumToPosZ = datumToPos.z
 
     animationModel:SetPos(ctx.datum + datumToPos)
     return true
