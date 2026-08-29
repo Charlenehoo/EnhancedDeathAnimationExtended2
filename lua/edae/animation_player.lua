@@ -337,7 +337,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     if
         not createAnimationModel(ctx) or
         not checkAnimationName(ctx) or
-        not alignAnimationModel or
+        not alignAnimationModel(ctx) or
         not makeBoneMap(ctx) or
         not creatGravityProxy(ctx) or
         not fillShadowParamsTemplate(ctx)
