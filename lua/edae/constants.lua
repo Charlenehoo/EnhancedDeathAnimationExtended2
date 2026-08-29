@@ -2,11 +2,14 @@
 local Constants = {}
 
 Constants.ADDON_NAME = "EnhancedDeathAnimationExtended"
-Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
-
 Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Context"
 
 Constants.ANIMATION_PLAYER = {}
+
+Constants.ANIMATION_PLAYER.ANIMATION_MODEL = {}
+Constants.ANIMATION_PLAYER.ANIMATION_MODEL.DEFAULT_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
+Constants.ANIMATION_PLAYER.ANIMATION_MODEL.REF_BONE_NAME = "ValveBiped.Bip01_Pelvis"
+
 Constants.ANIMATION_PLAYER.GRAVITY_PROXY = {}
 Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS = 4
 Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME = "models/editor/cube_small.mdl"

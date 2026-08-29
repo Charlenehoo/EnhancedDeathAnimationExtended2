@@ -46,7 +46,6 @@ local function playAnimationCoroutine(ctx)
     local gravityProxy = ctx.gravityProxy
     local gravityProxyPhysObj = ctx.gravityProxyPhysObj
 
-    local heightDifference = ctx.animationModelHeight - ctx.gravityProxyRadius
     local collisionStrategy = ctx.collisionStrategy or DummyCollisionStrategy
 
     if not IsValid(ragdoll) or not IsValid(animationModel) or not IsValid(gravityProxy) then
@@ -60,23 +59,20 @@ local function playAnimationCoroutine(ctx)
     enableMotion(ctx, true)
     -- coroutine.yield()
 
-    local activeBoneMappings = table.Copy(ctx.boneMap)
+    local lastRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
 
-    local loop = ctx.loop
-    local playCount = 0
-    local amEndPos = animationModel:GetPos()
-    local amEndAngles = animationModel:GetAngles()
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
-        if loop > 0 and playCount >= loop then break end
-        playCount = playCount + 1
+        if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
+        ctx.loopCount = ctx.loopCount + 1
 
-        local amStartPos = animationModel:SetPos()
-        local amStartAngles = animationModel:GetAngles()
+        ctx.animationEndTime = CurTime() + ctx.animationDuration
+        local currentRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
+        local refBoneOffset = currentRefBonePos - lastRefBonePos
+        lastRefBonePos = currentRefBonePos
 
-        local animationEndTime = CurTime() + ctx.animationDuration
         animationModel:Fire("SetAnimation", ctx.animationName)
 
-        while CurTime() < animationEndTime do
+        while CurTime() < ctx.animationEndTime do
             local deltaTime = FrameTime()
 
             -- if ragdollPhysicsObjectCount - #controlingBones < Constants.MIN_CONTROL_BONE then
@@ -84,17 +80,20 @@ local function playAnimationCoroutine(ctx)
             -- end
 
             local ragdollVelocity = ragdoll:GetVelocity()
-            gravityProxyPhysObj:SetVelocityInstantaneous(ragdollVelocity)
+            local gravityProxyPhysObVelocity = gravityProxyPhysObj:GetVelocity()
+            gravityProxyPhysObj:SetVelocityInstantaneous(Vector(ragdollVelocity.x, ragdollVelocity.y,
+                gravityProxyPhysObVelocity.z))
 
             local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
+            local currentDatum = gravityProxyPhysObjPos - ctx.gravityProxyDatumToPos
             local animationModelPos = animationModel:GetPos()
-            animationModel:SetPos(Vector(animationModelPos.x, animationModelPos.y,
-                gravityProxyPhysObjPos.z + heightDifference))
+            local amTargetPos = animationModelPos + refBoneOffset
+            animationModel:SetPos(Vector(amTargetPos.x, amTargetPos.y, currentDatum.z + ctx.amDatumToPos.z))
 
-            for i = #activeBoneMappings, 1, -1 do
-                local boneName = activeBoneMappings[i].boneName
-                local amBoneID = activeBoneMappings[i].amBoneID
-                local ragdollPhysObj = activeBoneMappings[i].ragdollPhysObj
+            for i = #ctx.boneMap, 1, -1 do
+                local boneName = ctx.boneMap[i].boneName
+                local amBoneID = ctx.boneMap[i].amBoneID
+                local ragdollPhysObj = ctx.boneMap[i].ragdollPhysObj
 
                 -- The bone's position relative to the world. It can return nothing if the requested bone is out of bounds, or the entity has no model.
                 -- The bone's angle relative to the world.
@@ -125,7 +124,7 @@ local function playAnimationCoroutine(ctx)
                     shadowParams.pos = fallbackPos
                     shadowParams.angle = amBoneAngle
                 else
-                    table.remove(activeBoneMappings, i)
+                    table.remove(ctx.boneMap, i)
                     continue
                 end
 
@@ -154,12 +153,15 @@ local function creatGravityProxy(ctx)
     local gravityProxy = ents.Create("prop_sphere")
     ctx.gravityProxy = gravityProxy
 
+
     local radius = ctx.gravityProxyRadius
+    ctx.gravityProxyDatumToPos = Vector(0, 0, radius)
+
     gravityProxy:SetKeyValue("radius", tostring(radius))
     gravityProxy:SetModel(ctx.gravityProxyModelName)
     gravityProxy:Spawn()
 
-    gravityProxy:SetPos(ctx.ragdollStandPos + Vector(0, 0, radius))
+    gravityProxy:SetPos(ctx.datum + ctx.gravityProxyDatumToPos)
     gravityProxy:SetCustomCollisionCheck(true)
     gravityProxy:SetFriction(0)
     gravityProxy:SetGravity(10)
@@ -205,8 +207,12 @@ local function makeBoneMap(ctx)
         }
 
         table.insert(ctx.boneMap, data)
+
+        if boneName == ctx.amRefBoneName then
+            ctx.amRefBoneID = amBoneID
+        end
     end
-    return true
+    return ctx.amRefBoneID ~= nil
 end
 
 local function checkAnimationName(ctx)
@@ -220,15 +226,14 @@ local function checkAnimationName(ctx)
 end
 
 local function alignAnimationModel(ctx)
-    local animationModel         = ctx.animationModel
-    local animationModelDatum    = helper.GetStandPos(animationModel)
-    local datumToPos             = animationModel:GetPos() - animationModelDatum
-    ctx.animationModelDatumToPos = datumToPos
-
+    local animationModel = ctx.animationModel
     animationModel:SetAngles(Angle(0, ctx.yaw, 0))
-    datumToPos:Rotate(Angle(0, ctx.yaw, 0)) -- originToDatum is Rotated at place
-    animationModel:SetPos(ctx.datum + datumToPos)
 
+    local animationModelDatum = helper.GetStandPos(animationModel)
+    local datumToPos          = animationModel:GetPos() - animationModelDatum
+    ctx.amDatumToPos          = datumToPos
+
+    animationModel:SetPos(ctx.datum + datumToPos)
     return true
 end
 
@@ -275,11 +280,14 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         animationName             = animationName,
         datum                     = helper.GetStandPos(ragdoll),
 
-        loop                      = opts.loop or 1,
+        totalLoops                = opts.totalLoops or 1,
         loopCount                 = 0,
 
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
-        animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER_DEFAULT_ANIMATION_MODEL_NAME,
+        animationModelName        = opts.animationModelName or
+            Constants.ANIMATION_PLAYER.ANIMATION_MODEL.DEFAULT_MODEL_NAME,
+        amRefBoneName             = opts.animationModelRefBoneName or
+            Constants.ANIMATION_PLAYER.ANIMATION_MODEL.REF_BONE_NAME,
         gravityProxyModelName     = opts.gravityProxyModelName or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME,
         gravityProxyRadius        = opts.radius or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS,
         collisionStrategy         = opts.collisionStrategy or DummyCollisionStrategy,
@@ -296,25 +304,29 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
         -- ===============================
         -- 以下由 alignAnimationModel 填充
-        animationModelDatumToPos  = nil,
+        amDatumToPos              = nil,
         -- ===============================
 
         -- ===============================
         -- 以下由 makeBoneMap 填充
         ragdollPhysicsObjectCount = nil,
         boneMap                   = nil,
+        amRefBoneID               = nil,
         -- ===============================
 
         -- ===============================
         -- 以下由 creatGravityProxy 填充
         gravityProxy              = nil,
         gravityProxyPhysObj       = nil,
+        gravityProxyDatumToPos    = nil,
         -- ===============================
 
         -- ===============================
         -- 以下由 fillShadowParamsTemplate 填充
         shadowParamsTemplate      = opts.shadowParamsTemplate,
         -- ===============================
+
+        animationEndTime          = nil,
 
         coro                      = nil,
         stopSignal                = nil,
