@@ -59,22 +59,16 @@ local function playAnimationCoroutine(ctx)
     enableMotion(ctx, true)
     coroutine.yield()
 
-    local lastRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
+    animationModel:Fire("SetAnimation", ctx.animationName)
+    coroutine.yield()
+
+    local startRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
 
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
+
         ctx.animationEndTime = CurTime() + ctx.animationDuration
-
-        local currentRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
-        local refBoneOffset = currentRefBonePos - lastRefBonePos
-        local refBoneOffset2D = Vector(refBoneOffset.x, refBoneOffset.y, 0)
-        animationModel:SetPos(animationModel:GetPos() + refBoneOffset2D)
-
-        lastRefBonePos = currentRefBonePos
-
-        animationModel:Fire("SetAnimation", ctx.animationName)
-
         while CurTime() < ctx.animationEndTime do
             local deltaTime = FrameTime()
 
@@ -90,8 +84,10 @@ local function playAnimationCoroutine(ctx)
             local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
             local currentDatum = gravityProxyPhysObjPos - ctx.gravityProxyDatumToPos
             local currentDatumZ = currentDatum.z
-            local currentAMPos1D = Vector(0, 0, currentDatumZ + ctx.amDatumToPosZ)
-            animationModel:SetPos(animationModel:GetPos() + currentAMPos1D)
+            local targetZ = currentDatumZ + ctx.amDatumToPosZ
+            local amPos = animationModel:GetPos()
+            amPos.z = targetZ
+            animationModel:SetPos(amPos)
 
             for i = #ctx.boneMap, 1, -1 do
                 local boneName = ctx.boneMap[i].boneName
@@ -136,6 +132,20 @@ local function playAnimationCoroutine(ctx)
             end
             coroutine.yield()
         end
+
+        -- 一轮结束，计算这一轮的实际根骨位移
+        local endRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
+        local rootDelta = endRefBonePos - startRefBonePos
+        local rootDelta2D = Vector(rootDelta.x, rootDelta.y, 0)
+
+        -- 移动实体，使下一轮动画起点和上一轮终点水平对齐
+        animationModel:SetPos(animationModel:GetPos() + rootDelta2D)
+
+        -- 重新开始动画，并记录新的起点
+        animationModel:Fire("SetAnimation", ctx.animationName)
+        coroutine.yield() -- 等一帧，让 Fire 生效
+
+        startRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
     end
 
     cleanUp(ctx)
