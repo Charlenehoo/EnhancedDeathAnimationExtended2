@@ -40,8 +40,17 @@ local function playAnimationCoroutine(ctx)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
 
-    if not IsValid(ragdoll) or not IsValid(animationModel) then
-        log.warn("Ragdoll or animation model invalid, cleaning up")
+    -- 辅助函数：判断动画是否应该终止（实体无效、停止信号、骨骼移除过多）
+    local function shouldTerminate()
+        return not IsValid(ragdoll) or
+            not IsValid(animationModel) or
+            ctx.stopSignal or
+            ctx.initialBoneCount - #ctx.boneMap >= 5
+    end
+
+    -- 初始实体检查
+    if shouldTerminate() then
+        log.warn("Ragdoll or animation model invalid at start, cleaning up")
         cleanUp(ctx)
         return
     end
@@ -58,24 +67,21 @@ local function playAnimationCoroutine(ctx)
     ctx.initialBoneCount = #ctx.boneMap
     log.trace("Initial bone count: ", ctx.initialBoneCount)
 
-    while
-        IsValid(ragdoll) and
-        IsValid(animationModel) and
-        not ctx.stopSignal and
-        ctx.initialBoneCount - #ctx.boneMap < 5
-    do
-        if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
+    -- 外层循环：控制播放总次数
+    while not shouldTerminate() do
+        if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then
+            log.trace("Reached total loops limit, stopping")
+            break
+        end
+
         ctx.loopCount = ctx.loopCount + 1
         log.trace("Loop: ", ctx.loopCount, "/", ctx.totalLoops)
 
         ctx.animationEndTime = CurTime() + ctx.animationDuration
-        while
-            IsValid(ragdoll) and
-            IsValid(animationModel) and
-            not ctx.stopSignal and
-            ctx.initialBoneCount - #ctx.boneMap < 5 and
-            CurTime() < ctx.animationEndTime
-        do
+
+        -- 内层循环：播放单次动画
+        while not shouldTerminate() and CurTime() < ctx.animationEndTime do
+            -- 处理当前帧的所有骨骼
             for i = #ctx.boneMap, 1, -1 do
                 local bone = ctx.boneMap[i]
                 local boneName = bone.boneName
@@ -134,14 +140,17 @@ local function playAnimationCoroutine(ctx)
                 ragdollPhysObj:ComputeShadowControl(shadowParams)
             end
 
+            -- 让出协程，等待下一帧
             coroutine.yield()
         end
 
-        if ctx.stopSignal then
-            log.trace("Stop signal received, breaking loop")
+        -- 内层循环结束：检查是否因为停止信号或骨骼移除过多而需要终止整个播放
+        if shouldTerminate() then
+            log.trace("Termination condition met, breaking outer loop")
             break
         end
 
+        -- 正常完成一次动画循环，重新定位动画模型并准备下一次循环
         local ragdollPos = ragdoll:GetPos()
         local trace = util.TraceLine({
             start = ragdollPos + Vector(0, 0, 50),
