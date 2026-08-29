@@ -64,13 +64,14 @@ local function playAnimationCoroutine(ctx)
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
-
         ctx.animationEndTime = CurTime() + ctx.animationDuration
+
         local currentRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
         local refBoneOffset = currentRefBonePos - lastRefBonePos
         local refBoneOffset2D = Vector(refBoneOffset.x, refBoneOffset.y, 0)
+        animationModel:SetPos(animationModel:GetPos() + refBoneOffset2D)
+
         lastRefBonePos = currentRefBonePos
-        animationModel:SetPos(animationModel:GetPos() - refBoneOffset2D)
 
         animationModel:Fire("SetAnimation", ctx.animationName)
 
