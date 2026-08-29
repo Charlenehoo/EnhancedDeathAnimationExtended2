@@ -8,13 +8,13 @@ local AnimationSelector = include("edae/animation_selector.lua")
 hook.Add("CreateEntityRagdoll", Constants.ADDON_NAME .. MODULE_NAME .. "CreateEntityRagdoll", function(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
 
-    local animationName, loop = AnimationSelector:Select()
+    local animationName, totalLoops = AnimationSelector:Select()
     local opts = {}
 
     local aimVector = owner:GetAimVector()
     opts.state = "falling"
     opts.yaw = aimVector:Angle().yaw
-    opts.loop = 0
+    opts.totalLoops = 0
 
     local ctx = AnimationPlayer:Play(ragdoll, animationName, opts)
 end)

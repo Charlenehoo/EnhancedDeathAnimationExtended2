@@ -68,7 +68,9 @@ local function playAnimationCoroutine(ctx)
         ctx.animationEndTime = CurTime() + ctx.animationDuration
         local currentRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
         local refBoneOffset = currentRefBonePos - lastRefBonePos
+        local refBoneOffset2D = Vector(refBoneOffset.x, refBoneOffset.y, 0)
         lastRefBonePos = currentRefBonePos
+        animationModel:SetPos(animationModel:GetPos() - refBoneOffset2D)
 
         animationModel:Fire("SetAnimation", ctx.animationName)
 
@@ -86,9 +88,9 @@ local function playAnimationCoroutine(ctx)
 
             local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
             local currentDatum = gravityProxyPhysObjPos - ctx.gravityProxyDatumToPos
-            local animationModelPos = animationModel:GetPos()
-            local amTargetPos = animationModelPos - refBoneOffset
-            animationModel:SetPos(Vector(amTargetPos.x, amTargetPos.y, currentDatum.z + ctx.amDatumToPosZ))
+            local currentDatumZ = currentDatum.z
+            local currentAMPos1D = Vector(0, 0, currentDatumZ + ctx.amDatumToPosZ)
+            animationModel:SetPos(animationModel:GetPos() + currentAMPos1D)
 
             for i = #ctx.boneMap, 1, -1 do
                 local boneName = ctx.boneMap[i].boneName
