@@ -57,7 +57,7 @@ local function playAnimationCoroutine(ctx)
     coroutine.yield()
 
     enableMotion(ctx, true)
-    -- coroutine.yield()
+    coroutine.yield()
 
     local lastRefBonePos = animationModel:GetBonePosition(ctx.amRefBoneID)
 
@@ -87,8 +87,8 @@ local function playAnimationCoroutine(ctx)
             local gravityProxyPhysObjPos = gravityProxyPhysObj:GetPos()
             local currentDatum = gravityProxyPhysObjPos - ctx.gravityProxyDatumToPos
             local animationModelPos = animationModel:GetPos()
-            local amTargetPos = animationModelPos + refBoneOffset
-            animationModel:SetPos(Vector(amTargetPos.x, amTargetPos.y, currentDatum.z + ctx.amDatumToPos.z))
+            local amTargetPos = animationModelPos - refBoneOffset
+            animationModel:SetPos(Vector(amTargetPos.x, amTargetPos.y, currentDatum.z + ctx.amDatumToPosZ))
 
             for i = #ctx.boneMap, 1, -1 do
                 local boneName = ctx.boneMap[i].boneName
@@ -232,6 +232,7 @@ local function alignAnimationModel(ctx)
     local animationModelDatum = helper.GetStandPos(animationModel)
     local datumToPos          = animationModel:GetPos() - animationModelDatum
     ctx.amDatumToPos          = datumToPos
+    ctx.amDatumToPosZ         = datumToPos.z
 
     animationModel:SetPos(ctx.datum + datumToPos)
     return true
@@ -305,6 +306,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         -- ===============================
         -- 以下由 alignAnimationModel 填充
         amDatumToPos              = nil,
+        amDatumToPosZ             = nil,
         -- ===============================
 
         -- ===============================
