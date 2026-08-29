@@ -66,6 +66,7 @@ local function playAnimationCoroutine(ctx)
     while IsValid(ragdoll) and IsValid(animationModel) and IsValid(gravityProxy) and not ctx.stopSignal do
         if ctx.totalLoops > 0 and ctx.loopCount >= ctx.totalLoops then break end
         ctx.loopCount = ctx.loopCount + 1
+        log.trace("Loop: ", ctx.loopCount, "/", ctx.totalLoops)
 
         ctx.animationEndTime = CurTime() + ctx.animationDuration
         while CurTime() < ctx.animationEndTime do
@@ -130,8 +131,8 @@ local function playAnimationCoroutine(ctx)
         -- 从布娃娃当前位置向下 TraceLine 找到地面
         local ragdollPos = ragdoll:GetPos()
         local trace = util.TraceLine({
-            start = ragdollPos,
-            endpos = ragdollPos - Vector(0, 0, 200),
+            start = ragdollPos + Vector(0, 0, 50),
+            endpos = ragdollPos - Vector(0, 0, 100),
             mask = MASK_SOLID,
             filter = { ragdoll, animationModel, gravityProxy }
         })
@@ -237,16 +238,16 @@ end
 
 local function alignAnimationModel(ctx)
     local animationModel = ctx.animationModel
-    -- animationModel:SetAngles(Angle(0, ctx.yaw, 0))
+    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
 
     local animationModelDatum = helper.GetStandPos(animationModel)
     if not animationModelDatum then return false end
 
-    local datumToPos  = animationModel:GetPos() - animationModelDatum
+    local datumToPos = animationModel:GetPos() - animationModelDatum
+    animationModel:SetPos(ctx.datum + datumToPos)
+
     ctx.amDatumToPos  = datumToPos
     ctx.amDatumToPosZ = datumToPos.z
-
-    animationModel:SetPos(ctx.datum + datumToPos)
     return true
 end
 
