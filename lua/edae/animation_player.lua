@@ -36,10 +36,12 @@ local function enableMotion(ctx, enable)
 end
 
 local function playAnimationCoroutine(ctx)
+    log.trace("playAnimationCoroutine started")
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
 
     if not IsValid(ragdoll) or not IsValid(animationModel) then
+        log.warn("Ragdoll or animation model invalid, cleaning up")
         cleanUp(ctx)
         return
     end
@@ -53,8 +55,8 @@ local function playAnimationCoroutine(ctx)
     animationModel:Fire("SetAnimation", ctx.animationName)
     coroutine.yield()
 
-    -- 记录初始骨骼数量，用于判断是否提前终止
     ctx.initialBoneCount = #ctx.boneMap
+    log.trace("Initial bone count: ", ctx.initialBoneCount)
 
     while
         IsValid(ragdoll) and
@@ -74,7 +76,6 @@ local function playAnimationCoroutine(ctx)
             ctx.initialBoneCount - #ctx.boneMap < 5 and
             CurTime() < ctx.animationEndTime
         do
-            -- 逆序遍历骨骼，允许在循环中安全移除
             for i = #ctx.boneMap, 1, -1 do
                 local bone = ctx.boneMap[i]
                 local boneName = bone.boneName
@@ -83,16 +84,13 @@ local function playAnimationCoroutine(ctx)
 
                 local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
                 if not amBonePos then
-                    -- 无法获取骨骼位置，视为失效并移除
-                    log.warn()
+                    log.warn("Cannot get bone position for ", boneName, ", removing from boneMap")
                     table.remove(ctx.boneMap, i)
                     continue
                 end
 
-                -- 地面参考点（x,y 取目标位置，z 取动画模型中心）
                 local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
 
-                -- 地面检测
                 local tr1 = util.TraceLine({
                     start = refer + Vector(0, 0, 10),
                     endpos = refer - Vector(0, 0, 100),
@@ -103,22 +101,18 @@ local function playAnimationCoroutine(ctx)
                 local hitDist = refer.z - tr1.HitPos.z
                 local diff = hitDist - bone.lastHitZ
 
-                -- 更新累计修正量和上一帧高度
                 bone.lastAddZ = diff + bone.lastAddZ
                 bone.lastHitZ = hitDist
 
-                -- 悬空判断：高度差过大
                 if not bone.Fall and diff >= 20 then
                     bone.Fall = true
-                    log.trace()
+                    log.trace("Bone ", boneName, " fall detected (diff=", diff, "), removing")
                     table.remove(ctx.boneMap, i)
                     continue
                 end
 
-                -- 修正后的目标位置
                 local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
 
-                -- 撞墙检测
                 local tr2 = util.TraceLine({
                     start = ragdollPhysObj:GetPos(),
                     endpos = bone_pos,
@@ -128,12 +122,11 @@ local function playAnimationCoroutine(ctx)
 
                 if tr2.Hit then
                     bone.HitWall = true
-                    log.trace()
+                    log.trace("Bone ", boneName, " hit wall, removing")
                     table.remove(ctx.boneMap, i)
                     continue
                 end
 
-                -- 未悬空且未撞墙，驱动骨骼
                 local shadowParams = ctx.shadowParamsTemplate
                 shadowParams.pos = bone_pos
                 shadowParams.angle = amBoneAngle
@@ -144,9 +137,11 @@ local function playAnimationCoroutine(ctx)
             coroutine.yield()
         end
 
-        if ctx.stopSignal then break end
+        if ctx.stopSignal then
+            log.trace("Stop signal received, breaking loop")
+            break
+        end
 
-        -- 原有动画模型重新定位逻辑保持不变
         local ragdollPos = ragdoll:GetPos()
         local trace = util.TraceLine({
             start = ragdollPos + Vector(0, 0, 50),
@@ -162,6 +157,7 @@ local function playAnimationCoroutine(ctx)
         coroutine.yield()
     end
 
+    log.trace("playAnimationCoroutine ended")
     cleanUp(ctx)
 end
 
@@ -223,6 +219,7 @@ local function makeBoneMap(ctx)
         return false
     end
 
+    log.trace("Bone map created with ", #ctx.boneMap, " bones")
     return true
 end
 
@@ -242,6 +239,7 @@ local function alignAnimationModel(ctx)
     ctx.amDatumToPos  = datumToPos
     ctx.amDatumToPosZ = datumToPos.z
 
+    log.trace("Animation model aligned, datumToPos: ", tostring(datumToPos))
     return true
 end
 
@@ -253,6 +251,7 @@ local function checkAnimationName(ctx)
     end
     ctx.animationDuration = animationDuration
 
+    log.trace("Animation duration: ", animationDuration)
     return true
 end
 
@@ -271,6 +270,7 @@ local function createAnimationModel(ctx)
 
     animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when released
 
+    log.trace("Animation model created: ", animationModelName)
     return true
 end
 
