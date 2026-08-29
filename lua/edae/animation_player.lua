@@ -84,6 +84,7 @@ local function playAnimationCoroutine(ctx)
                 local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
                 if not amBonePos then
                     -- 无法获取骨骼位置，视为失效并移除
+                    log.warn()
                     table.remove(ctx.boneMap, i)
                     continue
                 end
@@ -109,6 +110,7 @@ local function playAnimationCoroutine(ctx)
                 -- 悬空判断：高度差过大
                 if not bone.Fall and diff >= 20 then
                     bone.Fall = true
+                    log.trace()
                     table.remove(ctx.boneMap, i)
                     continue
                 end
@@ -126,6 +128,7 @@ local function playAnimationCoroutine(ctx)
 
                 if tr2.Hit then
                     bone.HitWall = true
+                    log.trace()
                     table.remove(ctx.boneMap, i)
                     continue
                 end
@@ -170,12 +173,12 @@ local function fillShadowParamsTemplate(ctx)
         end
     end
     ctx.shadowParamsTemplate = shadowParams
+
     return true
 end
 
 local function makeBoneMap(ctx)
     local ragdoll = ctx.ragdoll
-    local animationModel = ctx.animationModel
 
     local ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
     if not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 then return false end
@@ -190,7 +193,7 @@ local function makeBoneMap(ctx)
         local boneName = ragdoll:GetBoneName(ragdollBoneID)
 
         -- Index of the given bone name, or nil if the bone doesn't exist on the Entity.
-        local amBoneID = animationModel:LookupBone(boneName)
+        local amBoneID = ctx.animationModel:LookupBone(boneName)
         if not amBoneID then continue end
 
         -- The physics object or nil if not found
@@ -213,12 +216,33 @@ local function makeBoneMap(ctx)
         }
 
         table.insert(ctx.boneMap, data)
-
-        if boneName == ctx.amRefBoneName then
-            ctx.amRefBoneID = amBoneID
-        end
     end
-    return ctx.amRefBoneID ~= nil
+
+    if #ctx.boneMap == 0 then
+        log.warn("Cannot make bone map")
+        return false
+    end
+
+    return true
+end
+
+local function alignAnimationModel(ctx)
+    local animationModel = ctx.animationModel
+    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
+
+    local animationModelDatum = helper.GetStandPos(animationModel)
+    if not animationModelDatum then
+        log.warn("Cannot find stand pos for animationModel")
+        return false
+    end
+
+    local datumToPos = animationModel:GetPos() - animationModelDatum
+    animationModel:SetPos(ctx.datum + datumToPos)
+
+    ctx.amDatumToPos  = datumToPos
+    ctx.amDatumToPosZ = datumToPos.z
+
+    return true
 end
 
 local function checkAnimationName(ctx)
@@ -228,21 +252,7 @@ local function checkAnimationName(ctx)
         return false
     end
     ctx.animationDuration = animationDuration
-    return true
-end
 
-local function alignAnimationModel(ctx)
-    local animationModel = ctx.animationModel
-    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
-
-    local animationModelDatum = helper.GetStandPos(animationModel)
-    if not animationModelDatum then return false end
-
-    local datumToPos = animationModel:GetPos() - animationModelDatum
-    animationModel:SetPos(ctx.datum + datumToPos)
-
-    ctx.amDatumToPos  = datumToPos
-    ctx.amDatumToPosZ = datumToPos.z
     return true
 end
 
@@ -295,10 +305,6 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName        = opts.animationModelName or
             Constants.ANIMATION_PLAYER.ANIMATION_MODEL.DEFAULT_MODEL_NAME,
-        amRefBoneName             = opts.animationModelRefBoneName or
-            Constants.ANIMATION_PLAYER.ANIMATION_MODEL.REF_BONE_NAME,
-        gravityProxyModelName     = opts.gravityProxyModelName or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.MODEL_NAME,
-        gravityProxyRadius        = opts.radius or Constants.ANIMATION_PLAYER.GRAVITY_PROXY.RADIUS,
 
         -- ===============================
         -- 以下由 fillShadowParamsTemplate 填充

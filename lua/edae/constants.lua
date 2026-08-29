@@ -8,7 +8,6 @@ Constants.ANIMATION_PLAYER = {}
 
 Constants.ANIMATION_PLAYER.ANIMATION_MODEL = {}
 Constants.ANIMATION_PLAYER.ANIMATION_MODEL.DEFAULT_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
-Constants.ANIMATION_PLAYER.ANIMATION_MODEL.REF_BONE_NAME = "ValveBiped.Bip01_Pelvis"
 
 Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE = {
     teleportdistance = 0,
