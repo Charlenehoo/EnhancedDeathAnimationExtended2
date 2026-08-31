@@ -12,7 +12,6 @@ local helpers                       = include("npc_monitor/helpers.lua")
 local findNearestEntity             = helpers.findNearestEntity
 local findRandomEntity              = helpers.findRandomEntity
 local getEyePos                     = helpers.getEyePos
-local isRagdollMovingNow            = helpers.isRagdollMovingNow
 
 -- EDAE 生命周期处理器（用于获取 ragdoll 状态）
 local LifeCycleHandler              = include("edae/lch/life_cycle_handler.lua")
@@ -35,7 +34,6 @@ local EXECUTIONER_TIMEOUT           = CONSTANTS.RAGDOLL_DUMMY.EXECUTIONER_TIMEOU
 local STATE_TO_SEARCH_RADIUS        = CONSTANTS.RAGDOLL_DUMMY.STATE_TO_SEARCH_RADIUS
 
 local REPOSITION_INTERVAL           = CONSTANTS.RAGDOLL_DUMMY.REPOSITION_INTERVAL
-
 local POSITION_RESET_INTERVAL       = CONSTANTS.RAGDOLL_DUMMY.POSITION_RESET_INTERVAL
 local BROAD_CAST_INTERVAL           = 9
 
@@ -203,13 +201,9 @@ function ENT:Init(owner, ragdoll)
     self._LastRagdollState = nil
     self._DeadRemoveTimer = nil
 
+    -- 移除所有速度/静态检测相关字段
     self._RagdollState = "init"
-    self._LastRagdollState = nil
     self._modDead = false
-    self._velocityDead = false
-    self._staticCheckCount = 0
-    self._nextStaticCheck = 0
-    self._lastStaticResult = false
     self._wasDead = false
     self._DeadRemoveTimer = nil
 end
@@ -275,27 +269,8 @@ function ENT:_CancelExecutioner()
     self._LastSearchTime = 0
 end
 
-function ENT:_UpdateVelocityDead(ragdoll, now)
-    local interval = CONSTANTS.RAGDOLL_DUMMY.STATIC_CHECK_INTERVAL or 1
-    local consecutiveRequired = CONSTANTS.RAGDOLL_DUMMY.STATIC_CONSECUTIVE_COUNT or 2
-
-    if now >= self._nextStaticCheck then
-        local moving = isRagdollMovingNow(ragdoll)
-        if moving then
-            self._staticCheckCount = 0
-            self._lastStaticResult = false
-        else
-            self._staticCheckCount = self._staticCheckCount + 1
-            self._lastStaticResult = (self._staticCheckCount >= consecutiveRequired)
-        end
-        self._nextStaticCheck = now + interval
-    end
-
-    return self._lastStaticResult
-end
-
 function ENT:_UpdateDeathState(ragdoll, now)
-    -- 获取 EDAE 状态
+    -- 直接获取 EDAE 状态，不再需要速度辅助
     local modState = LifeCycleHandler:GetState(ragdoll) or "init"
 
     if self._LastRagdollState ~= modState then
@@ -312,23 +287,16 @@ function ENT:_UpdateDeathState(ragdoll, now)
 
     local modDead = (modState == "dead")
 
-    local velocityDead = self:_UpdateVelocityDead(ragdoll, now)
-
     if self._modDead ~= modDead then
         log.trace(self, "ModDead changed: ", self._modDead, " -> ", modDead)
         self._modDead = modDead
     end
-    if self._velocityDead ~= velocityDead then
-        log.trace(self, "VelocityDead changed: ", self._velocityDead, " -> ", velocityDead)
-        self._velocityDead = velocityDead
-    end
 
-    local deathCount = (modDead and 1 or 0) + (velocityDead and 1 or 0)
-    local isDead = deathCount > 0
+    local isDead = modDead
 
     if isDead ~= self._wasDead then
         log.info(self, "Overall death state: ", self._wasDead, " -> ", isDead,
-            " (modDead=", modDead, ", velocityDead=", velocityDead, ", count=", deathCount, ")")
+            " (modDead=", modDead, ")")
         self._wasDead = isDead
     end
 
