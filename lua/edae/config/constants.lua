@@ -7,6 +7,10 @@ Constants.Events                                        = {
     OnAnimationFinished = "OnAnimationFinished",
 }
 
+Constants.NETWORK_STRING                                = {}
+Constants.NETWORK_STRING.Ragdoll                        = Constants.ADDON_NAME .. "_" .. "Ragdoll"
+Constants.NETWORK_STRING.PlayerSpawn                    = Constants.ADDON_NAME .. "_" .. "PlayerSpawn"
+
 Constants.EntityDataStore                               = {}
 Constants.EntityDataStore.STORAGE_KEY                   = Constants.ADDON_NAME .. "_" .. "EntityData"
 Constants.EntityDataStore.SUPER_OWNER                   = "ADMIN"
@@ -68,5 +72,9 @@ Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE       = {
     pos = vector_origin,
     angle = angle_zero,
 }
+
+Constants.PlayerCreatePropRagdoll                       = {}
+Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
+Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET      = 5
 
 return Constants

@@ -158,7 +158,7 @@ local function playAnimationCoroutine(ctx)
 end
 
 function AnimationPlayer:Stop(ragdoll)
-    local ctx = store:Get(Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
     ctx.stopSignal = true
 end
 
@@ -249,7 +249,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
     ctx.coro = coro
 
-    store:Set(Constants.ANIMATION_PLAYER.CONEXT_KEY, ctx)
+    store:Set(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY, ctx)
     return ctx
 end
 
