@@ -45,8 +45,7 @@ local function alignAnimationModel(ctx)
         end
 
         animationModel:SetPos(groundPos + persistedDatumToPos)
-        ctx.amDatumToPos  = persistedDatumToPos
-        ctx.amDatumToPosZ = persistedDatumToPos.z
+        ctx.amDatumToPos = persistedDatumToPos
 
         log.trace("Animation model aligned using persisted datumToPos: ", tostring(persistedDatumToPos))
         return true
@@ -63,8 +62,7 @@ local function alignAnimationModel(ctx)
 
         animationModel:SetPos(ctx.datum + datumToPos)
 
-        ctx.amDatumToPos  = datumToPos
-        ctx.amDatumToPosZ = datumToPos.z
+        ctx.amDatumToPos = datumToPos
 
         log.trace("Animation model aligned first time, datumToPos stored: ", tostring(datumToPos))
         return true
@@ -267,7 +265,6 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         -- ===============================
         -- 以下由 alignAnimationModel 填充
         amDatumToPos              = nil,
-        amDatumToPosZ             = nil,
         -- ===============================
 
         -- ===============================

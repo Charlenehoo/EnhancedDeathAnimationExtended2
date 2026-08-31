@@ -100,26 +100,6 @@ function helper.MakeBoneMap(ctx)
     return true
 end
 
-function helper.AlignAnimationModel(ctx)
-    local animationModel = ctx.animationModel
-    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
-
-    local animationModelDatum = getStandPosByBone(animationModel)
-    if not animationModelDatum then
-        log.warn("Cannot find stand pos for animationModel")
-        return false
-    end
-
-    local datumToPos = animationModel:GetPos() - animationModelDatum
-    animationModel:SetPos(ctx.datum + datumToPos)
-
-    ctx.amDatumToPos  = datumToPos
-    ctx.amDatumToPosZ = datumToPos.z
-
-    log.trace("Animation model aligned, datumToPos: ", tostring(datumToPos))
-    return true
-end
-
 function helper.CheckAnimationName(ctx)
     local _, animationDuration = ctx.animationModel:LookupSequence(ctx.animationName)
     if not animationDuration or animationDuration <= 0 then
