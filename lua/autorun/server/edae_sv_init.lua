@@ -2,3 +2,5 @@ _EnhancedDeathAnimationExtendedSingletons = _EnhancedDeathAnimationExtendedSingl
 
 -- include("edae/event_lisener.lua")
 -- include("pcpr/core.lua")
+
+include("edae/rm/core.lua")

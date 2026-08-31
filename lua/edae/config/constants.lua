@@ -2,8 +2,26 @@
 local Constants = {}
 
 Constants.ADDON_NAME = "EnhancedDeathAnimationExtended"
-Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Ragdoll_Context"
+Constants.RAGDOLL_CLASS = "prop_ragdoll"
+
+Constants.EntityDataStore = {}
+Constants.EntityDataStore.STORAGE_KEY = Constants.ADDON_NAME .. "_" .. "EntityData"
+Constants.EntityDataStore.SUPER_OWNER = "ADMIN"
+Constants.EntityDataStore.DEFAULT_OWNER = "anonymous"
+
+Constants.RAGDOLL_MANAGER = {}
+Constants.RAGDOLL_MANAGER.HEALTH_KEY = "Health"
+Constants.RAGDOLL_MANAGER.MAX_HEALTH = 100
+
+Constants.RAGDOLL_MANAGER.STATE_KEY = "State"
+Constants.RAGDOLL_MANAGER.STATE_ENUM = {
+    FALLING = "falling"
+}
+
 Constants.PLAYER_NPC_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Player_NPC_Context"
+Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Ragdoll_Context"
+
+
 
 Constants.ANIMATION_PLAYER = {}
 
@@ -33,5 +51,8 @@ Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE = {
     pos = vector_origin,
     angle = angle_zero,
 }
+
+
+
 
 return Constants
