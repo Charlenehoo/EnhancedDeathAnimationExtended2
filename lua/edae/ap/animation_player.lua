@@ -51,6 +51,13 @@ local function playAnimationCoroutine(ctx)
     helper.EnableMotion(ctx, true)
     coroutine.yield()
 
+    -- 执行播放前的等待原语（如等待固定时间、等待物理停止等）
+    if ctx.preWait then
+        for _, waitFunc in ipairs(ctx.preWait) do
+            waitFunc(ctx)
+        end
+    end
+
     animationModel:Fire("SetAnimation", ctx.animationName)
     coroutine.yield()
 
@@ -167,8 +174,8 @@ end
 --- @param animationName string
 --- @param opts table|nil
 ---   opts.animationModelName string
----   opts.collisionStrategy table
 ---   opts.shadowParamsTemplate table
+---   opts.preWait table|nil 等待函数数组，每个函数接收 ctx
 function AnimationPlayer:Play(ragdoll, animationName, opts)
     if not IsValid(ragdoll) then
         log.warn("Invalid ragdoll: ", tostring(ragdoll))
@@ -182,21 +189,15 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     opts = opts or {}
 
-    local totalLoops = (opts.totalLoops ~= nil) and opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS
-
     local ctx = {
         ragdoll                   = ragdoll,
         animationName             = animationName,
         datum                     = helper.GetStandPos(ragdoll),
 
-        state                     = opts.state or "falling",
-        damageContext             = opts.damageContext,
-
-        totalLoops                = totalLoops,
-        loopCount                 = 0,
-
+        totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
+        preWait                   = opts.preWait, -- 等待函数数组
 
         -- ===============================
         -- 以下由 fillShadowParamsTemplate 填充
@@ -233,6 +234,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
         coro                      = nil,
         stopSignal                = nil,
+        loopCount                 = 0,
     }
 
     if
