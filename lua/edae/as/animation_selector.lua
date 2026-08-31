@@ -12,6 +12,8 @@ local Scheduler = include("edae/cs/coroutine_scheduler.lua")
 local animationCategories = include("edae/as/animation_categories.lua")
 local BoneWhitelists = include("edae/as/bone_whitelists.lua")
 
+local STATE_ENUM = Constants.LifeCycleHandler.STATE_ENUM
+
 local AnimationSelector = {}
 
 -- 随机选择一个动画
@@ -60,17 +62,18 @@ end
 
 -- ============================================================
 -- 选择骨骼白名单
+-- @param state string 使用 STATE_ENUM 中的值
 -- ============================================================
 local function selectBoneWhitelist(state, animationName, opts)
     opts = opts or {}
 
-    if state == "falling" then
+    if state == STATE_ENUM.FALLING then
         local naturalLevel = Constants.ANIMATION_SELECTOR.NATURAL_LEVEL
         return BoneWhitelists.MoveTbD[naturalLevel]
     end
 
     -- 玩家相机模式特殊处理（仅爬行时）
-    if opts.isPlayerCameraMode and state == "crawling" then
+    if opts.isPlayerCameraMode and state == STATE_ENUM.CRAWLING then
         local whitelist = table.Copy(BoneWhitelists.NrmTb)
         whitelist["ValveBiped.Bip01_Head1"] = nil
         whitelist["ValveBiped.Bip01_Spine4"] = nil
@@ -78,12 +81,12 @@ local function selectBoneWhitelist(state, animationName, opts)
     end
 
     -- 挣扎/抽搐动画统一使用面朝上白名单
-    if state == "writhing" or state == "twitching" then
+    if state == STATE_ENUM.WRITHING then
         return BoneWhitelists.MoveTbC.MoveTb_1
     end
 
     -- 爬行动画：根据动画名判断面朝上/下
-    if state == "crawling" then
+    if state == STATE_ENUM.CRAWLING then
         if isCrawlFaceUp(animationName) then
             return BoneWhitelists.MoveTbC.MoveTb_1
         else
@@ -110,7 +113,7 @@ local function selectBoneWhitelist(state, animationName, opts)
 end
 
 -- ============================================================
--- 死亡动画选择
+-- 死亡动画选择（FALLING 状态）
 -- ============================================================
 local function selectDeathAnimation(context)
     local animName
@@ -172,7 +175,7 @@ local function selectDeathAnimation(context)
         animationName = animName,
         totalLoops = 1,
         preWait = {},
-        boneWhitelist = selectBoneWhitelist("falling", animName, nil),
+        boneWhitelist = selectBoneWhitelist(STATE_ENUM.FALLING, animName, nil),
     }
 end
 
@@ -188,7 +191,7 @@ local function selectCrawlAnimation(opts)
         animationName = animName,
         totalLoops = 0,
         preWait = makeCrawlOrWrithePreWait(),
-        boneWhitelist = selectBoneWhitelist("crawling", animName, opts),
+        boneWhitelist = selectBoneWhitelist(STATE_ENUM.CRAWLING, animName, opts),
     }
 end
 
@@ -204,27 +207,33 @@ local function selectWritheAnimation(opts)
         animationName = animName,
         totalLoops = 0,
         preWait = makeCrawlOrWrithePreWait(),
-        boneWhitelist = selectBoneWhitelist("writhing", animName, opts),
+        boneWhitelist = selectBoneWhitelist(STATE_ENUM.WRITHING, animName, opts),
     }
 end
 
 -- ============================================================
 -- 主选择函数
+-- @param state string 必须为 STATE_ENUM 中的值
+-- @param context table|nil 伤害上下文（仅 FALLING 需要）
+-- @param opts table|nil 额外选项（如 isPlayerCameraMode）
+-- @return table|nil { animationName, totalLoops, preWait, boneWhitelist }
 -- ============================================================
 function AnimationSelector:Select(state, context, opts)
     opts = opts or {}
 
-    if state == "falling" then
+    if state == STATE_ENUM.FALLING then
         return selectDeathAnimation(context)
-    elseif state == "crawling" then
+    elseif state == STATE_ENUM.CRAWLING then
         return selectCrawlAnimation(opts)
-    elseif state == "writhing" or state == "twitching" then
+    elseif state == STATE_ENUM.WRITHING then
         return selectWritheAnimation(opts)
-    elseif state == "overkill" then
-        log.trace("AnimationSelector: state is 'overkill', no animation will be played")
-        return nil
     else
-        log.warn("AnimationSelector: unknown state '", tostring(state), "'")
+        -- DEAD、REVIVING 以及其他未知状态不播放动画
+        if state == STATE_ENUM.DEAD then
+            log.trace("AnimationSelector: state is 'dead', no animation will be played")
+        else
+            log.warn("AnimationSelector: unknown state '", tostring(state), "'")
+        end
         return nil
     end
 end
