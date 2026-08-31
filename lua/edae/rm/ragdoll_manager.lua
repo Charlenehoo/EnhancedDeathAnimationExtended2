@@ -20,6 +20,7 @@ local RAGDOLL_CLASS = Constants.RAGDOLL_CLASS
 local HEALTH_KEY = Constants.RagdollManager.HEALTH_KEY
 local MAX_HEALTH = Constants.RagdollManager.MAX_HEALTH
 local Events = Constants.Events
+local STATE_ENUM = Constants.LifeCycleHandler.STATE_ENUM
 
 local Manager = {}
 
@@ -58,6 +59,7 @@ function Manager:OnStateChange(ragdoll, state)
     if AnimationPlayer:IsPlaying(ragdoll) then
         AnimationPlayer:Stop(ragdoll)
     end
+    if state == STATE_ENUM.DEAD then return end
     local animationName, totalLoops, secondsBeforePlay = AnimationSelector:Select(state, nil)
     local opts = {}
     opts.totalLoops = totalLoops
