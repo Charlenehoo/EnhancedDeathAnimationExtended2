@@ -72,6 +72,7 @@ Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE       = {
     pos = vector_origin,
     angle = angle_zero,
 }
+Constants.ANIMATION_PLAYER.AM_DATUM_TO_POS_KEY          = "AmDatumToPos"
 
 Constants.ANIMATION_SELECTOR                            = {}
 Constants.ANIMATION_SELECTOR.PRE_WAIT_TIME              = 1.5  -- 播放前固定等待时间（秒）

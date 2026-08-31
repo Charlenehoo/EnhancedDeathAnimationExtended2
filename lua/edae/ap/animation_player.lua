@@ -15,6 +15,62 @@ local store           = EntityDataStore:ForOwner(MODULE_NAME)
 
 local AnimationPlayer = {}
 
+local function getGroundPosBelowRagdoll(ragdoll, animationModel)
+    local startPos = ragdoll:GetPos() + Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET
+    local trace = util.TraceLine({
+        start = startPos,
+        endpos = startPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET,
+        mask = MASK_SOLID,
+        filter = { ragdoll, animationModel }
+    })
+    if trace.Hit then
+        return trace.HitPos
+    end
+    return nil
+end
+
+local function alignAnimationModel(ctx)
+    local animationModel = ctx.animationModel
+    local ragdoll = ctx.ragdoll
+
+    animationModel:SetAngles(Angle(0, ctx.yaw, 0))
+
+    local persistedDatumToPos = store:Get(ragdoll, Constants.ANIMATION_PLAYER.AM_DATUM_TO_POS_KEY)
+
+    if persistedDatumToPos then
+        local groundPos = getGroundPosBelowRagdoll(ragdoll, animationModel)
+        if not groundPos then
+            log.warn("Cannot find ground below ragdoll for alignment")
+            return false
+        end
+
+        animationModel:SetPos(groundPos + persistedDatumToPos)
+        ctx.amDatumToPos  = persistedDatumToPos
+        ctx.amDatumToPosZ = persistedDatumToPos.z
+
+        log.trace("Animation model aligned using persisted datumToPos: ", tostring(persistedDatumToPos))
+        return true
+    else
+        local animationModelDatum = helper.GetStandPos(animationModel)
+        if not animationModelDatum then
+            log.warn("Cannot find stand pos for animationModel")
+            return false
+        end
+
+        local datumToPos = animationModel:GetPos() - animationModelDatum
+
+        store:Set(ragdoll, Constants.ANIMATION_PLAYER.AM_DATUM_TO_POS_KEY, datumToPos)
+
+        animationModel:SetPos(ctx.datum + datumToPos)
+
+        ctx.amDatumToPos  = datumToPos
+        ctx.amDatumToPosZ = datumToPos.z
+
+        log.trace("Animation model aligned first time, datumToPos stored: ", tostring(datumToPos))
+        return true
+    end
+end
+
 local function cleanUp(ctx)
     local animationModel = ctx.animationModel
     if IsValid(animationModel) then
@@ -146,14 +202,7 @@ local function playAnimationCoroutine(ctx)
 
         -- 正常完成一次动画循环，重新定位动画模型并准备下一次循环
         local ragdollPos = ragdoll:GetPos()
-        local trace = util.TraceLine({
-            start = ragdollPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET,
-            endpos = ragdollPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET,
-            mask = MASK_SOLID,
-            filter = { ragdoll, animationModel }
-        })
-
-        local groundPos = trace.Hit and trace.HitPos or ragdollPos
+        local groundPos = GetGroundPosBelowRagdoll(ragdoll, animationModel) or ragdollPos
         animationModel:SetPos(groundPos + ctx.amDatumToPos)
 
         animationModel:Fire("SetAnimation", ctx.animationName)
@@ -241,7 +290,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     if
         not helper.CreateAnimationModel(ctx) or
         not helper.CheckAnimationName(ctx) or
-        not helper.AlignAnimationModel(ctx) or
+        not alignAnimationModel(ctx) or
         not helper.MakeBoneMap(ctx) or
         not helper.FillShadowParamsTemplate(ctx)
     then
