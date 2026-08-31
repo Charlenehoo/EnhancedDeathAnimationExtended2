@@ -198,6 +198,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
         preWait                   = opts.preWait, -- 等待函数数组
+        boneWhitelist             = opts.boneWhitelist,
 
         -- ===============================
         -- 以下由 fillShadowParamsTemplate 填充

@@ -63,6 +63,8 @@ function helper.MakeBoneMap(ctx)
         -- "__INVALIDBONE__" in case the name cannot be read or the index is out of range, or we failed or entity doesn't have a model.
         local boneName = ragdoll:GetBoneName(ragdollBoneID)
 
+        if ctx.boneWhitelist and not ctx.boneWhitelist[boneName] then continue end
+
         -- Index of the given bone name, or nil if the bone doesn't exist on the Entity.
         local amBoneID = ctx.animationModel:LookupBone(boneName)
         if not amBoneID then continue end
