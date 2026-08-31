@@ -5,7 +5,7 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants = include("edae/constants.lua")
+local Constants = include("edae/config/constants.lua")
 
 local Scheduler = {}
 

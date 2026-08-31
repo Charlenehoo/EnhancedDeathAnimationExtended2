@@ -9,14 +9,35 @@ Constants.EntityDataStore.STORAGE_KEY = Constants.ADDON_NAME .. "_" .. "EntityDa
 Constants.EntityDataStore.SUPER_OWNER = "ADMIN"
 Constants.EntityDataStore.DEFAULT_OWNER = "anonymous"
 
-Constants.RAGDOLL_MANAGER = {}
-Constants.RAGDOLL_MANAGER.HEALTH_KEY = "Health"
-Constants.RAGDOLL_MANAGER.MAX_HEALTH = 100
+Constants.RagdollManager = {}
+Constants.RagdollManager.HEALTH_KEY = "Health"
+Constants.RagdollManager.MAX_HEALTH = 100
 
-Constants.RAGDOLL_MANAGER.STATE_KEY = "State"
-Constants.RAGDOLL_MANAGER.STATE_ENUM = {
-    FALLING = "falling"
+Constants.LifeCycleHandler.STATE_KEY = "State"
+Constants.LifeCycleHandler.STATE_ENUM = {
+    FALLING = "falling",
+    CRAWLING = "crawling",
+    WRITHING = "writhing",
+    DEAD = "dead",
+    REVIVING = "reviving",
 }
+
+Constants.DamageContextManager = {}
+Constants.DamageContextManager.FLAG_KEY = "Flag"
+Constants.DamageContextManager.FLAG_ENUM = {
+    NECK = 1,
+    SHOTGUN = 2,
+    BACK = 4,
+    PELVIS = 8,
+    BURN = 16,
+    BLAST = 32,
+    MOVING = 64,
+    CLUB = 128,
+    BULLET = 256,
+}
+Constants.DamageContextManager.HIT_GROUP_KEY = "HitGroup"
+Constants.DamageContextManager.DMG_INFO_KEY = "DmgInfo"
+
 
 Constants.PLAYER_NPC_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Player_NPC_Context"
 Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Ragdoll_Context"

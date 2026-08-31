@@ -7,8 +7,8 @@ local LifeCycleHandler = include("edae/lch/life_cycle_handler.lua")
 
 local store = EntityDataStore:ForOwner(MODULE_NAME)
 local RAGDOLL_CLASS = Constants.RAGDOLL_CLASS
-local HEALTH_KEY = Constants.RAGDOLL_MANAGER.HEALTH_KEY
-local MAX_HEALTH = Constants.RAGDOLL_MANAGER.MAX_HEALTH
+local HEALTH_KEY = Constants.RagdollManager.HEALTH_KEY
+local MAX_HEALTH = Constants.RagdollManager.MAX_HEALTH
 
 local Manager = {}
 
@@ -19,8 +19,6 @@ end
 function Manager:SetHealth(ragdoll, health)
     return store:Set(ragdoll, HEALTH_KEY, health)
 end
-
--- ======================================
 
 function Manager:OnCreate(owner, ragdoll)
     store:SetHealth(ragdoll, MAX_HEALTH)
