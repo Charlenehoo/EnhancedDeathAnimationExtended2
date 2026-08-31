@@ -5,7 +5,7 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local log = include("edae/log/log.lua")
+local log = include("log.lua")
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = log
 return log

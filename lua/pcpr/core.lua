@@ -42,13 +42,13 @@ end
 
 meta.CreateRagdoll = function(self)
     if not IsValid(self) or not self:IsPlayer() then
-        return cleanUp(self)
+        return originalCreateRagdoll(self)
     end
 
     local plyModel = self:GetModel()
     if not plyModel then
         log.warn("Cannot find model for player: ", self)
-        return cleanUp(self)
+        return originalCreateRagdoll(self)
     end
 
     local ragdoll = ents.Create("prop_ragdoll")
