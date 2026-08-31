@@ -261,26 +261,44 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         preWait                   = opts.preWait,
         boneWhitelist             = opts.boneWhitelist,
 
+        -- ===============================
+        -- 以下由 fillShadowParamsTemplate 填充
         shadowParamsTemplate      = opts.shadowParamsTemplate,
+        -- ===============================
 
+        -- ===============================
+        -- 以下由 createAnimationModel 填充
         animationModel            = nil,
-        animationDuration         = nil,
-        amDatumToPos              = nil,
+        -- ===============================
 
+        -- ===============================
+        -- 以下由 checkAnimationName 填充
+        animationDuration         = nil,
+        -- ===============================
+
+        -- ===============================
+        -- 以下由 alignAnimationModel 填充
+        amDatumToPos              = nil,
+        -- ===============================
+
+        -- ===============================
+        -- 以下由 makeBoneMap 填充
         ragdollPhysicsObjectCount = nil,
         boneMap                   = nil,
         amRefBoneID               = nil,
+        -- ===============================
 
+        -- ===============================
+        -- 以下由 playAnimationCoroutine 填充
         animationEndTime          = nil,
-
-        coro                      = nil,
-        stopSignal                = nil,
         loopCount                 = 0,
-
-        -- 新增计数器（去掉 ar 前缀）
         totalBones                = 0,
         FallCount                 = 0,
         HitWallCount              = 0,
+        -- ===============================
+
+        coro                      = nil,
+        stopSignal                = nil,
     }
 
     if
