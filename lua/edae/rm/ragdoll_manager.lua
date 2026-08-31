@@ -86,7 +86,7 @@ function Manager:OnCreate(owner, ragdoll)
     local damageContext = DamageContextManager:Get(owner)
     local state = LifeCycleHandler:Init(ragdoll, damageContext)
 
-    PlayAnimationForState(ragdoll, state, damageContext)
+    self:PlayAnimationForState(ragdoll, state, damageContext)
 end
 
 function Manager:OnTakeDamage(ragdoll, dmginfo)
@@ -102,7 +102,7 @@ function Manager:OnStateChange(ragdoll, state)
     AnimationPlayer:Stop(ragdoll)
     if state == STATE_ENUM.DEAD then return end
 
-    PlayAnimationForState(ragdoll, state, nil) -- 状态切换时无伤害上下文
+    self:PlayAnimationForState(ragdoll, state, nil) -- 状态切换时无伤害上下文
 end
 
 -- ======================================

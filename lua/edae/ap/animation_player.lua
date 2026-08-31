@@ -200,7 +200,7 @@ local function playAnimationCoroutine(ctx)
 
         -- 正常完成一次动画循环，重新定位动画模型并准备下一次循环
         local ragdollPos = ragdoll:GetPos()
-        local groundPos = GetGroundPosBelowRagdoll(ragdoll, animationModel) or ragdollPos
+        local groundPos = getGroundPosBelowRagdoll(ragdoll, animationModel) or ragdollPos
         animationModel:SetPos(groundPos + ctx.amDatumToPos)
 
         animationModel:Fire("SetAnimation", ctx.animationName)
