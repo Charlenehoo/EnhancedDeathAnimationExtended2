@@ -1,6 +1,6 @@
-local MODULE_NAME = "Core"
+local MODULE_NAME = "PlayerCreatePropRagdoll"
 
-local Constants = include("pcpr/constants.lua")
+local Constants = include("pcpr_config/constants.lua")
 local log = include("log/init.lua")
 
 local meta = FindMetaTable("Player")
