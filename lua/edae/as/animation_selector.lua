@@ -183,10 +183,20 @@ end
 -- 爬行动画选择
 -- ============================================================
 local function selectCrawlAnimation(opts)
-    local animName = randomFromList(animationCategories.crawl)
-    if not animName then
-        animName = "crawling1"
+    opts = opts or {}
+    local isFacingUp = opts.isFacingUp
+    local useFemale = Constants.ANIMATION_SELECTOR.USE_FEMALE_ANIMATIONS
+
+    local animName
+
+    if isFacingUp then
+        animName = useFemale and "crawling1_f" or "crawling1"
+    else
+        -- 面朝下：只从 crawling5 和 crawling6 中选择
+        local crawlNum = math.random(5, 6)
+        animName = useFemale and ("crawling" .. crawlNum .. "_f") or ("crawling" .. crawlNum)
     end
+
     return {
         animationName = animName,
         totalLoops = 0,
@@ -199,10 +209,12 @@ end
 -- 挣扎动画选择
 -- ============================================================
 local function selectWritheAnimation(opts)
-    local animName = randomFromList(animationCategories.writhe)
-    if not animName then
-        animName = "writhing1"
-    end
+    opts = opts or {}
+    local isFacingUp = opts.isFacingUp
+
+    -- 挣扎动画：面朝上选 writhing1，面朝下选 writhing2
+    local animName = isFacingUp and "writhing1" or "writhing2"
+
     return {
         animationName = animName,
         totalLoops = 0,
@@ -213,16 +225,20 @@ end
 
 -- ============================================================
 -- 主选择函数
--- @param state string 必须为 STATE_ENUM 中的值
--- @param context table|nil 伤害上下文（仅 FALLING 需要）
--- @param opts table|nil 额外选项（如 isPlayerCameraMode）
+-- @param playBackInfo table { state, damageContext, isFacingUp, ... }
 -- @return table|nil { animationName, totalLoops, preWait, boneWhitelist }
 -- ============================================================
-function AnimationSelector:Select(state, context, opts)
-    opts = opts or {}
+function AnimationSelector:Select(playBackInfo)
+    local state = playBackInfo.state
+    local damageContext = playBackInfo.damageContext
+    local opts = {
+        isFacingUp = playBackInfo.isFacingUp,
+        -- 可在此扩展其他选项，如 isPlayerCameraMode
+        -- isPlayerCameraMode = playBackInfo.isPlayerCameraMode,
+    }
 
     if state == STATE_ENUM.FALLING then
-        return selectDeathAnimation(context)
+        return selectDeathAnimation(damageContext)
     elseif state == STATE_ENUM.CRAWLING then
         return selectCrawlAnimation(opts)
     elseif state == STATE_ENUM.WRITHING then

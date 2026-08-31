@@ -82,6 +82,7 @@ Constants.ANIMATION_SELECTOR.STOP_TIMEOUT               = 4.5  -- 等待停止�
 Constants.ANIMATION_SELECTOR.STOP_CHECK_INTERVAL        = 0.15 -- 停止检测轮询间隔（秒）
 Constants.ANIMATION_SELECTOR.NATURAL_LEVEL              = 1
 Constants.ANIMATION_SELECTOR.USE_RANDOM_CRAWL_WHITELIST = false
+Constants.ANIMATION_SELECTOR.USE_FEMALE_ANIMATIONS      = true
 
 Constants.PlayerCreatePropRagdoll                       = {}
 Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
