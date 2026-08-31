@@ -53,6 +53,9 @@ meta.CreateRagdoll = function(self)
 
     local ragdoll = ents.Create("prop_ragdoll")
     plyToRagdollMap[self] = ragdoll
+    if not IsValid(ragdoll) then
+        return cleanUp(self)
+    end
 
     ragdoll:SetModel(plyModel)
     local ragdollModel = ragdoll:GetModel()
@@ -60,11 +63,7 @@ meta.CreateRagdoll = function(self)
         log.warn("Cannot set model for player: ", self, "; Ragdoll: ", ragdoll)
         return cleanUp(self)
     end
-
     ragdoll:Spawn()
-    if not IsValid(ragdoll) then
-        return cleanUp(self)
-    end
 
     local physicsObjectCount = ragdoll:GetPhysicsObjectCount()
     if not physicsObjectCount or physicsObjectCount < 1 then
