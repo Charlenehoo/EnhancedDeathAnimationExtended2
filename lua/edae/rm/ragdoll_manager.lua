@@ -32,18 +32,29 @@ function Manager:SetHealth(ragdoll, health)
     return store:Set(ragdoll, HEALTH_KEY, health)
 end
 
--- ======================================
+local function PlayAnimationForState(ragdoll, state, damageContext)
+    local playbackData = AnimationSelector:Select(state, damageContext)
+    if not playbackData then
+        log.warn("AnimationSelector returned no playback data for state: ", state)
+        return
+    end
+
+    local opts = {
+        totalLoops = playbackData.totalLoops,
+        preWait = playbackData.preWait, -- 等待原语表，可能为 nil 或空表
+    }
+
+    AnimationPlayer:Play(ragdoll, playbackData.animationName, opts)
+end
 
 function Manager:OnCreate(owner, ragdoll)
     local healthBefore = self:GetHealth(ragdoll)
     self:SetHealth(ragdoll, healthBefore or MAX_HEALTH)
+
     local damageContext = DamageContextManager:Get(owner)
     local state = LifeCycleHandler:Init(ragdoll, damageContext)
-    local animationName, totalLoops, secondsBeforePlay = AnimationSelector:Select(state, damageContext)
-    local opts = {}
-    opts.totalLoops = totalLoops
-    opts.secondsBeforePlay = secondsBeforePlay
-    AnimationPlayer:Play(ragdoll, animationName, opts)
+
+    PlayAnimationForState(ragdoll, state, damageContext)
 end
 
 function Manager:OnTakeDamage(ragdoll, dmginfo)
@@ -58,11 +69,8 @@ end
 function Manager:OnStateChange(ragdoll, state)
     AnimationPlayer:Stop(ragdoll)
     if state == STATE_ENUM.DEAD then return end
-    local animationName, totalLoops, secondsBeforePlay = AnimationSelector:Select(state, nil)
-    local opts = {}
-    opts.totalLoops = totalLoops
-    opts.secondsBeforePlay = secondsBeforePlay
-    AnimationPlayer:Play(ragdoll, animationName, opts)
+
+    PlayAnimationForState(ragdoll, state, nil) -- 状态切换时无伤害上下文
 end
 
 -- ======================================

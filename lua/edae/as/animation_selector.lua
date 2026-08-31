@@ -8,6 +8,7 @@ end
 
 local Constants = include("edae/config/constants.lua")
 local log = include("edae/log/init.lua")
+local Scheduler = include("edae/cs/coroutine_scheduler.lua") -- 引入调度器
 local animationCategories = include("animation_categories.lua")
 local boneWhitelist = include("bone_whitelists.lua")
 
@@ -21,70 +22,105 @@ local function randomFromList(list)
     return list[math.random(#list)]
 end
 
+local function isRagdollStopped(ragdoll)
+    local physCount = ragdoll:GetPhysicsObjectCount()
+    for i = 0, physCount - 1 do
+        local phys = ragdoll:GetPhysicsObjectNum(i)
+        if phys then
+            local linVel = phys:GetVelocity():Length()
+            local angVel = phys:GetAngleVelocity():Length()
+            if linVel > Constants.ANIMATION_SELECTOR.STOP_LINEAR_THRESHOLD or
+                angVel > Constants.ANIMATION_SELECTOR.STOP_ANGULAR_THRESHOLD then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+local function makeCrawlOrWrithePreWait()
+    return {
+        function(ctx)
+            Scheduler:Wait(Constants.ANIMATION_SELECTOR.PRE_WAIT_TIME)
+        end,
+        function(ctx)
+            Scheduler:WaitUntil(
+                function() return isRagdollStopped(ctx.ragdoll) end,
+                Constants.ANIMATION_SELECTOR.STOP_TIMEOUT,
+                Constants.ANIMATION_SELECTOR.STOP_CHECK_INTERVAL
+            )
+        end,
+    }
+end
+
 -- ============================================================
 -- 死亡动画选择（基于伤害上下文 flags 和 hitGroup）
 -- ============================================================
 local function selectDeathAnimation(context)
+    local animName
     if not context then
         log.warn("AnimationSelector: no context provided, falling back to 'dying1'")
-        return randomFromList(animationCategories.dying), 1
-    end
-
-    local category = nil
-
-    -- 按优先级判断特殊伤害类型
-    if context.isBurn then
-        category = animationCategories.fire
-    elseif context.isBlast then
-        category = animationCategories.explosion
-    elseif context.isMoving then
-        category = animationCategories.moving
-    elseif context.isClub then
-        category = animationCategories.club
+        animName = randomFromList(animationCategories.dying)
     else
-        -- 默认子弹类型，根据 hitGroup 和特殊标志细分
-        local hitGroup = context.hitGroup or HITGROUP_GENERIC
+        local category = nil
 
-        if hitGroup == HITGROUP_HEAD then
-            if context.neckShot then
-                category = animationCategories.neck
-            else
-                category = animationCategories.head
-            end
-        elseif context.shotgunShot then
-            category = animationCategories.shotgun
-        elseif hitGroup == HITGROUP_CHEST or hitGroup == HITGROUP_STOMACH then
-            if context.pelvisShot then
-                category = animationCategories.pelvis
-            elseif context.backShot then
-                category = animationCategories.back
-            else
-                category = animationCategories.torso
-            end
-        elseif hitGroup == HITGROUP_LEFTARM then
-            category = animationCategories.leftArm
-        elseif hitGroup == HITGROUP_RIGHTARM then
-            category = animationCategories.rightArm
-        elseif hitGroup == HITGROUP_LEFTLEG then
-            category = animationCategories.leftLeg
-        elseif hitGroup == HITGROUP_RIGHTLEG then
-            category = animationCategories.rightLeg
+        if context.isBurn then
+            category = animationCategories.fire
+        elseif context.isBlast then
+            category = animationCategories.explosion
+        elseif context.isMoving then
+            category = animationCategories.moving
+        elseif context.isClub then
+            category = animationCategories.club
         else
-            category = animationCategories.dying
+            local hitGroup = context.hitGroup or HITGROUP_GENERIC
+
+            if hitGroup == HITGROUP_HEAD then
+                if context.neckShot then
+                    category = animationCategories.neck
+                else
+                    category = animationCategories.head
+                end
+            elseif context.shotgunShot then
+                category = animationCategories.shotgun
+            elseif hitGroup == HITGROUP_CHEST or hitGroup == HITGROUP_STOMACH then
+                if context.pelvisShot then
+                    category = animationCategories.pelvis
+                elseif context.backShot then
+                    category = animationCategories.back
+                else
+                    category = animationCategories.torso
+                end
+            elseif hitGroup == HITGROUP_LEFTARM then
+                category = animationCategories.leftArm
+            elseif hitGroup == HITGROUP_RIGHTARM then
+                category = animationCategories.rightArm
+            elseif hitGroup == HITGROUP_LEFTLEG then
+                category = animationCategories.leftLeg
+            elseif hitGroup == HITGROUP_RIGHTLEG then
+                category = animationCategories.rightLeg
+            else
+                category = animationCategories.dying
+            end
         end
+
+        animName = randomFromList(category)
     end
 
-    local animName = randomFromList(category)
     if not animName then
         log.warn("AnimationSelector: no animation found for context, falling back to 'dying1'")
         animName = randomFromList(animationCategories.dying) or "dying1"
     end
 
-    return animName, 1 -- 死亡动画只播放一次
+    return {
+        animationName = animName,
+        totalLoops = 1, -- 死亡动画只播放一次
+        preWait = {},   -- 无等待
+    }
 end
 
 -- ============================================================
--- 爬行动画选择（随机，可根据需要扩展）
+-- 爬行动画选择
 -- ============================================================
 local function selectCrawlAnimation()
     local animName = randomFromList(animationCategories.crawl)
@@ -92,18 +128,26 @@ local function selectCrawlAnimation()
         log.warn("AnimationSelector: no crawl animation found")
         animName = "crawling1"
     end
-    return animName, 0 -- 0 表示无限循环
+    return {
+        animationName = animName,
+        totalLoops = 0, -- 0 表示无限循环
+        preWait = makeCrawlOrWrithePreWait(),
+    }
 end
 
 -- ============================================================
--- 挣扎动画选择（随机）
+-- 挣扎动画选择
 -- ============================================================
 local function selectWritheAnimation()
     local animName = randomFromList(animationCategories.writhe)
     if not animName then
         animName = "writhing1"
     end
-    return animName, 0
+    return {
+        animationName = animName,
+        totalLoops = 0,
+        preWait = makeCrawlOrWrithePreWait(),
+    }
 end
 
 -- ============================================================
@@ -155,11 +199,12 @@ local function selectBoneWhitelist(state, animationName, opts)
     end
 end
 
+
 -- ============================================================
 -- 主选择函数
--- @param state string 动画状态："falling", "crawling", "writhing", "twitching", "overkill"
--- @param context table|nil 伤害上下文（由 DamageContextManager:Get 提供）
--- @return animationName string|nil, totalLoops number
+-- @param state string 动画状态
+-- @param context table|nil 伤害上下文
+-- @return table|nil { animationName, totalLoops, preWait }
 -- ============================================================
 function AnimationSelector:Select(state, context)
     if state == "falling" then
@@ -170,10 +215,10 @@ function AnimationSelector:Select(state, context)
         return selectWritheAnimation()
     elseif state == "overkill" then
         log.trace("AnimationSelector: state is 'overkill', no animation will be played")
-        return nil, 0
+        return nil
     else
         log.warn("AnimationSelector: unknown state '", tostring(state), "'")
-        return nil, 0
+        return nil
     end
 end
 
