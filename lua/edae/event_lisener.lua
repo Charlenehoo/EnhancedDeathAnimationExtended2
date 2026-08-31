@@ -1,7 +1,7 @@
 local MODULE_NAME = "Event Lisener"
 
 local Constants = include("edae/constants.lua")
-local log = include("edae/log/init.lua")
+local log = include("log/init.lua")
 local AnimationPlayer = include("edae/animation_player.lua")
 local AnimationSelector = include("edae/animation_selector.lua")
 local DamageContextManager = include("edae/damage_context_manager.lua")

@@ -6,7 +6,7 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
 end
 
 local Constants = include("edae/constants.lua")
-local log = include("edae/log/init.lua")
+local log = include("log/init.lua")
 
 local DamageContextManager = {}
 
@@ -90,8 +90,8 @@ function DamageContextManager:Get(ent)
     if not context then
         context = {
             dmgType     = "Bullet", -- 伤害类型
-            hitGroup    = 0,       -- 命中组
-            dmgInfo     = nil,     -- 伤害信息对象（仅引用）
+            hitGroup    = 0,        -- 命中组
+            dmgInfo     = nil,      -- 伤害信息对象（仅引用）
             neckShot    = false,
             shotgunShot = false,
             backShot    = false,

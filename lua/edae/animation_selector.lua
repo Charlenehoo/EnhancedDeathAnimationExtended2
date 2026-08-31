@@ -6,7 +6,7 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
 end
 
 local Constants = include("edae/constants.lua")
-local log = include("edae/log/init.lua")
+local log = include("log/init.lua")
 
 -- ============================================================
 -- 动画分类表（硬编码）
