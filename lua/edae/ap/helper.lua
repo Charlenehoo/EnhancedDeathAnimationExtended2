@@ -145,7 +145,7 @@ function helper.CreateAnimationModel(ctx)
         return false
     end
 
-    animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when released
+    -- animationModel:SetBodygroup(animationModel:FindBodygroupByName("barney"), 1) -- for debug, will be comment out when released
 
     log.trace("Animation model created: ", animationModelName)
     return true
