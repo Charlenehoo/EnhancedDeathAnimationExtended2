@@ -8,9 +8,9 @@ end
 
 local Constants = include("edae/config/constants.lua")
 local log = include("edae/log/init.lua")
-local Scheduler = include("edae/cs/coroutine_scheduler.lua") -- 引入调度器
-local animationCategories = include("animation_categories.lua")
-local boneWhitelist = include("bone_whitelists.lua")
+local Scheduler = include("edae/cs/coroutine_scheduler.lua")
+local animationCategories = include("edae/as/animation_categories.lua")
+local BoneWhitelists = include("edae/as/bone_whitelists.lua")
 
 local AnimationSelector = {}
 
@@ -53,8 +53,64 @@ local function makeCrawlOrWrithePreWait()
     }
 end
 
+-- 判断爬行动画是否为面朝上
+local function isCrawlFaceUp(animationName)
+    return string.StartWith(animationName, "crawling1")
+end
+
 -- ============================================================
--- 死亡动画选择（基于伤害上下文 flags 和 hitGroup）
+-- 选择骨骼白名单
+-- ============================================================
+local function selectBoneWhitelist(state, animationName, opts)
+    opts = opts or {}
+
+    if state == "falling" then
+        local naturalLevel = Constants.ANIMATION_SELECTOR.NATURAL_LEVEL
+        return BoneWhitelists.MoveTbD[naturalLevel]
+    end
+
+    -- 玩家相机模式特殊处理（仅爬行时）
+    if opts.isPlayerCameraMode and state == "crawling" then
+        local whitelist = table.Copy(BoneWhitelists.NrmTb)
+        whitelist["ValveBiped.Bip01_Head1"] = nil
+        whitelist["ValveBiped.Bip01_Spine4"] = nil
+        return whitelist
+    end
+
+    -- 挣扎/抽搐动画统一使用面朝上白名单
+    if state == "writhing" or state == "twitching" then
+        return BoneWhitelists.MoveTbC.MoveTb_1
+    end
+
+    -- 爬行动画：根据动画名判断面朝上/下
+    if state == "crawling" then
+        if isCrawlFaceUp(animationName) then
+            return BoneWhitelists.MoveTbC.MoveTb_1
+        else
+            local useRandom = Constants.ANIMATION_SELECTOR.USE_RANDOM_CRAWL_WHITELIST
+            if string.StartWith(animationName, "crawling5") then
+                if useRandom then
+                    return BoneWhitelists.MoveTbC.MoveTb_2[math.random(#BoneWhitelists.MoveTbC.MoveTb_2)]
+                else
+                    return BoneWhitelists.MoveTbC.MoveTb_2[1]
+                end
+            elseif string.StartWith(animationName, "crawling6") then
+                if useRandom then
+                    return BoneWhitelists.MoveTbC.MoveTb_3[math.random(#BoneWhitelists.MoveTbC.MoveTb_3)]
+                else
+                    return BoneWhitelists.MoveTbC.MoveTb_3[1]
+                end
+            else
+                return BoneWhitelists.MoveTbC.MoveTb_1
+            end
+        end
+    end
+
+    return {}
+end
+
+-- ============================================================
+-- 死亡动画选择
 -- ============================================================
 local function selectDeathAnimation(context)
     local animName
@@ -114,31 +170,32 @@ local function selectDeathAnimation(context)
 
     return {
         animationName = animName,
-        totalLoops = 1, -- 死亡动画只播放一次
-        preWait = {},   -- 无等待
+        totalLoops = 1,
+        preWait = {},
+        boneWhitelist = selectBoneWhitelist("falling", animName, nil),
     }
 end
 
 -- ============================================================
 -- 爬行动画选择
 -- ============================================================
-local function selectCrawlAnimation()
+local function selectCrawlAnimation(opts)
     local animName = randomFromList(animationCategories.crawl)
     if not animName then
-        log.warn("AnimationSelector: no crawl animation found")
         animName = "crawling1"
     end
     return {
         animationName = animName,
-        totalLoops = 0, -- 0 表示无限循环
+        totalLoops = 0,
         preWait = makeCrawlOrWrithePreWait(),
+        boneWhitelist = selectBoneWhitelist("crawling", animName, opts),
     }
 end
 
 -- ============================================================
 -- 挣扎动画选择
 -- ============================================================
-local function selectWritheAnimation()
+local function selectWritheAnimation(opts)
     local animName = randomFromList(animationCategories.writhe)
     if not animName then
         animName = "writhing1"
@@ -147,72 +204,22 @@ local function selectWritheAnimation()
         animationName = animName,
         totalLoops = 0,
         preWait = makeCrawlOrWrithePreWait(),
+        boneWhitelist = selectBoneWhitelist("writhing", animName, opts),
     }
 end
 
 -- ============================================================
--- 选择骨骼白名单
+-- 主选择函数
 -- ============================================================
-local function selectBoneWhitelist(state, animationName, opts)
+function AnimationSelector:Select(state, context, opts)
     opts = opts or {}
 
     if state == "falling" then
-        local naturalLevel = GetConVarInt("ARag_natural", 1)
-        naturalLevel = math.Clamp(naturalLevel, 1, 3)
-        return BoneWhitelists.MoveTbD[naturalLevel]
-    end
-
-    -- 玩家相机模式特殊处理（仅爬行时）
-    if opts.isPlayerCameraMode and state == "crawling" then
-        local whitelist = table.Copy(BoneWhitelists.NrmTb)
-        whitelist["ValveBiped.Bip01_Head1"] = nil
-        whitelist["ValveBiped.Bip01_Spine4"] = nil
-        return whitelist
-    end
-
-    -- 挣扎动画统一使用面朝上白名单
-    if state == "writhing" or state == "twitching" then
-        return boneWhitelist.MoveTbC.MoveTb_1
-    end
-
-    -- 爬行动画：根据动画名判断面朝上/下
-    if isCrawlFaceUp(animationName) then
-        return BoneWhitelists.MoveTbC.MoveTb_1
-    else
-        local useRandom = GetConVarBool("ARag_random", false)
-        if string.find(animationName, "^crawling5") then
-            if useRandom then
-                return BoneWhitelists.MoveTbC.MoveTb_2[math.random(#BoneWhitelists.MoveTbC.MoveTb_2)]
-            else
-                return BoneWhitelists.MoveTbC.MoveTb_2[1]
-            end
-        elseif string.find(animationName, "^crawling6") then
-            if useRandom then
-                return BoneWhitelists.MoveTbC.MoveTb_3[math.random(#BoneWhitelists.MoveTbC.MoveTb_3)]
-            else
-                return BoneWhitelists.MoveTbC.MoveTb_3[1]
-            end
-        else
-            -- 未知的爬行动画，回退到面朝上白名单
-            return BoneWhitelists.MoveTbC.MoveTb_1
-        end
-    end
-end
-
-
--- ============================================================
--- 主选择函数
--- @param state string 动画状态
--- @param context table|nil 伤害上下文
--- @return table|nil { animationName, totalLoops, preWait }
--- ============================================================
-function AnimationSelector:Select(state, context)
-    if state == "falling" then
         return selectDeathAnimation(context)
     elseif state == "crawling" then
-        return selectCrawlAnimation()
+        return selectCrawlAnimation(opts)
     elseif state == "writhing" or state == "twitching" then
-        return selectWritheAnimation()
+        return selectWritheAnimation(opts)
     elseif state == "overkill" then
         log.trace("AnimationSelector: state is 'overkill', no animation will be played")
         return nil

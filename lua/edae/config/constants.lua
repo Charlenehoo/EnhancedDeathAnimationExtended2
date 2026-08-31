@@ -79,6 +79,8 @@ Constants.ANIMATION_SELECTOR.STOP_LINEAR_THRESHOLD      = 10   -- 停止判定�
 Constants.ANIMATION_SELECTOR.STOP_ANGULAR_THRESHOLD     = 30   -- 停止判定：角速度阈值（度/秒，需根据实际调整）
 Constants.ANIMATION_SELECTOR.STOP_TIMEOUT               = 4.5  -- 等待停止的超时时间（秒）
 Constants.ANIMATION_SELECTOR.STOP_CHECK_INTERVAL        = 0.15 -- 停止检测轮询间隔（秒）
+Constants.ANIMATION_SELECTOR.NATURAL_LEVEL              = 1
+Constants.ANIMATION_SELECTOR.USE_RANDOM_CRAWL_WHITELIST = false
 
 Constants.PlayerCreatePropRagdoll                       = {}
 Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
