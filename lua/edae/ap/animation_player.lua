@@ -5,10 +5,13 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants = include("edae/config/constants.lua")
-local log = include("edae/log/init.lua")
-local Scheduler = include("edae/cs/coroutine_scheduler.lua")
-local helper = include("edae/ap/helper.lua")
+local Constants       = include("edae/config/constants.lua")
+local log             = include("edae/log/init.lua")
+local Scheduler       = include("edae/cs/coroutine_scheduler.lua")
+local helper          = include("edae/ap/helper.lua")
+local EntityDataStore = include("edae/eds/entity_data_store.lua")
+
+local store           = EntityDataStore:ForOwner(MODULE_NAME)
 
 local AnimationPlayer = {}
 
@@ -154,6 +157,11 @@ local function playAnimationCoroutine(ctx)
     cleanUp(ctx)
 end
 
+function AnimationPlayer:Stop(ragdoll)
+    local ctx = store:Get(Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    ctx.stopSignal = true
+end
+
 --- 播放动画
 --- @param ragdoll Entity
 --- @param animationName string
@@ -188,8 +196,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         loopCount                 = 0,
 
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
-        animationModelName        = opts.animationModelName or
-            Constants.ANIMATION_PLAYER.ANIMATION_MODEL.DEFAULT_MODEL_NAME,
+        animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
 
         -- ===============================
         -- 以下由 fillShadowParamsTemplate 填充
@@ -241,6 +248,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
     ctx.coro = coro
+
+    store:Set(Constants.ANIMATION_PLAYER.CONEXT_KEY, ctx)
     return ctx
 end
 

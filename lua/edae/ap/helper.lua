@@ -18,6 +18,13 @@ local function getStandPosByBone(ent)
     return (leftPos + rightPos) * 0.5
 end
 
+function helper.GetStandPos(ent)
+    local standPos = getStandPosByBone(ent)
+    if standPos then return standPos end
+
+    return ent:GetPos()
+end
+
 function helper.EnableMotion(ctx, enable)
     for ragdollPhysObjNum = 0, ctx.ragdollPhysicsObjectCount - 1 do
         local ragdollPhysObj = ctx.ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)

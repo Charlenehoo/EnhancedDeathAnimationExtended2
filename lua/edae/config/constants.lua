@@ -1,35 +1,37 @@
 -- lua\edae\config\constants.lua
-local Constants                                   = {}
+local Constants                                         = {}
+Constants.ADDON_NAME                                    = "EnhancedDeathAnimationExtended"
+Constants.RAGDOLL_CLASS                                 = "prop_ragdoll"
+Constants.Events                                        = {
+    OnRagdollStateChange = "OnRagdollStateChange",
+    OnAnimationFinished = "OnAnimationFinished",
+}
 
-Constants.ADDON_NAME                              = "EnhancedDeathAnimationExtended"
-Constants.RAGDOLL_CLASS                           = "prop_ragdoll"
+Constants.EntityDataStore                               = {}
+Constants.EntityDataStore.STORAGE_KEY                   = Constants.ADDON_NAME .. "_" .. "EntityData"
+Constants.EntityDataStore.SUPER_OWNER                   = "ADMIN"
+Constants.EntityDataStore.DEFAULT_OWNER                 = "anonymous"
 
-Constants.EntityDataStore                         = {}
-Constants.EntityDataStore.STORAGE_KEY             = Constants.ADDON_NAME .. "_" .. "EntityData"
-Constants.EntityDataStore.SUPER_OWNER             = "ADMIN"
-Constants.EntityDataStore.DEFAULT_OWNER           = "anonymous"
+Constants.RagdollManager                                = {}
+Constants.RagdollManager.HEALTH_KEY                     = "Health"
+Constants.RagdollManager.MAX_HEALTH                     = 100
 
-Constants.RagdollManager                          = {}
-Constants.RagdollManager.HEALTH_KEY               = "Health"
-Constants.RagdollManager.MAX_HEALTH               = 100
-
-Constants.LifeCycleHandler                        = {}
-Constants.LifeCycleHandler.STATE_KEY              = "State"
-Constants.LifeCycleHandler.STATE_ENUM             = {
+Constants.LifeCycleHandler                              = {}
+Constants.LifeCycleHandler.STATE_KEY                    = "State"
+Constants.LifeCycleHandler.STATE_ENUM                   = {
     FALLING = "falling",
     CRAWLING = "crawling",
     WRITHING = "writhing",
     DEAD = "dead",
     REVIVING = "reviving",
 }
+Constants.LifeCycleHandler.CRAWL_CHANCE                 = 0.5
+Constants.LifeCycleHandler.WRITHE_CHANCE                = 0.3
+Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE       = 0.2
 
-Constants.LifeCycleHandler.CRAWL_CHANCE           = 0.5
-Constants.LifeCycleHandler.WRITHE_CHANCE          = 0.3
-Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE = 0.2
-
-Constants.DamageContextManager                    = {}
-Constants.DamageContextManager.FLAG_KEY           = "Flag"
-Constants.DamageContextManager.FLAG_ENUM          = {
+Constants.DamageContextManager                          = {}
+Constants.DamageContextManager.FLAG_KEY                 = "Flag"
+Constants.DamageContextManager.FLAG_ENUM                = {
     NECK = 1,
     SHOTGUN = 2,
     BACK = 4,
@@ -40,38 +42,18 @@ Constants.DamageContextManager.FLAG_ENUM          = {
     CLUB = 128,
     BULLET = 256,
 }
-Constants.DamageContextManager.HIT_GROUP_KEY      = "HitGroup"
-Constants.DamageContextManager.DMG_INFO_KEY       = "DmgInfo"
+Constants.DamageContextManager.HIT_GROUP_KEY            = "HitGroup"
+Constants.DamageContextManager.DMG_INFO_KEY             = "DmgInfo"
 
-Constants.Events                                  = {
-    OnRagdollStateChange = "OnRagdollStateChange",
-    OnAnimationFinished = "OnAnimationFinished",
-}
-
-Constants.ANIMATION_PLAYER                        = {}
-
--- ======
-
-
-Constants.PLAYER_NPC_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Player_NPC_Context"
-Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Ragdoll_Context"
-
-
-
-
-
-Constants.ANIMATION_PLAYER.ANIMATION_MODEL = {}
-Constants.ANIMATION_PLAYER.ANIMATION_MODEL.DEFAULT_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
-
-Constants.ANIMATION_PLAYER.MAX_ALLOWED_BONE_REMOVALS = 5
-Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD = 20
-
-Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET = Vector(0, 0, 10)
-Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET = Vector(0, 0, -100)
-
-Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS = 1
-
-Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE = {
+Constants.ANIMATION_PLAYER                              = {}
+Constants.ANIMATION_PLAYER.CONEXT_KEY                   = "Context"
+Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
+Constants.ANIMATION_PLAYER.MAX_ALLOWED_BONE_REMOVALS    = 5
+Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD        = 20
+Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET       = Vector(0, 0, 10)
+Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET     = Vector(0, 0, -100)
+Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS          = 1
+Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE       = {
     teleportdistance = 0,
     secondstoarrive = 0.01,
     delta = nil,
@@ -86,8 +68,5 @@ Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE = {
     pos = vector_origin,
     angle = angle_zero,
 }
-
-
-
 
 return Constants

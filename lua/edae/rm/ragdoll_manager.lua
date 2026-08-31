@@ -56,9 +56,7 @@ function Manager:OnTakeDamage(ragdoll, dmginfo)
 end
 
 function Manager:OnStateChange(ragdoll, state)
-    if AnimationPlayer:IsPlaying(ragdoll) then
-        AnimationPlayer:Stop(ragdoll)
-    end
+    AnimationPlayer:Stop(ragdoll)
     if state == STATE_ENUM.DEAD then return end
     local animationName, totalLoops, secondsBeforePlay = AnimationSelector:Select(state, nil)
     local opts = {}
