@@ -40,6 +40,9 @@ local function playAnimationCoroutine(ctx)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
 
+    ctx.initialBoneCount = #ctx.boneMap
+    log.trace("Initial bone count: ", ctx.initialBoneCount)
+
     -- 辅助函数：判断动画是否应该终止（实体无效、停止信号、骨骼移除过多）
     local function shouldTerminate()
         return not IsValid(ragdoll) or
@@ -63,9 +66,6 @@ local function playAnimationCoroutine(ctx)
 
     animationModel:Fire("SetAnimation", ctx.animationName)
     coroutine.yield()
-
-    ctx.initialBoneCount = #ctx.boneMap
-    log.trace("Initial bone count: ", ctx.initialBoneCount)
 
     -- 外层循环：控制播放总次数
     while not shouldTerminate() do
