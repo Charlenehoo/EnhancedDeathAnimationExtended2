@@ -32,8 +32,40 @@ function Manager:SetHealth(ragdoll, health)
     return store:Set(ragdoll, HEALTH_KEY, health)
 end
 
+--- 判断布娃娃是否面朝上
+--- @param ragdoll Entity
+--- @return boolean true = 面朝上, false = 面朝下
+function Manager:IsFacingUp(ragdoll)
+    if not IsValid(ragdoll) then return false end
+
+    local chestAttach = ragdoll:LookupAttachment("chest")
+    local eyesAttach  = ragdoll:LookupAttachment("eyes")
+
+    if chestAttach and chestAttach > 0 then
+        local chestAng = ragdoll:GetAttachment(chestAttach).Ang
+        if chestAng then
+            return chestAng:Forward().z >= 0
+        end
+    end
+
+    if eyesAttach and eyesAttach > 0 then
+        local eyesAng = ragdoll:GetAttachment(eyesAttach).Ang
+        if eyesAng then
+            return eyesAng:Forward().z >= 0
+        end
+    end
+
+    -- 默认视为面朝下
+    return false
+end
+
 local function PlayAnimationForState(ragdoll, state, damageContext)
-    local playbackData = AnimationSelector:Select(state, damageContext)
+    local playBackInfo = {
+        state = state,
+        damageContext = damageContext,
+        isFacingUp = self:IsFacingUp(ragdoll)
+    }
+    local playbackData = AnimationSelector:Select(playBackInfo)
     if not playbackData then
         log.warn("AnimationSelector returned no playback data for state: ", state)
         return
