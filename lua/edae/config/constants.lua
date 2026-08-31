@@ -48,6 +48,8 @@ Constants.Events                                  = {
     OnAnimationFinished = "OnAnimationFinished",
 }
 
+Constants.ANIMATION_PLAYER                        = {}
+
 -- ======
 
 
@@ -56,7 +58,7 @@ Constants.RAGDOLL_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Ragdoll_Context"
 
 
 
-Constants.ANIMATION_PLAYER = {}
+
 
 Constants.ANIMATION_PLAYER.ANIMATION_MODEL = {}
 Constants.ANIMATION_PLAYER.ANIMATION_MODEL.DEFAULT_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
