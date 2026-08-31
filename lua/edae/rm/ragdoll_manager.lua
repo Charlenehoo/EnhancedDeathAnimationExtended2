@@ -59,7 +59,7 @@ function Manager:IsFacingUp(ragdoll)
     return false
 end
 
-local function PlayAnimationForState(ragdoll, state, damageContext)
+function Manager:PlayAnimationForState(ragdoll, state, damageContext)
     local playBackInfo = {
         state = state,
         damageContext = damageContext,
