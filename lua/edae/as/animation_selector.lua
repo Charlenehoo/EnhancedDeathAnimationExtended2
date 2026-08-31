@@ -8,7 +8,8 @@ end
 
 local Constants = include("edae/config/constants.lua")
 local log = include("edae/log/init.lua")
-local animationCategories = include("edae/as/animation_categories.lua")
+local animationCategories = include("animation_categories.lua")
+local boneWhitelist = include("bone_whitelists.lua")
 
 local AnimationSelector = {}
 
@@ -103,6 +104,55 @@ local function selectWritheAnimation()
         animName = "writhing1"
     end
     return animName, 0
+end
+
+-- ============================================================
+-- 选择骨骼白名单
+-- ============================================================
+local function selectBoneWhitelist(state, animationName, opts)
+    opts = opts or {}
+
+    if state == "falling" then
+        local naturalLevel = GetConVarInt("ARag_natural", 1)
+        naturalLevel = math.Clamp(naturalLevel, 1, 3)
+        return BoneWhitelists.MoveTbD[naturalLevel]
+    end
+
+    -- 玩家相机模式特殊处理（仅爬行时）
+    if opts.isPlayerCameraMode and state == "crawling" then
+        local whitelist = table.Copy(BoneWhitelists.NrmTb)
+        whitelist["ValveBiped.Bip01_Head1"] = nil
+        whitelist["ValveBiped.Bip01_Spine4"] = nil
+        return whitelist
+    end
+
+    -- 挣扎动画统一使用面朝上白名单
+    if state == "writhing" or state == "twitching" then
+        return boneWhitelist.MoveTbC.MoveTb_1
+    end
+
+    -- 爬行动画：根据动画名判断面朝上/下
+    if isCrawlFaceUp(animationName) then
+        return BoneWhitelists.MoveTbC.MoveTb_1
+    else
+        local useRandom = GetConVarBool("ARag_random", false)
+        if string.find(animationName, "^crawling5") then
+            if useRandom then
+                return BoneWhitelists.MoveTbC.MoveTb_2[math.random(#BoneWhitelists.MoveTbC.MoveTb_2)]
+            else
+                return BoneWhitelists.MoveTbC.MoveTb_2[1]
+            end
+        elseif string.find(animationName, "^crawling6") then
+            if useRandom then
+                return BoneWhitelists.MoveTbC.MoveTb_3[math.random(#BoneWhitelists.MoveTbC.MoveTb_3)]
+            else
+                return BoneWhitelists.MoveTbC.MoveTb_3[1]
+            end
+        else
+            -- 未知的爬行动画，回退到面朝上白名单
+            return BoneWhitelists.MoveTbC.MoveTb_1
+        end
+    end
 end
 
 -- ============================================================
