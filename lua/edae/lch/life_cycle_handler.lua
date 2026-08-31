@@ -19,7 +19,6 @@ local STATE_KEY              = Constants.LifeCycleHandler.STATE_KEY
 local STATE_ENUM             = Constants.LifeCycleHandler.STATE_ENUM
 local HEALTH_KEY             = Constants.RagdollManager.HEALTH_KEY
 
-local CRAWL_CHANCE           = Constants.LifeCycleHandler.CRAWL_CHANCE
 local WRITHE_CHANCE          = Constants.LifeCycleHandler.WRITHE_CHANCE
 local DEAD_AFTER_FALL_CHANCE = Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE
 
@@ -148,7 +147,7 @@ function LifeCycleHandler:SetState(ragdoll, newState)
     setState(ragdoll, newState)
 end
 
--- 监听动画结束事件（由 AnimationPlayer 或 RagdollManager 发出）
+-- 监听动画结束事件（由 AnimationPlayer 发出）
 hook.Add(Constants.Events.OnAnimationFinished, MODULE_NAME .. "_OnAnimationFinished", function(ragdoll, animationName)
     LifeCycleHandler:OnAnimationFinished(ragdoll, animationName)
 end)
