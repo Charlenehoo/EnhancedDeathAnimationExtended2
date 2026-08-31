@@ -13,6 +13,7 @@ Constants.RagdollManager                          = {}
 Constants.RagdollManager.HEALTH_KEY               = "Health"
 Constants.RagdollManager.MAX_HEALTH               = 100
 
+Constants.LifeCycleHandler                        = {}
 Constants.LifeCycleHandler.STATE_KEY              = "State"
 Constants.LifeCycleHandler.STATE_ENUM             = {
     FALLING = "falling",

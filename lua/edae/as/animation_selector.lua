@@ -122,7 +122,7 @@ end
 -- @param state string 动画状态："falling", "crawling", "writhing", "twitching", "overkill" 等
 -- @return animationName string|nil, totalLoops number
 -- ============================================================
-function AnimationSelector:Select(context, state)
+function AnimationSelector:Select(state, context)
     if state == "falling" then
         return selectDeathAnimation(context)
     elseif state == "crawling" then

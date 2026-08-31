@@ -18,9 +18,9 @@ local function cleanUp(ctx)
         animationModel:Remove()
     end
 
-    local gravityProxy = ctx.gravityProxy
-    if IsValid(gravityProxy) then
-        gravityProxy:Remove()
+    local ragdoll = ctx.ragdoll
+    if ragdoll then
+        ragdoll[Constants.RAGDOLL_CONTEXT_KEY] = nil
     end
 end
 
@@ -166,7 +166,7 @@ local function playAnimationCoroutine(ctx)
         coroutine.yield()
     end
 
-    log.trace("playAnimationCoroutine ended")
+    hook.Run(Constants.Events.OnAnimationFinished, ragdoll, ctx.animationName)
     cleanUp(ctx)
 end
 
@@ -303,6 +303,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     opts = opts or {}
 
+    local totalLoops = (opts.totalLoops ~= nil) and opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS
+
     local ctx = {
         ragdoll                   = ragdoll,
         animationName             = animationName,
@@ -311,7 +313,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         state                     = opts.state or "falling",
         damageContext             = opts.damageContext,
 
-        totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
+        totalLoops                = totalLoops,
         loopCount                 = 0,
 
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
