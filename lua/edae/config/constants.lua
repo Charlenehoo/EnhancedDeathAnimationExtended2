@@ -73,6 +73,13 @@ Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE       = {
     angle = angle_zero,
 }
 
+Constants.ANIMATION_SELECTOR                            = {}
+Constants.ANIMATION_SELECTOR.PRE_WAIT_TIME              = 1.5  -- 播放前固定等待时间（秒）
+Constants.ANIMATION_SELECTOR.STOP_LINEAR_THRESHOLD      = 10   -- 停止判定：线速度阈值（单位/秒）
+Constants.ANIMATION_SELECTOR.STOP_ANGULAR_THRESHOLD     = 30   -- 停止判定：角速度阈值（度/秒，需根据实际调整）
+Constants.ANIMATION_SELECTOR.STOP_TIMEOUT               = 4.5  -- 等待停止的超时时间（秒）
+Constants.ANIMATION_SELECTOR.STOP_CHECK_INTERVAL        = 0.15 -- 停止检测轮询间隔（秒）
+
 Constants.PlayerCreatePropRagdoll                       = {}
 Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
 Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET      = 5
