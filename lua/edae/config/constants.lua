@@ -1,20 +1,20 @@
--- lua/autorun/edae_sh_constants.lua
-local Constants = {}
+-- lua\edae\config\constants.lua
+local Constants                                   = {}
 
-Constants.ADDON_NAME = "EnhancedDeathAnimationExtended"
-Constants.RAGDOLL_CLASS = "prop_ragdoll"
+Constants.ADDON_NAME                              = "EnhancedDeathAnimationExtended"
+Constants.RAGDOLL_CLASS                           = "prop_ragdoll"
 
-Constants.EntityDataStore = {}
-Constants.EntityDataStore.STORAGE_KEY = Constants.ADDON_NAME .. "_" .. "EntityData"
-Constants.EntityDataStore.SUPER_OWNER = "ADMIN"
-Constants.EntityDataStore.DEFAULT_OWNER = "anonymous"
+Constants.EntityDataStore                         = {}
+Constants.EntityDataStore.STORAGE_KEY             = Constants.ADDON_NAME .. "_" .. "EntityData"
+Constants.EntityDataStore.SUPER_OWNER             = "ADMIN"
+Constants.EntityDataStore.DEFAULT_OWNER           = "anonymous"
 
-Constants.RagdollManager = {}
-Constants.RagdollManager.HEALTH_KEY = "Health"
-Constants.RagdollManager.MAX_HEALTH = 100
+Constants.RagdollManager                          = {}
+Constants.RagdollManager.HEALTH_KEY               = "Health"
+Constants.RagdollManager.MAX_HEALTH               = 100
 
-Constants.LifeCycleHandler.STATE_KEY = "State"
-Constants.LifeCycleHandler.STATE_ENUM = {
+Constants.LifeCycleHandler.STATE_KEY              = "State"
+Constants.LifeCycleHandler.STATE_ENUM             = {
     FALLING = "falling",
     CRAWLING = "crawling",
     WRITHING = "writhing",
@@ -22,9 +22,13 @@ Constants.LifeCycleHandler.STATE_ENUM = {
     REVIVING = "reviving",
 }
 
-Constants.DamageContextManager = {}
-Constants.DamageContextManager.FLAG_KEY = "Flag"
-Constants.DamageContextManager.FLAG_ENUM = {
+Constants.LifeCycleHandler.CRAWL_CHANCE           = 0.5
+Constants.LifeCycleHandler.WRITHE_CHANCE          = 0.3
+Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE = 0.2
+
+Constants.DamageContextManager                    = {}
+Constants.DamageContextManager.FLAG_KEY           = "Flag"
+Constants.DamageContextManager.FLAG_ENUM          = {
     NECK = 1,
     SHOTGUN = 2,
     BACK = 4,
@@ -35,8 +39,15 @@ Constants.DamageContextManager.FLAG_ENUM = {
     CLUB = 128,
     BULLET = 256,
 }
-Constants.DamageContextManager.HIT_GROUP_KEY = "HitGroup"
-Constants.DamageContextManager.DMG_INFO_KEY = "DmgInfo"
+Constants.DamageContextManager.HIT_GROUP_KEY      = "HitGroup"
+Constants.DamageContextManager.DMG_INFO_KEY       = "DmgInfo"
+
+Constants.Events                                  = {
+    OnRagdollStateChange = "OnRagdollStateChange",
+    OnAnimationFinished = "OnAnimationFinished",
+}
+
+-- ======
 
 
 Constants.PLAYER_NPC_CONTEXT_KEY = Constants.ADDON_NAME .. "_" .. "Player_NPC_Context"

@@ -2,6 +2,11 @@
 
 local MODULE_NAME = "RagdollManager"
 
+_EnhancedDeathAnimationExtendedSingletons = _EnhancedDeathAnimationExtendedSingletons or {}
+if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
+    return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
+end
+
 local Constants = include("edae/config/constants.lua")
 local log = include("edae/log/init.lua")
 local EntityDataStore = include("edae/eds/entity_data_store.lua")
@@ -14,6 +19,7 @@ local store = EntityDataStore:ForOwner(MODULE_NAME)
 local RAGDOLL_CLASS = Constants.RAGDOLL_CLASS
 local HEALTH_KEY = Constants.RagdollManager.HEALTH_KEY
 local MAX_HEALTH = Constants.RagdollManager.MAX_HEALTH
+local Events = Constants.Events
 
 local Manager = {}
 
@@ -28,7 +34,8 @@ end
 -- ======================================
 
 function Manager:OnCreate(owner, ragdoll)
-    self:SetHealth(ragdoll, MAX_HEALTH)
+    local healthBefore = self:GetHealth(ragdoll)
+    self:SetHealth(ragdoll, healthBefore or MAX_HEALTH)
     local damageContext = DamageContextManager:Get(owner)
     local state = LifeCycleHandler:Init(ragdoll, damageContext)
     local animationName, totalLoops, secondsBeforePlay = AnimationSelector:Select(state, damageContext)
@@ -41,6 +48,7 @@ end
 function Manager:OnTakeDamage(ragdoll, dmginfo)
     local dmg = dmginfo:GetDamage()
     local healthBefore = self:GetHealth(ragdoll)
+    healthBefore = healthBefore or MAX_HEALTH
     local healthAfter = healthBefore - dmg
     self:SetHealth(ragdoll, healthAfter)
     LifeCycleHandler:DetermineState(ragdoll)
@@ -59,15 +67,24 @@ end
 
 -- ======================================
 
+hook.Add(Events.OnRagdollStateChange, Constants.ADDON_NAME .. MODULE_NAME .. Events.OnRagdollStateChange,
+    function(ragdoll, state)
+        if not IsValid(ragdoll) then return end
+        Manager:OnStateChange(ragdoll, state)
+    end)
+
 hook.Add("CreateEntityRagdoll", Constants.ADDON_NAME .. MODULE_NAME .. "CreateEntityRagdoll", function(owner, ragdoll)
     if not IsValid(owner) then return end
-    if not IsValid(ragdoll) or not ragdoll:GetClass() == RAGDOLL_CLASS then return end
+    if not IsValid(ragdoll) or ragdoll:GetClass() ~= RAGDOLL_CLASS then return end
     Manager:OnCreate(owner, ragdoll)
 end)
 
 hook.Add("PostEntityTakeDamage", Constants.ADDON_NAME .. MODULE_NAME .. "PostEntityTakeDamage",
     function(ent, dmginfo, wasDamageTaken)
         if not wasDamageTaken then return end
-        if not IsValid(ent) or not ent:IsRagdoll() or not ent:GetClass() == RAGDOLL_CLASS then return end
+        if not IsValid(ent) or not ent:IsRagdoll() or ent:GetClass() ~= RAGDOLL_CLASS then return end
         Manager:OnTakeDamage(ent, dmginfo)
     end)
+
+_EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = Manager
+return Manager
