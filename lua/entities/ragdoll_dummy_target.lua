@@ -264,7 +264,7 @@ function ENT:_CancelExecutioner()
     self._LastSearchTime = 0
 end
 
-function ENT:_UpdateDeathState(ragdoll, now)
+function ENT:_UpdateState(ragdoll, now)
     -- 直接获取 EDAE 状态
     local modState = LifeCycleHandler:GetState(ragdoll) or "init"
 
@@ -279,17 +279,7 @@ function ENT:_UpdateDeathState(ragdoll, now)
     end
 
     self._RagdollState = modState
-
-    local isDead = (modState == "dead")
-
-    if isDead then
-        log.info(self, "Ragdoll entered dead state, removing dummy immediately")
-        self:_CancelExecutioner()
-        self:Remove()
-        return true
-    end
-
-    return false
+    return modState
 end
 
 function ENT:Think()
@@ -301,12 +291,14 @@ function ENT:Think()
         return
     end
 
-    -- 更新并处理死亡状态（如果死亡，dummy 已被移除）
-    if self:_UpdateDeathState(ragdoll, now) then
+    -- 更新状态，如果死亡则移除 dummy
+    local state = self:_UpdateState(ragdoll, now)
+    if state == "dead" then
+        log.info(self, "Ragdoll entered dead state, removing dummy")
+        self:_CancelExecutioner()
+        self:Remove()
         return
     end
-
-    local ragdollState = self._RagdollState
 
     local activePos = self:_GetActivePosition()
     if not activePos then
@@ -390,7 +382,7 @@ function ENT:Think()
     if now - self._LastSearchTime > EXECUTIONER_SEARCH_INTERVAL then
         self._LastSearchTime = now
 
-        if ragdollState == "init" then
+        if state == "init" then
             self:Remove()
             return
         end
@@ -401,7 +393,7 @@ function ENT:Think()
             return
         end
 
-        local searchRadius = STATE_TO_SEARCH_RADIUS[ragdollState]
+        local searchRadius = STATE_TO_SEARCH_RADIUS[state]
         if searchRadius then
             local chosen = findRandomEntity(activePos, searchRadius, self._PotentialExecutioners, canEnterExecution)
             if IsValid(chosen) then
