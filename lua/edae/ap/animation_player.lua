@@ -231,7 +231,7 @@ local function playAnimationCoroutine(ctx)
                 end
             end
 
-            coroutine.yield()
+            Scheduler:Wait(0.15)
         end
 
         if shouldTerminate() then
