@@ -122,12 +122,12 @@ local function BuildVoiceEffect(owner, state)
     local soundKey = stateConfig.key
     if not soundKey then return nil end
 
-    local interval = stateConfig.interval or voiceCfg.INTERVAL
-    local priority = stateConfig.priority or voiceCfg.PRIORITY
+    local interval = stateConfig.interval or voiceCfg.INTERVAL or 10
+    local priority = stateConfig.priority or voiceCfg.PRIORITY or 10
     local interrupt = stateConfig.interrupt
     if interrupt == nil then
         interrupt = voiceCfg.INTERRUPT
-        if interrupt == nil then interrupt = false end
+        if interrupt == nil then interrupt = true end
     end
 
     return {
@@ -193,6 +193,14 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
 
     if not table.HasValue(STATE_ENUM, state) then
         log.warn("AnimationPlaybackController:PlayForState invalid state: ", tostring(state))
+        return false
+    end
+
+    -- 死亡状态：停止所有语音，不播放动画
+    if state == STATE_ENUM.DEAD then
+        if IsValid(owner) and TFAVOX_StopAll then
+            TFAVOX_StopAll(owner)
+        end
         return false
     end
 
