@@ -47,44 +47,43 @@ function RagdollPoseHelper:IsFacingUp(ragdoll)
     return false
 end
 
---- 根据动画状态计算正确的偏航角
---- @param owner Entity 布娃娃的所有者（通常是 NPC 或玩家）
---- @param ragdoll Entity 布娃娃实体
---- @param state string 当前动画状态（来自 STATE_ENUM）
---- @return number yaw 角度值（度）
-function RagdollPoseHelper:GetYawForState(owner, ragdoll, state)
-    if not IsValid(owner) or not IsValid(ragdoll) then
-        log.warn("RagdollPoseHelper:GetYawForState called with invalid entities")
+-- 从所有者实体获取偏航角（仅用于 FALLING 状态，布娃娃尚未倒地）
+--- @param owner Entity
+--- @return number yaw
+function RagdollPoseHelper:GetYawFromOwner(owner)
+    if not IsValid(owner) then
+        log.warn("RagdollPoseHelper:GetYawFromOwner called with invalid owner")
+        return 0
+    end
+    return owner:GetAngles().yaw
+end
+
+-- 从布娃娃自身骨骼提取水平偏航角（用于已倒地状态）
+--- @param ragdoll Entity
+--- @return number yaw
+function RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("RagdollPoseHelper:GetYawFromRagdoll called with invalid ragdoll")
         return 0
     end
 
-    if state == STATE_ENUM.FALLING then
-        -- 死亡倒地动画：布娃娃刚生成，尚未倒地，使用所有者的角度即可反映躯干朝向
-        return owner:GetAngles().yaw
-    else
-        -- 爬行/挣扎动画：布娃娃已躺倒，需从胸部骨骼提取水平偏航
-        -- 优先使用 Spine4，依次回退到 Spine2、Spine1、Spine
-        local spineBone = ragdoll:LookupBone("ValveBiped.Bip01_Spine4")
-            or ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
-            or ragdoll:LookupBone("ValveBiped.Bip01_Spine1")
-            or ragdoll:LookupBone("ValveBiped.Bip01_Spine")
-
-        if spineBone then
-            local matrix = ragdoll:GetBoneMatrix(spineBone)
-            if matrix then
-                local angles = matrix:GetAngles()
-                if angles then
-                    local forward = angles:Forward()
-                    if forward then
-                        return forward:Angle().y
-                    end
+    local spineBone = ragdoll:LookupBone("ValveBiped.Bip01_Spine4")
+        or ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
+        or ragdoll:LookupBone("ValveBiped.Bip01_Spine1")
+        or ragdoll:LookupBone("ValveBiped.Bip01_Spine")
+    if spineBone then
+        local matrix = ragdoll:GetBoneMatrix(spineBone)
+        if matrix then
+            local angles = matrix:GetAngles()
+            if angles then
+                local forward = angles:Forward()
+                if forward then
+                    return forward:Angle().y
                 end
             end
         end
-
-        -- 回退到布娃娃实体的偏航角
-        return ragdoll:GetAngles().yaw
     end
+    return ragdoll:GetAngles().yaw
 end
 
 -- 注册单例

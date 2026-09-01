@@ -36,48 +36,18 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         return false
     end
 
-    -- 计算正确的偏航角
     local yaw
     if state == STATE_ENUM.FALLING then
-        -- 死亡倒地动画：优先使用 owner 的角度，如果 owner 无效则退回 ragdoll 角度
+        -- 死亡倒地动画：使用 owner 的角度，如果 owner 无效则退回 ragdoll 角度
         if IsValid(owner) then
-            yaw = RagdollPoseHelper:GetYawForState(owner, ragdoll, state)
+            yaw = RagdollPoseHelper:GetYawFromOwner(owner)
         else
             log.trace("AnimationPlaybackController: owner not provided for FALLING state, using ragdoll yaw as fallback")
-            yaw = ragdoll:GetAngles().yaw
+            yaw = RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
         end
     else
-        -- 爬行/挣扎等状态：使用 ragdoll 自身姿态计算 yaw（此时不需要 owner）
-        yaw = RagdollPoseHelper:GetYawForState(owner or ragdoll, ragdoll, state)
-        -- 如果 owner 为 nil，RagdollPoseHelper 内部会拒绝计算并返回 0，所以这里传入 ragdoll 作为 owner 参数以绕过检查？
-        -- 更好的做法：直接调用一个不需要 owner 的重载，这里简化处理：如果 owner 无效，则手动调用骨骼提取
-        if not IsValid(owner) then
-            -- 手动实现：从 ragdoll 提取偏航
-            local spineBone = ragdoll:LookupBone("ValveBiped.Bip01_Spine4")
-                or ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
-                or ragdoll:LookupBone("ValveBiped.Bip01_Spine1")
-                or ragdoll:LookupBone("ValveBiped.Bip01_Spine")
-            if spineBone then
-                local matrix = ragdoll:GetBoneMatrix(spineBone)
-                if matrix then
-                    local angles = matrix:GetAngles()
-                    if angles then
-                        local forward = angles:Forward()
-                        if forward then
-                            yaw = forward:Angle().y
-                        else
-                            yaw = ragdoll:GetAngles().yaw
-                        end
-                    else
-                        yaw = ragdoll:GetAngles().yaw
-                    end
-                else
-                    yaw = ragdoll:GetAngles().yaw
-                end
-            else
-                yaw = ragdoll:GetAngles().yaw
-            end
-        end
+        -- 爬行/挣扎等状态：直接从 ragdoll 提取
+        yaw = RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
     end
 
     -- 组装选择器所需信息
