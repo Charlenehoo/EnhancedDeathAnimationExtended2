@@ -40,7 +40,7 @@ local function setState(ragdoll, newState)
     log.trace("LifeCycleHandler: state changed for ", ragdoll, ": ", oldState, " -> ", newState)
 
     -- 通知外部模块（如 RagdollManager 切换动画）
-    hook.Run(Constants.Events.OnRagdollStateChange, ragdoll, newState)
+    hook.Run(Constants.Events.OnRagdollStateChange, ragdoll, newState, oldState)
 
     return newState
 end

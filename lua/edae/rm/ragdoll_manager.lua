@@ -78,11 +78,11 @@ end
 function Manager:OnTakeDamage(ragdoll, dmginfo)
     if not IsValid(ragdoll) or not dmginfo then return end
 
-    -- 获取所有者（在 OnCreate 时已存储）
     local owner = EntityDataStore:Get(ragdoll, "Owner")
+    local currentState = LifeCycleHandler:GetState(ragdoll)
 
-    -- 播放受击音效（统一使用 crithit）
-    if IsValid(owner) then
+    -- 仅在爬行状态播放受击音效（统一使用 crithit）
+    if currentState == STATE_ENUM.CRAWLING and IsValid(owner) then
         VoiceManager:PlayDamageSound(owner)
     end
 
@@ -90,34 +90,36 @@ function Manager:OnTakeDamage(ragdoll, dmginfo)
     local died = RagdollHealthManager:Damage(ragdoll, damage)
 
     if died then
-        -- 血量归零，强制进入 DEAD 状态
         LifeCycleHandler:SetState(ragdoll, STATE_ENUM.DEAD)
-        -- 死亡时停止所有语音
-        VoiceManager:StopAll(owner)
+        VoiceManager:StopAll(owner) -- 死亡时停止所有语音
     else
-        -- 血量未归零，可让生命周期处理器根据当前状态做进一步判断（通常无操作）
         LifeCycleHandler:DetermineState(ragdoll)
     end
 end
 
 --- 布娃娃状态改变（由 LifeCycleHandler 触发事件）
-function Manager:OnStateChange(ragdoll, state)
+function Manager:OnStateChange(ragdoll, state, fromState)
     if not IsValid(ragdoll) then return end
+
+    -- 获取所有者
+    local owner = EntityDataStore:Get(ragdoll, "Owner")
+
+    -- 特殊处理：从爬行转为死亡时播放死亡语音
+    if fromState == STATE_ENUM.CRAWLING and state == STATE_ENUM.DEAD then
+        VoiceManager:PlayDeathSound(owner)
+    else
+        VoiceManager:StopAll(owner)
+    end
 
     -- 停止当前动画
     AnimationPlayer:Stop(ragdoll)
 
-    -- DEAD 状态无需播放动画
+    -- DEAD 状态无需播放动画（但上面已经播放了死亡语音）
     if state == STATE_ENUM.DEAD then
-        -- 可选：此处也可调用 VoiceManager:StopAll(owner)，但已在 OnTakeDamage 中处理
         return
     end
 
-    -- 获取所有者（用于语音效果器）
-    local owner = EntityDataStore:Get(ragdoll, "Owner")
-
-    -- 播放新状态的动画（此处的 owner 和 damageContext 未知，传 nil）
-    -- 对于非 FALLING 状态，yaw 计算不依赖 owner，所以是安全的
+    -- 播放新状态的动画
     AnimationPlaybackController:PlayForState(ragdoll, state, nil, owner)
 end
 
@@ -125,10 +127,11 @@ end
 -- 事件订阅
 -- ============================================================
 
+-- 事件订阅
 hook.Add(Events.OnRagdollStateChange, Constants.ADDON_NAME .. MODULE_NAME .. Events.OnRagdollStateChange,
-    function(ragdoll, state)
+    function(ragdoll, state, fromState)
         if not IsValid(ragdoll) then return end
-        Manager:OnStateChange(ragdoll, state)
+        Manager:OnStateChange(ragdoll, state, fromState)
     end)
 
 hook.Add("CreateEntityRagdoll", Constants.ADDON_NAME .. MODULE_NAME .. "CreateEntityRagdoll",

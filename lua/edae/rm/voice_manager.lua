@@ -22,6 +22,18 @@ function VoiceManager:PlayDamageSound(owner)
     TFAVOX_PlayVoicePriority(owner, sounds.main.crithit, 10, false)
 end
 
+--- 播放死亡音效（仅在有需要时调用）
+--- @param owner Entity 玩家实体
+function VoiceManager:PlayDeathSound(owner)
+    if not IsValid(owner) or not owner:IsPlayer() then return end
+    if not TFAVOX_PlayVoicePriority then return end
+
+    local sounds = owner.TFAVOX_Sounds
+    if not sounds or not sounds.main or not sounds.main.death then return end
+
+    TFAVOX_PlayVoicePriority(owner, sounds.main.death, 10, true)
+end
+
 --- 停止所有语音（死亡时调用）
 --- @param owner Entity 玩家实体
 function VoiceManager:StopAll(owner)

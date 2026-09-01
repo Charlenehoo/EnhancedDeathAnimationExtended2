@@ -114,12 +114,12 @@ Constants.BLOOD                                         = {
 -- 语音效果（Voice Effect）
 -- ==============================
 Constants.VOICE                                         = {
-    INTERVAL = 10,
-    PRIORITY = -5,
+    INTERVAL = 3,
+    PRIORITY = 3,
     INTERRUPT = false,
     CONFIG = {
-        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth", priority = -5, interrupt = false },
-        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "overkill", priority = -5, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth", priority = 3, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "overkill", priority = 3, interrupt = false },
     },
 }
 
