@@ -14,7 +14,7 @@ local PlayerProxy = {}
 
 if SERVER then
     -- 服务器端：接收旋转请求并调用 AnimationPlayer
-    local AnimationPlayer = _EnhancedDeathAnimationExtendedSingletons.AnimationPlayer
+    local AnimationPlayer = include("edae/ap/animation_player.lua")
 
     net.Receive(NET_STRING, function(len, ply)
         if not IsValid(ply) or ply:Alive() then return end
@@ -29,7 +29,7 @@ if SERVER then
     end)
 else
     -- 客户端端：检测 A/D 键并发送增量
-    local turnSpeed = 90       -- 转向速度（度/秒），影响 A/D 键灵敏度
+    local turnSpeed = 30       -- 转向速度（度/秒），影响 A/D 键灵敏度
     local sendInterval = 0.05  -- 网络发送间隔（秒）
     local accumulatedDelta = 0 -- 累积的旋转增量
     local lastSendTime = 0
