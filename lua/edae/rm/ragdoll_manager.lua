@@ -16,9 +16,9 @@ local DamageContextManager        = include("edae/dcm/damage_context_manager.lua
 local LifeCycleHandler            = include("edae/lch/life_cycle_handler.lua")
 local RagdollHealthManager        = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper           = include("edae/rm/pose_helper.lua")
-local VoiceManager                = include("edae/rm/voice_manager.lua")
 local AnimationPlaybackController = include("edae/rm/playback_controller.lua")
 local AnimationPlayer             = include("edae/ap/animation_player.lua")
+local VoiceManager                = include("edae/rm/voice_manager.lua") -- 新增
 
 local STATE_ENUM                  = Constants.LifeCycleHandler.STATE_ENUM
 local Events                      = Constants.Events
@@ -52,6 +52,9 @@ end
 function Manager:OnCreate(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
 
+    -- 存储 owner 到 EntityDataStore，方便后续使用（例如受击音效）
+    EntityDataStore:Set(ragdoll, "Owner", owner)
+
     -- 初始化血量
     local currentHealth = RagdollHealthManager:Get(ragdoll)
     if currentHealth == nil then
@@ -75,18 +78,24 @@ end
 function Manager:OnTakeDamage(ragdoll, dmginfo)
     if not IsValid(ragdoll) or not dmginfo then return end
 
-    local owner = ragdoll:GetOwner() -- 假设有方法获取所有者（需根据实际调整）
+    -- 获取所有者（在 OnCreate 时已存储）
+    local owner = EntityDataStore:Get(ragdoll, "Owner")
+
+    -- 播放受击音效（统一使用 crithit）
     if IsValid(owner) then
-        VoiceManager:PlayDamageSound(owner, dmginfo)
+        VoiceManager:PlayDamageSound(owner)
     end
 
     local damage = dmginfo:GetDamage()
     local died = RagdollHealthManager:Damage(ragdoll, damage)
 
     if died then
+        -- 血量归零，强制进入 DEAD 状态
         LifeCycleHandler:SetState(ragdoll, STATE_ENUM.DEAD)
-        VoiceManager:StopAll(owner) -- 死亡时停止所有语音
+        -- 死亡时停止所有语音
+        VoiceManager:StopAll(owner)
     else
+        -- 血量未归零，可让生命周期处理器根据当前状态做进一步判断（通常无操作）
         LifeCycleHandler:DetermineState(ragdoll)
     end
 end
@@ -100,12 +109,16 @@ function Manager:OnStateChange(ragdoll, state)
 
     -- DEAD 状态无需播放动画
     if state == STATE_ENUM.DEAD then
+        -- 可选：此处也可调用 VoiceManager:StopAll(owner)，但已在 OnTakeDamage 中处理
         return
     end
 
+    -- 获取所有者（用于语音效果器）
+    local owner = EntityDataStore:Get(ragdoll, "Owner")
+
     -- 播放新状态的动画（此处的 owner 和 damageContext 未知，传 nil）
     -- 对于非 FALLING 状态，yaw 计算不依赖 owner，所以是安全的
-    AnimationPlaybackController:PlayForState(ragdoll, state, nil, nil)
+    AnimationPlaybackController:PlayForState(ragdoll, state, nil, owner)
 end
 
 -- ============================================================
