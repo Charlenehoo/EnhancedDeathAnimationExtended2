@@ -122,7 +122,13 @@ local function BuildVoiceEffect(owner, state)
     local soundKey = stateConfig.key
     if not soundKey then return nil end
 
-    local interval = stateConfig.interval or voiceCfg.INTERVAL or 10
+    local interval = stateConfig.interval or voiceCfg.INTERVAL
+    local priority = stateConfig.priority or voiceCfg.PRIORITY
+    local interrupt = stateConfig.interrupt
+    if interrupt == nil then
+        interrupt = voiceCfg.INTERRUPT
+        if interrupt == nil then interrupt = false end
+    end
 
     return {
         name = "voice_" .. tostring(state),
@@ -133,7 +139,7 @@ local function BuildVoiceEffect(owner, state)
             if TFAVOX_PlayVoicePriority and IsValid(owner) then
                 local sounds = owner.TFAVOX_Sounds
                 if sounds and sounds[category] and sounds[category][soundKey] then
-                    TFAVOX_PlayVoicePriority(owner, sounds[category][soundKey], 10, true)
+                    TFAVOX_PlayVoicePriority(owner, sounds[category][soundKey], priority, interrupt)
                 end
             end
             effectState.nextTime = CurTime() + interval

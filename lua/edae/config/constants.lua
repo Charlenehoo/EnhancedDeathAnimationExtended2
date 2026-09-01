@@ -115,12 +115,14 @@ Constants.BLOOD                                         = {
 -- ==============================
 Constants.VOICE                                         = {
     INTERVAL = 10,
+    PRIORITY = 5,
+    INTERRUPT = false,
     CONFIG = {
-        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth" },
-        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "overkill" },
+        [Constants.LifeCycleHandler.STATE_ENUM.FALLING]  = { category = "external", key = "overkill" },
+        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth", priority = 8, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "overkill", priority = 5 },
     },
 }
-
 
 
 return Constants
