@@ -80,9 +80,9 @@ M.RAGDOLL_DUMMY         = {
     -- 根据不同 ragdoll 状态设置的执行者搜索半径（单位），nil 表示不搜索
     STATE_TO_SEARCH_RADIUS        = {
         init     = nil,                     -- 初始状态，不搜索
-        falling  = 315,                     -- 下落状态，搜索半径 315
+        falling  = 250,                     -- 下落状态，搜索半径 250
         writhing = 160,                     -- 挣扎状态，搜索半径 160
-        crawling = 630,                     -- 爬行状态，搜索半径 630
+        crawling = 400,                     -- 爬行状态，搜索半径 630
         reviving = M.NPC_MAX_LOOK_DISTANCE, -- 复活状态，使用最大视距
         dead     = nil,                     -- 死亡状态，不搜索
     },
@@ -101,24 +101,6 @@ M.RAGDOLL_DUMMY         = {
 
     -- 定期重置位置策略到最高优先级（眼睛）的间隔（秒）
     POSITION_RESET_INTERVAL       = 15.0,
-
-    -- --------------------------
-    -- 死亡检测与移除
-    -- --------------------------
-    -- 确认死亡后延迟移除 dummy 的时间（秒）
-    DEAD_REMOVE_DELAY             = 9.0,
-
-    -- 静止检查的间隔（秒），用于速度死亡判定
-    STATIC_CHECK_INTERVAL         = 1,
-
-    -- 连续静止检查次数达到该值则判定为死亡
-    STATIC_CONSECUTIVE_COUNT      = 2,
-
-    -- 角速度平方阈值（约 30°/s 对应 0.25，约 57°/s 对应 1.0）
-    STATIC_ANG_VEL_SQR_THRESHOLD  = 1,
-
-    -- 线速度平方阈值（约 5 unit/s 对应 25）
-    STATIC_LIN_VEL_SQR_THRESHOLD  = 25,
 }
 
 return M

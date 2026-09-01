@@ -140,7 +140,7 @@ end
 -- @param newState string 目标状态（必须是 STATE_ENUM 之一）
 function LifeCycleHandler:SetState(ragdoll, newState)
     if not IsValid(ragdoll) then return end
-    if not STATE_ENUM[newState] then
+    if not table.HasValue(STATE_ENUM, newState) then
         log.warn("LifeCycleHandler: invalid state '", tostring(newState), "'")
         return
     end
