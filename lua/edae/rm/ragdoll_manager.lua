@@ -59,11 +59,45 @@ function Manager:IsFacingUp(ragdoll)
     return false
 end
 
+function Manager:GetYawForState(owner, ragdoll, state)
+    if not IsValid(owner) or not IsValid(ragdoll) then return 0 end
+
+    if state == Constants.LifeCycleHandler.STATE_ENUM.FALLING then
+        -- 死亡倒地动画：布娃娃刚生成，尚未倒地，实体角度即可反映躯干朝向
+        return owner:GetAngles().yaw
+    else
+        -- 爬行/挣扎动画：布娃娃已躺倒，需从胸部骨骼提取水平偏航
+        local spineBone = ragdoll:LookupBone("ValveBiped.Bip01_Spine4")
+            or ragdoll:LookupBone("ValveBiped.Bip01_Spine2")
+            or ragdoll:LookupBone("ValveBiped.Bip01_Spine1")
+            or ragdoll:LookupBone("ValveBiped.Bip01_Spine")
+
+        if spineBone then
+            local matrix = ragdoll:GetBoneMatrix(spineBone)
+            if matrix then
+                local angles = matrix:GetAngles()
+                if angles then
+                    local forward = angles:Forward()
+                    if forward then
+                        return forward:Angle().y
+                    end
+                end
+            end
+        end
+
+        -- 回退到实体角度
+        return ragdoll:GetAngles().yaw
+    end
+end
+
 function Manager:PlayAnimationForState(ragdoll, state, damageContext)
+    local yaw = self:GetYawForState(ragdoll, state)
+
     local playBackInfo = {
         state = state,
         damageContext = damageContext,
-        isFacingUp = self:IsFacingUp(ragdoll)
+        isFacingUp = self:IsFacingUp(ragdoll),
+        yaw = yaw, -- 可选：传递给选择器，虽然目前未使用
     }
     local playbackData = AnimationSelector:Select(playBackInfo)
     if not playbackData then
@@ -73,7 +107,8 @@ function Manager:PlayAnimationForState(ragdoll, state, damageContext)
 
     local opts = {
         totalLoops = playbackData.totalLoops,
-        preWait = playbackData.preWait, -- 等待原语表，可能为 nil 或空表
+        preWait = playbackData.preWait,
+        yaw = yaw, -- 关键：将计算好的 yaw 传给 AnimationPlayer
     }
 
     AnimationPlayer:Play(ragdoll, playbackData.animationName, opts)
