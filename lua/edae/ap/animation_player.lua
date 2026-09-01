@@ -33,40 +33,30 @@ local function alignAnimationModel(ctx)
     local animationModel = ctx.animationModel
     local ragdoll = ctx.ragdoll
 
+    -- 0. 旋转对齐 yaw
     animationModel:SetAngles(Angle(0, ctx.yaw, 0))
 
-    local persistedDatumToPos = store:Get(ragdoll, Constants.ANIMATION_PLAYER.AM_DATUM_TO_POS_KEY)
-
-    if persistedDatumToPos then
-        local groundPos = traceGroundBelow(ragdoll:GetPos(), { ragdoll, animationModel })
-        if not groundPos then
-            log.warn("Cannot find ground below ragdoll for alignment")
-            return false
-        end
-
-        animationModel:SetPos(groundPos + persistedDatumToPos)
-        ctx.amDatumToPos = persistedDatumToPos
-
-        log.trace("Animation model aligned using persisted datumToPos: ", tostring(persistedDatumToPos))
-        return true
-    else
-        local animationModelDatum = helper.GetStandPos(animationModel)
-        if not animationModelDatum then
-            log.warn("Cannot find stand pos for animationModel")
-            return false
-        end
-
-        local datumToPos = animationModel:GetPos() - animationModelDatum
-
-        store:Set(ragdoll, Constants.ANIMATION_PLAYER.AM_DATUM_TO_POS_KEY, datumToPos)
-
-        animationModel:SetPos(ctx.datum + datumToPos)
-
-        ctx.amDatumToPos = datumToPos
-
-        log.trace("Animation model aligned first time, datumToPos stored: ", tostring(datumToPos))
-        return true
+    -- 1. 从 ragdoll:GetPos() 向下打射线获得地面位置
+    local groundPos = traceGroundBelow(ragdoll:GetPos(), { ragdoll, animationModel })
+    if not groundPos then
+        log.warn("Cannot find ground below ragdoll for alignment")
+        return false
     end
+
+    -- 2. 获取 animationModel 的脚底到模型原点的偏移（datumToPos）
+    local footPos = helper.GetStandPos(animationModel)
+    if not footPos then
+        log.warn("Cannot find stand pos for animationModel")
+        return false
+    end
+    local datumToPos = animationModel:GetPos() - footPos -- 模型原点 - 脚底 = 偏移
+
+    -- 3. 设置动画模型位置，使脚底与地面点重合
+    animationModel:SetPos(groundPos + datumToPos)
+
+    -- 记录偏移供旋转算法使用
+    ctx.amDatumToPos = datumToPos
+    return true
 end
 
 local function cleanUp(ctx)
