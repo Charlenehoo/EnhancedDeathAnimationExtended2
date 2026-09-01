@@ -24,16 +24,24 @@ local function randomFromList(list)
     return list[math.random(#list)]
 end
 
-local function isRagdollStopped(ragdoll)
+-- 判断 ragdoll 是否已经静止（只检查白名单内的骨骼，若未提供白名单则检查全部）
+local function isRagdollStopped(ragdoll, boneWhitelist)
     local physCount = ragdoll:GetPhysicsObjectCount()
     for i = 0, physCount - 1 do
-        local phys = ragdoll:GetPhysicsObjectNum(i)
-        if phys then
-            local linVel = phys:GetVelocity():Length()
-            local angVel = phys:GetAngleVelocity():Length()
-            if linVel > Constants.ANIMATION_SELECTOR.STOP_LINEAR_THRESHOLD or
-                angVel > Constants.ANIMATION_SELECTOR.STOP_ANGULAR_THRESHOLD then
-                return false
+        local boneID = ragdoll:TranslatePhysBoneToBone(i)
+        if boneID then
+            local boneName = ragdoll:GetBoneName(boneID)
+            -- 如果提供了白名单，仅检查白名单内的骨骼
+            if (not boneWhitelist) or (boneWhitelist and boneWhitelist[boneName]) then
+                local phys = ragdoll:GetPhysicsObjectNum(i)
+                if phys then
+                    local linVel = phys:GetVelocity():Length()
+                    local angVel = phys:GetAngleVelocity():Length()
+                    if linVel > Constants.ANIMATION_SELECTOR.STOP_LINEAR_THRESHOLD or
+                        angVel > Constants.ANIMATION_SELECTOR.STOP_ANGULAR_THRESHOLD then
+                        return false
+                    end
+                end
             end
         end
     end
@@ -47,7 +55,7 @@ local function makeCrawlOrWrithePreWait()
         end,
         function(ctx)
             Scheduler:WaitUntil(
-                function() return isRagdollStopped(ctx.ragdoll) end,
+                function() return isRagdollStopped(ctx.ragdoll, ctx.boneWhitelist) end,
                 Constants.ANIMATION_SELECTOR.STOP_TIMEOUT,
                 Constants.ANIMATION_SELECTOR.STOP_CHECK_INTERVAL
             )
