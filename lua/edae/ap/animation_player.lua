@@ -76,6 +76,25 @@ local function cleanUp(ctx)
     end
 end
 
+-- 旋转效果器：每帧检查旋转目标并调用 Helper 中的旋转算法
+local function BuildRotateEffect()
+    return {
+        name = "rotate_control",
+        predicate = function(ctx, state)
+            return ctx.rotateTargetYaw ~= nil or ctx.rotateTargetPos ~= nil
+        end,
+        action = function(ctx, state)
+            helper.RotateAnimationModel(
+                ctx,
+                ctx.rotateTargetYaw,
+                ctx.rotateTargetPos,
+                ctx.rotateMaxTurnSpeed
+            )
+            -- 旋转目标持续有效，由外部更新或清除
+        end
+    }
+end
+
 local function playAnimationCoroutine(ctx)
     log.trace("playAnimationCoroutine started")
     local ragdoll = ctx.ragdoll
@@ -132,7 +151,6 @@ local function playAnimationCoroutine(ctx)
             -- 执行效果器（谓词 + 动作）
             if ctx.effects then
                 for idx, effect in ipairs(ctx.effects) do
-                    -- 效果器的私有状态表，以 effect.name 或索引为键
                     local stateKey = effect.name or idx
                     local effectState = ctx.effectStates[stateKey]
                     if not effectState then
@@ -166,10 +184,8 @@ local function playAnimationCoroutine(ctx)
                     -- 高度修正计算（与原版一致）
                     local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
 
-                    -- 复用 traceGroundBelow 获取 refer 下方的地面位置
                     local groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
                     if not groundPos then
-                        -- 如果找不到地面，视为 Fall
                         bone.Fall = true
                         ctx.FallCount = ctx.FallCount + 1
                         log.trace("Bone ", boneName, " no ground found, marking as Fall")
@@ -182,7 +198,6 @@ local function playAnimationCoroutine(ctx)
                     bone.lastAddZ = diff + bone.lastAddZ
                     bone.lastHitZ = hitDist
 
-                    -- Fall 检测：高度差突变，放弃控制该骨骼
                     if diff >= Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD then
                         bone.Fall = true
                         ctx.FallCount = ctx.FallCount + 1
@@ -192,7 +207,6 @@ local function playAnimationCoroutine(ctx)
 
                     local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
 
-                    -- 障碍物检测（HitWall）
                     local tr = util.TraceLine({
                         start = ragdollPhysObj:GetPos(),
                         endpos = bone_pos,
@@ -201,7 +215,6 @@ local function playAnimationCoroutine(ctx)
                     })
 
                     if tr.Hit then
-                        -- 只计数一次，但骨骼不删除，仅跳过本帧控制
                         if not bone.HitWall then
                             bone.HitWall = true
                             ctx.HitWallCount = ctx.HitWallCount + 1
@@ -210,7 +223,6 @@ local function playAnimationCoroutine(ctx)
                         continue
                     end
 
-                    -- 正常执行控制
                     local shadowParams = ctx.shadowParamsTemplate
                     shadowParams.pos = bone_pos
                     shadowParams.angle = amBoneAngle
@@ -255,6 +267,8 @@ end
 ---   opts.shadowParamsTemplate table
 ---   opts.preWait table|nil 等待函数数组，每个函数接收 ctx
 ---   opts.effects table|nil 效果器数组，每个效果器格式：{ name = "string", predicate = function(ctx, state), action = function(ctx, state) }
+---   opts.enableRotate boolean 是否启用旋转功能，默认 false
+---   opts.rotateMaxTurnSpeed number|nil 最大旋转角速度（度/秒），nil 表示瞬时旋转
 function AnimationPlayer:Play(ragdoll, animationName, opts)
     if not IsValid(ragdoll) then
         log.warn("Invalid ragdoll: ", tostring(ragdoll))
@@ -279,44 +293,27 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         preWait                   = opts.preWait,
         boneWhitelist             = opts.boneWhitelist,
         effects                   = opts.effects,
-        effectStates              = {}, -- 效果器私有状态存储（键：effect.name 或索引）
+        effectStates              = {},
 
-        -- ===============================
-        -- 以下由 fillShadowParamsTemplate 填充
+        -- 旋转相关字段
+        rotateTargetYaw           = nil,
+        rotateTargetPos           = nil,
+        rotateMaxTurnSpeed        = opts.rotateMaxTurnSpeed or 360, -- 默认瞬时旋转
+        anchorPosGetter           = nil,                            -- 将在模型创建后设置
+        enableRotate              = opts.enableRotate or false,
+
         shadowParamsTemplate      = opts.shadowParamsTemplate,
-        -- ===============================
-
-        -- ===============================
-        -- 以下由 createAnimationModel 填充
         animationModel            = nil,
-        -- ===============================
-
-        -- ===============================
-        -- 以下由 checkAnimationName 填充
         animationDuration         = nil,
-        -- ===============================
-
-        -- ===============================
-        -- 以下由 alignAnimationModel 填充
         amDatumToPos              = nil,
-        -- ===============================
-
-        -- ===============================
-        -- 以下由 makeBoneMap 填充
         ragdollPhysicsObjectCount = nil,
         boneMap                   = nil,
         amRefBoneID               = nil,
-        -- ===============================
-
-        -- ===============================
-        -- 以下由 playAnimationCoroutine 填充
         animationEndTime          = nil,
         loopCount                 = 0,
         totalBones                = 0,
         FallCount                 = 0,
         HitWallCount              = 0,
-        -- ===============================
-
         coro                      = nil,
         stopSignal                = nil,
     }
@@ -332,11 +329,42 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         return nil
     end
 
+    -- 创建锚点获取闭包
+    ctx.anchorPosGetter = helper.CreateAnchorPositionGetter(ctx.animationModel, ragdoll)
+
+    -- 如果启用旋转，添加旋转效果器
+    if ctx.enableRotate then
+        ctx.effects = ctx.effects or {}
+        table.insert(ctx.effects, BuildRotateEffect())
+    end
+
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
     ctx.coro = coro
 
     store:Set(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY, ctx)
     return ctx
+end
+
+--- 请求布娃娃旋转到指定方向或背对指定位置
+--- @param ragdoll Entity 布娃娃实体
+--- @param targetYaw number|nil 目标绝对 Yaw 角（度）
+--- @param targetPos Vector|nil 目标位置（布娃娃将背对该位置）
+--- @param maxTurnSpeed number|nil 最大角速度（度/秒），nil 表示瞬时旋转
+--- @return boolean 是否成功记录旋转请求
+function AnimationPlayer:Rotate(ragdoll, targetYaw, targetPos, maxTurnSpeed)
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if not ctx then
+        log.warn("AnimationPlayer:Rotate called but no active context for ragdoll")
+        return false
+    end
+
+    ctx.rotateTargetYaw = targetYaw
+    ctx.rotateTargetPos = targetPos
+    if maxTurnSpeed then
+        ctx.rotateMaxTurnSpeed = maxTurnSpeed
+    end
+
+    return true
 end
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = AnimationPlayer
