@@ -183,7 +183,7 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         preWait = playbackData.preWait,
         yaw = yaw,         -- 关键：传递正确的偏航角
         effects = effects, -- 表现效果器（谓词 + 动作）
-        -- 未来可扩展其他选项
+        enableRotate = true,
     }
 
     -- 启动播放
