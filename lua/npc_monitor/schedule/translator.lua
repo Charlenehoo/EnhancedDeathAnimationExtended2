@@ -4,7 +4,7 @@
 
 local CONSTANTS            = include("npc_monitor/config/constants.lua")
 local Events               = include("npc_monitor/core/events.lua")
-local log                  = include("npc_monitor/logging/log.lua")
+local log                  = include("edae/log/init.lua")
 local helpers              = include("npc_monitor/helpers.lua")
 local addUniqueHook        = helpers.addUniqueHook
 local getScheduleName      = helpers.getScheduleName

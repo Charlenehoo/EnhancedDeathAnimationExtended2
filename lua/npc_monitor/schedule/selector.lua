@@ -2,9 +2,6 @@
 -- 根据 NPC 类型选择合适的 schedule
 
 local CONSTANTS = include("npc_monitor/config/constants.lua")
-local Enum      = include("npc_monitor/config/enum.lua")
-local log       = include("npc_monitor/logging/log.lua")
-local helpers   = include("npc_monitor/helpers.lua")
 
 local function selectSchedule(npc, lastSchedule, currentSchedule)
     if lastSchedule == SCHED_FAIL or currentSchedule == SCHED_FAIL then return nil end

@@ -7,7 +7,7 @@ if CLIENT then return end
 
 -- 加载配置与辅助模块
 local CONSTANTS                     = include("npc_monitor/config/constants.lua")
-local log                           = include("npc_monitor/logging/log.lua")
+local log                           = include("edae/log/init.lua")
 local helpers                       = include("npc_monitor/helpers.lua")
 local findNearestEntity             = helpers.findNearestEntity
 local findRandomEntity              = helpers.findRandomEntity

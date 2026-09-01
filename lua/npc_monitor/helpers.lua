@@ -2,7 +2,6 @@
 -- 通用辅助函数，供 NPC Monitor 各模块使用
 local CONSTANTS           = include("npc_monitor/config/constants.lua")
 local Enum                = include("npc_monitor/config/enum.lua")
-local log                 = include("npc_monitor/logging/log.lua")
 local BONE_FALLBACK_ORDER = include("npc_monitor/config/bones.lua")
 
 local M                   = {}
