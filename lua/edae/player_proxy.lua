@@ -23,13 +23,13 @@ if SERVER then
 
         local deltaYaw = net.ReadFloat()
         -- 最大转向速度（度/秒），可根据需要调整
-        local maxTurnSpeed = 180
+        local maxTurnSpeed = 30
 
         AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
     end)
 else
     -- 客户端端：检测 A/D 键并发送增量
-    local turnSpeed = 30       -- 转向速度（度/秒），影响 A/D 键灵敏度
+    local turnSpeed = 15       -- 转向速度（度/秒），影响 A/D 键灵敏度
     local sendInterval = 0.05  -- 网络发送间隔（秒）
     local accumulatedDelta = 0 -- 累积的旋转增量
     local lastSendTime = 0
