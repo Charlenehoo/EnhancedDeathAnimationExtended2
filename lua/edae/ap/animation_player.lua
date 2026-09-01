@@ -98,7 +98,6 @@ local function playAnimationCoroutine(ctx)
     local function shouldTerminate()
         return not IsValid(ragdoll) or
             not IsValid(animationModel) or
-            ctx.stopSignal or
             ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT or
             ctx.HitWallCount >= ctx.totalBones
     end
@@ -311,7 +310,6 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         FallCount                 = 0,
         HitWallCount              = 0,
         coro                      = nil,
-        stopSignal                = nil,
     }
 
     if
