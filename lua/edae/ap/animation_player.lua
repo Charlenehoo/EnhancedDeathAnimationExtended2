@@ -129,6 +129,23 @@ local function playAnimationCoroutine(ctx)
 
         -- 内层循环：播放单次动画
         while not shouldTerminate() and CurTime() < ctx.animationEndTime do
+            -- 执行效果器（谓词 + 动作）
+            if ctx.effects then
+                for idx, effect in ipairs(ctx.effects) do
+                    -- 效果器的私有状态表，以 effect.name 或索引为键
+                    local stateKey = effect.name or idx
+                    local effectState = ctx.effectStates[stateKey]
+                    if not effectState then
+                        effectState = {}
+                        ctx.effectStates[stateKey] = effectState
+                    end
+
+                    if effect.predicate(ctx, effectState) then
+                        effect.action(ctx, effectState)
+                    end
+                end
+            end
+
             -- 遍历所有骨骼（跳过已标记 Fall 的骨骼）
             for i = 1, #ctx.boneMap do
                 local bone = ctx.boneMap[i]
@@ -237,6 +254,7 @@ end
 ---   opts.animationModelName string
 ---   opts.shadowParamsTemplate table
 ---   opts.preWait table|nil 等待函数数组，每个函数接收 ctx
+---   opts.effects table|nil 效果器数组，每个效果器格式：{ name = "string", predicate = function(ctx, state), action = function(ctx, state) }
 function AnimationPlayer:Play(ragdoll, animationName, opts)
     if not IsValid(ragdoll) then
         log.warn("Invalid ragdoll: ", tostring(ragdoll))
@@ -260,6 +278,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
         preWait                   = opts.preWait,
         boneWhitelist             = opts.boneWhitelist,
+        effects                   = opts.effects,
+        effectStates              = {}, -- 效果器私有状态存储（键：effect.name 或索引）
 
         -- ===============================
         -- 以下由 fillShadowParamsTemplate 填充

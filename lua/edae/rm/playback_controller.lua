@@ -19,6 +19,115 @@ local STATE_ENUM                  = Constants.LifeCycleHandler.STATE_ENUM
 
 local AnimationPlaybackController = {}
 
+-- ============================================================
+-- 内部辅助：构建表现效果器（谓词 + 动作）
+-- ============================================================
+
+--- 构建基于时间间隔的血迹效果器
+--- @param bloodCfg table 血迹配置
+--- @return table effect 效果器
+local function BuildBloodTimeEffect(bloodCfg)
+    local decal = bloodCfg.DECAL or "Blood"
+    local interval = bloodCfg.INTERVAL or 1.0
+
+    return {
+        name = "blood_time",
+        predicate = function(ctx, effectState)
+            return CurTime() >= (effectState.nextTime or 0)
+        end,
+        action = function(ctx, effectState)
+            local ragdoll = ctx.ragdoll
+            local animModel = ctx.animationModel
+
+            util.Decal(decal, ragdoll:GetPos(),
+                ragdoll:GetPos() - Vector(0, 0, 50),
+                { ragdoll, animModel })
+
+            effectState.nextTime = CurTime() + interval
+        end
+    }
+end
+
+--- 构建基于距离的血迹效果器
+--- @param bloodCfg table 血迹配置
+--- @return table effect 效果器
+local function BuildBloodDistanceEffect(bloodCfg)
+    local decal = bloodCfg.DECAL or "Blood"
+    local distance = bloodCfg.DISTANCE or 50
+
+    return {
+        name = "blood_distance",
+        predicate = function(ctx, effectState)
+            local curPos = ctx.ragdoll:GetPos()
+            if not effectState.lastPos then
+                effectState.lastPos = curPos
+                return false
+            end
+            return curPos:DistToSqr(effectState.lastPos) >= (distance * distance)
+        end,
+        action = function(ctx, effectState)
+            local ragdoll = ctx.ragdoll
+            local animModel = ctx.animationModel
+
+            util.Decal(decal, ragdoll:GetPos(),
+                ragdoll:GetPos() - Vector(0, 0, 50),
+                { ragdoll, animModel })
+
+            effectState.lastPos = ragdoll:GetPos()
+        end
+    }
+end
+
+--- 构建血迹效果器（根据配置选择模式）
+--- @param ragdoll Entity 布娃娃实体
+--- @param state string 当前状态
+--- @return table|nil effect 单个效果器（若无则返回 nil）
+local function BuildBloodEffect(ragdoll, state)
+    -- 仅爬行和挣扎状态需要血迹
+    if state ~= STATE_ENUM.CRAWLING and state ~= STATE_ENUM.WRITHING then
+        return nil
+    end
+
+    local bloodCfg = Constants.BLOOD
+    if not bloodCfg or not bloodCfg.ENABLED then
+        return nil
+    end
+
+    local mode = bloodCfg.MODE or "time"
+
+    if mode == "time" then
+        return BuildBloodTimeEffect(bloodCfg)
+    elseif mode == "distance" then
+        return BuildBloodDistanceEffect(bloodCfg)
+    else
+        log.warn("Unknown blood mode '", tostring(mode), "', no blood effect will be added")
+        return nil
+    end
+end
+
+--- 构建所有效果器
+--- @param ragdoll Entity
+--- @param state string
+--- @return table|nil effects 效果器数组（若无则返回 nil）
+local function BuildEffects(ragdoll, state)
+    local effects = {}
+
+    local bloodEffect = BuildBloodEffect(ragdoll, state)
+    if bloodEffect then
+        table.insert(effects, bloodEffect)
+    end
+
+    if #effects == 0 then
+        return nil
+    end
+
+    return effects
+end
+
+-- ============================================================
+-- 主播放接口
+-- ============================================================
+
 --- 为指定状态播放动画
 --- @param ragdoll Entity 布娃娃实体
 --- @param state string 当前状态（来自 STATE_ENUM）
@@ -65,13 +174,16 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         return false
     end
 
+    -- 构建效果器
+    local effects = BuildEffects(ragdoll, state)
+
     -- 组装 AnimationPlayer 的 opts
     local opts = {
         totalLoops = playbackData.totalLoops,
         preWait = playbackData.preWait,
-        yaw = yaw, -- 关键：传递正确的偏航角
-        -- 未来可扩展 decal 配置：
-        -- decal = self:GetDecalConfig(ragdoll, state),
+        yaw = yaw,         -- 关键：传递正确的偏航角
+        effects = effects, -- 表现效果器（谓词 + 动作）
+        -- 未来可扩展其他选项
     }
 
     -- 启动播放

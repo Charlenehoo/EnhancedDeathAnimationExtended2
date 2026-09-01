@@ -85,6 +85,26 @@ Constants.ANIMATION_SELECTOR.NATURAL_LEVEL              = 1
 Constants.ANIMATION_SELECTOR.USE_RANDOM_CRAWL_WHITELIST = false
 Constants.ANIMATION_SELECTOR.USE_FEMALE_ANIMATIONS      = true
 
+-- ==============================
+-- 血迹效果（Blood Decal）
+-- ==============================
+Constants.BLOOD                                         = {
+    -- 是否启用血迹效果
+    ENABLED = true,
+
+    -- 血迹生成模式："time" 按固定时间间隔；"distance" 按移动距离间隔
+    MODE = "time",
+
+    -- 血迹贴花名称（需确保游戏资源中存在）
+    DECAL = "Blood",
+
+    -- 时间模式下的间隔（秒）
+    INTERVAL = 1.0,
+
+    -- 距离模式下的最小移动距离（单位）
+    DISTANCE = 50,
+}
+
 Constants.PlayerCreatePropRagdoll                       = {}
 Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
 Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET      = 5
