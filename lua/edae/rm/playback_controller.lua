@@ -140,7 +140,7 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         return false
     end
 
-    if not STATE_ENUM[state] then
+    if not table.HasValue(STATE_ENUM, state) then
         log.warn("AnimationPlaybackController:PlayForState invalid state: ", tostring(state))
         return false
     end
