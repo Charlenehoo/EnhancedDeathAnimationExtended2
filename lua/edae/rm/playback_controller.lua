@@ -196,11 +196,7 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         return false
     end
 
-    -- 死亡状态：停止所有语音，不播放动画
     if state == STATE_ENUM.DEAD then
-        if IsValid(owner) and TFAVOX_StopAll then
-            TFAVOX_StopAll(owner)
-        end
         return false
     end
 

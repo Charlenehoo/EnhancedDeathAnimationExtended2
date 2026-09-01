@@ -16,6 +16,7 @@ local DamageContextManager        = include("edae/dcm/damage_context_manager.lua
 local LifeCycleHandler            = include("edae/lch/life_cycle_handler.lua")
 local RagdollHealthManager        = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper           = include("edae/rm/pose_helper.lua")
+local VoiceManager                = include("edae/rm/voice_manager.lua")
 local AnimationPlaybackController = include("edae/rm/playback_controller.lua")
 local AnimationPlayer             = include("edae/ap/animation_player.lua")
 
@@ -74,14 +75,18 @@ end
 function Manager:OnTakeDamage(ragdoll, dmginfo)
     if not IsValid(ragdoll) or not dmginfo then return end
 
+    local owner = ragdoll:GetOwner() -- 假设有方法获取所有者（需根据实际调整）
+    if IsValid(owner) then
+        VoiceManager:PlayDamageSound(owner, dmginfo)
+    end
+
     local damage = dmginfo:GetDamage()
     local died = RagdollHealthManager:Damage(ragdoll, damage)
 
     if died then
-        -- 血量归零，强制进入 DEAD 状态
         LifeCycleHandler:SetState(ragdoll, STATE_ENUM.DEAD)
+        VoiceManager:StopAll(owner) -- 死亡时停止所有语音
     else
-        -- 血量未归零，可让生命周期处理器根据当前状态做进一步判断（通常无操作）
         LifeCycleHandler:DetermineState(ragdoll)
     end
 end
