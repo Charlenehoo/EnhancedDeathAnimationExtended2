@@ -141,6 +141,10 @@ function DamageContextManager:Update(ent, hitgroup, dmginfo)
         ", pelvis=", band(flags, FLAG_ENUM.PELVIS) ~= 0)
 end
 
+function DamageContextManager:Clear(ent)
+    store:Clear(ent)
+end
+
 local function handleScaleDamage(ent, hitgroup, dmginfo)
     DamageContextManager:Update(ent, hitgroup, dmginfo)
 end

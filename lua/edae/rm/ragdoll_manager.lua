@@ -20,6 +20,8 @@ local AnimationPlaybackController = include("edae/rm/playback_controller.lua")
 local AnimationPlayer             = include("edae/ap/animation_player.lua")
 local VoiceManager                = include("edae/rm/voice_manager.lua") -- 新增
 
+local store                       = EntityDataStore:ForOwner(MODULE_NAME)
+
 local STATE_ENUM                  = Constants.LifeCycleHandler.STATE_ENUM
 local Events                      = Constants.Events
 
@@ -53,7 +55,7 @@ function Manager:OnCreate(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
 
     -- 存储 owner 到 EntityDataStore，方便后续使用（例如受击音效）
-    EntityDataStore:Set(ragdoll, "Owner", owner)
+    store:Set(ragdoll, "Owner", owner)
 
     -- 初始化血量
     local currentHealth = RagdollHealthManager:Get(ragdoll)
@@ -63,6 +65,7 @@ function Manager:OnCreate(owner, ragdoll)
 
     -- 获取伤害上下文
     local damageContext = DamageContextManager:Get(owner)
+    DamageContextManager:Clear(owner)
 
     -- 初始化生命周期（进入 FALLING 状态）
     local state = LifeCycleHandler:Init(ragdoll, damageContext)
@@ -78,7 +81,7 @@ end
 function Manager:OnTakeDamage(ragdoll, dmginfo)
     if not IsValid(ragdoll) or not dmginfo then return end
 
-    local owner = EntityDataStore:Get(ragdoll, "Owner")
+    local owner = store:Get(ragdoll, "Owner")
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
     -- 仅在爬行状态播放受击音效（统一使用 crithit）
@@ -102,7 +105,7 @@ function Manager:OnStateChange(ragdoll, state, fromState)
     if not IsValid(ragdoll) then return end
 
     -- 获取所有者
-    local owner = EntityDataStore:Get(ragdoll, "Owner")
+    local owner = store:Get(ragdoll, "Owner")
 
     -- 特殊处理：从爬行转为死亡时播放死亡语音
     if fromState == STATE_ENUM.CRAWLING and state == STATE_ENUM.DEAD then

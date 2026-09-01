@@ -49,6 +49,31 @@ function EntityDataStore:Has(ent, key)
     return root ~= nil and root[key] ~= nil
 end
 
+--- 清除指定 owner 在某实体上存储的所有字段
+--- @param ent Entity
+--- @param owner string 拥有者标识（模块名）
+function EntityDataStore:Clear(ent, owner)
+    local root = getRoot(ent, false)
+    if not root then return end
+
+    for key, data in pairs(root) do
+        if data.owner == owner then
+            root[key] = nil
+        end
+    end
+end
+
+--- 清除某实体上的所有存储字段（慎用）
+--- @param ent Entity
+function EntityDataStore:ClearAll(ent)
+    local root = getRoot(ent, false)
+    if root then
+        for key in pairs(root) do
+            root[key] = nil
+        end
+    end
+end
+
 function EntityDataStore:GetOwner(ent, key)
     local root = getRoot(ent, false)
     if root and root[key] then
@@ -70,6 +95,10 @@ function EntityDataStore:ForOwner(owner)
 
     function sub:Has(ent, key)
         return EntityDataStore:Has(ent, key)
+    end
+
+    function sub:Clear(ent)
+        return EntityDataStore:Clear(ent, owner)
     end
 
     function sub:GetOwner(ent, key)
