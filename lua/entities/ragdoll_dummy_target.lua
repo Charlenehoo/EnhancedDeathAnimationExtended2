@@ -198,14 +198,9 @@ function ENT:Init(owner, ragdoll)
     self._PositionStrategyFailCount = 0
     self._LastPositionStrategyResetTime = now
     self._LastBroadCastTime = now
-    self._LastRagdollState = nil
-    self._DeadRemoveTimer = nil
 
-    -- 移除所有速度/静态检测相关字段
+    self._LastRagdollState = nil
     self._RagdollState = "init"
-    self._modDead = false
-    self._wasDead = false
-    self._DeadRemoveTimer = nil
 end
 
 function ENT:_GetActivePosition()
@@ -270,7 +265,7 @@ function ENT:_CancelExecutioner()
 end
 
 function ENT:_UpdateDeathState(ragdoll, now)
-    -- 直接获取 EDAE 状态，不再需要速度辅助
+    -- 直接获取 EDAE 状态
     local modState = LifeCycleHandler:GetState(ragdoll) or "init"
 
     if self._LastRagdollState ~= modState then
@@ -285,47 +280,16 @@ function ENT:_UpdateDeathState(ragdoll, now)
 
     self._RagdollState = modState
 
-    local modDead = (modState == "dead")
+    local isDead = (modState == "dead")
 
-    if self._modDead ~= modDead then
-        log.trace(self, "ModDead changed: ", self._modDead, " -> ", modDead)
-        self._modDead = modDead
-    end
-
-    local isDead = modDead
-
-    if isDead ~= self._wasDead then
-        log.info(self, "Overall death state: ", self._wasDead, " -> ", isDead,
-            " (modDead=", modDead, ")")
-        self._wasDead = isDead
-    end
-
-    return isDead
-end
-
-function ENT:_HandleDeathState(isDead, ragdoll)
     if isDead then
-        if not self._DeadRemoveTimer then
-            self:_CancelExecutioner()
-            local timerName = CONSTANTS.PLUGIN_NAME .. self:EntIndex() .. "_" .. CurTime() .. "_" .. math.random()
-            self._DeadRemoveTimer = timerName
-            timer.Create(timerName, CONSTANTS.RAGDOLL_DUMMY.DEAD_REMOVE_DELAY, 1, function()
-                if IsValid(self) then
-                    log.info(self, "Removing ragdoll dummy due to death timeout")
-                    self:Remove()
-                end
-            end)
-            log.info(self, "Ragdoll entered dead state, starting remove timer")
-        end
+        log.info(self, "Ragdoll entered dead state, removing dummy immediately")
+        self:_CancelExecutioner()
+        self:Remove()
         return true
-    else
-        if self._DeadRemoveTimer then
-            timer.Remove(self._DeadRemoveTimer)
-            self._DeadRemoveTimer = nil
-            log.info(self, "Ragdoll revived, cancelled dead remove timer")
-        end
-        return false
     end
+
+    return false
 end
 
 function ENT:Think()
@@ -333,17 +297,12 @@ function ENT:Think()
 
     local ragdoll = self._Ragdoll
     if not IsValid(ragdoll) then
-        if self._DeadRemoveTimer then
-            timer.Remove(self._DeadRemoveTimer)
-            self._DeadRemoveTimer = nil
-        end
         self:Remove()
         return
     end
 
-    local isDead = self:_UpdateDeathState(ragdoll, now)
-
-    if self:_HandleDeathState(isDead, ragdoll) then
+    -- 更新并处理死亡状态（如果死亡，dummy 已被移除）
+    if self:_UpdateDeathState(ragdoll, now) then
         return
     end
 
