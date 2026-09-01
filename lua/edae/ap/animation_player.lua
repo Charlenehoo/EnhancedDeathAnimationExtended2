@@ -367,5 +367,28 @@ function AnimationPlayer:Rotate(ragdoll, targetYaw, targetPos, maxTurnSpeed)
     return true
 end
 
+--- 以增量方式旋转布娃娃（基于当前朝向增加角度）
+--- @param ragdoll Entity 布娃娃实体
+--- @param deltaYaw number 旋转增量（度，正为逆时针，负为顺时针）
+--- @param maxTurnSpeed number|nil 最大角速度（度/秒），nil 表示瞬时旋转
+--- @return boolean 是否成功记录旋转请求
+function AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if not ctx then
+        log.warn("AnimationPlayer:RotateBy called but no active context for ragdoll")
+        return false
+    end
+    if not IsValid(ctx.animationModel) then
+        return false
+    end
+
+    -- 获取当前实际朝向
+    local currentYaw = ctx.animationModel:GetAngles().yaw
+    local targetYaw = currentYaw + deltaYaw
+
+    -- 调用绝对旋转接口
+    return self:Rotate(ragdoll, targetYaw, nil, maxTurnSpeed)
+end
+
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = AnimationPlayer
 return AnimationPlayer

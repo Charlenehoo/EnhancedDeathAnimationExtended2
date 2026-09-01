@@ -11,6 +11,7 @@ Constants.Events                                        = {
 Constants.NETWORK_STRING                                = {}
 Constants.NETWORK_STRING.Ragdoll                        = Constants.ADDON_NAME .. "_" .. "Ragdoll"
 Constants.NETWORK_STRING.PlayerSpawn                    = Constants.ADDON_NAME .. "_" .. "PlayerSpawn"
+Constants.NETWORK_STRING.PlayerRotateRagdoll            = Constants.ADDON_NAME .. "_" .. "PlayerRotateRagdoll"
 
 Constants.EntityDataStore                               = {}
 Constants.EntityDataStore.STORAGE_KEY                   = Constants.ADDON_NAME .. "_" .. "EntityData"
