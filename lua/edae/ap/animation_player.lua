@@ -131,8 +131,8 @@ local function playAnimationCoroutine(ctx)
         end
     end
 
-    animationModel:Fire("SetAnimation", ctx.animationName)
-    coroutine.yield()
+    animationModel:Fire("SetAnimation", ctx.animationName, 0)
+    Scheduler:Wait(0.15)
 
     -- 外层循环：控制总播放次数
     while not shouldTerminate() do
@@ -244,8 +244,8 @@ local function playAnimationCoroutine(ctx)
         local groundPos = traceGroundBelow(ragdollPos, { ragdoll, animationModel }) or ragdollPos
         animationModel:SetPos(groundPos + ctx.amDatumToPos)
 
-        animationModel:Fire("SetAnimation", ctx.animationName)
-        coroutine.yield()
+        animationModel:Fire("SetAnimation", ctx.animationName, 0)
+        Scheduler:Wait(0.15)
     end
 
     hook.Run(Constants.Events.OnAnimationFinished, ragdoll, ctx.animationName)
