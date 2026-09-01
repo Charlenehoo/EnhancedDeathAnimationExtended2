@@ -105,16 +105,61 @@ local function BuildBloodEffect(ragdoll, state)
     end
 end
 
+--- 构建语音效果器（根据状态选择对应的语音，未配置的状态不播放）
+--- @param owner Entity 布娃娃的所有者
+--- @param state string 当前状态
+--- @return table|nil effect 效果器（若该状态未配置语音则返回 nil）
+local function BuildVoiceEffect(owner, state)
+    local voiceCfg = Constants.VOICE
+    if not voiceCfg then return nil end
+
+    local stateConfig = voiceCfg.CONFIG and voiceCfg.CONFIG[state]
+    if not stateConfig then
+        return nil -- 该状态没有配置语音，不播放
+    end
+
+    local category = stateConfig.category or "external"
+    local soundKey = stateConfig.key
+    if not soundKey then return nil end
+
+    local interval = stateConfig.interval or voiceCfg.INTERVAL or 10
+
+    return {
+        name = "voice_" .. tostring(state),
+        predicate = function(ctx, effectState)
+            return CurTime() >= (effectState.nextTime or 0)
+        end,
+        action = function(ctx, effectState)
+            if TFAVOX_PlayVoicePriority and IsValid(owner) then
+                local sounds = owner.TFAVOX_Sounds
+                if sounds and sounds[category] and sounds[category][soundKey] then
+                    TFAVOX_PlayVoicePriority(owner, sounds[category][soundKey], 10, true)
+                end
+            end
+            effectState.nextTime = CurTime() + interval
+        end
+    }
+end
+
 --- 构建所有效果器
 --- @param ragdoll Entity
 --- @param state string
+--- @param owner Entity|nil 布娃娃的所有者（用于语音效果器）
 --- @return table|nil effects 效果器数组（若无则返回 nil）
-local function BuildEffects(ragdoll, state)
+local function BuildEffects(ragdoll, state, owner)
     local effects = {}
 
     local bloodEffect = BuildBloodEffect(ragdoll, state)
     if bloodEffect then
         table.insert(effects, bloodEffect)
+    end
+
+    -- 语音效果器：仅当 owner 有效且该状态配置了语音时才添加
+    if IsValid(owner) then
+        local voiceEffect = BuildVoiceEffect(owner, state)
+        if voiceEffect then
+            table.insert(effects, voiceEffect)
+        end
     end
 
     if #effects == 0 then
@@ -174,8 +219,8 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         return false
     end
 
-    -- 构建效果器
-    local effects = BuildEffects(ragdoll, state)
+    -- 构建效果器（传递 owner 以支持语音效果）
+    local effects = BuildEffects(ragdoll, state, owner)
 
     -- 组装 AnimationPlayer 的 opts
     local opts = {

@@ -86,6 +86,10 @@ Constants.ANIMATION_SELECTOR.NATURAL_LEVEL              = 1
 Constants.ANIMATION_SELECTOR.USE_RANDOM_CRAWL_WHITELIST = false
 Constants.ANIMATION_SELECTOR.USE_FEMALE_ANIMATIONS      = true
 
+Constants.PlayerCreatePropRagdoll                       = {}
+Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
+Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET      = 5
+
 -- ==============================
 -- 血迹效果（Blood Decal）
 -- ==============================
@@ -106,8 +110,17 @@ Constants.BLOOD                                         = {
     DISTANCE = 50,
 }
 
-Constants.PlayerCreatePropRagdoll                       = {}
-Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
-Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET      = 5
+-- ==============================
+-- 语音效果（Voice Effect）
+-- ==============================
+Constants.VOICE                                         = {
+    INTERVAL = 10,
+    CONFIG = {
+        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth" },
+        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "overkill" },
+    },
+}
+
+
 
 return Constants
