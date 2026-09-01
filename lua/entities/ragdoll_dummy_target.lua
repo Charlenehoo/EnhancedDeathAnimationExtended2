@@ -200,7 +200,7 @@ function ENT:Init(owner, ragdoll)
     self._LastBroadCastTime = now
 
     self._LastRagdollState = nil
-    self._RagdollState = "init"
+    self._RagdollState = nil -- 首次 _UpdateState 时设置
 end
 
 function ENT:_GetActivePosition()
@@ -264,16 +264,14 @@ function ENT:_CancelExecutioner()
     self._LastSearchTime = 0
 end
 
-function ENT:_UpdateState(ragdoll, now)
-    -- 直接获取 EDAE 状态
-    local modState = LifeCycleHandler:GetState(ragdoll) or "init"
+function ENT:_UpdateState(ragdoll)
+    local modState = LifeCycleHandler:GetState(ragdoll) or "falling"
 
     if self._LastRagdollState ~= modState then
         local owner = self._Owner
         if IsValid(owner) and owner:IsPlayer() then
             log.trace(ragdoll, "RagdollState: ", self._LastRagdollState or "(none)", " -> ", modState)
         end
-
         self._LastRagdollState = modState
         self:_ResetPositionStrategy()
     end
@@ -292,7 +290,7 @@ function ENT:Think()
     end
 
     -- 更新状态，如果死亡则移除 dummy
-    local state = self:_UpdateState(ragdoll, now)
+    local state = self:_UpdateState(ragdoll)
     if state == "dead" then
         log.info(self, "Ragdoll entered dead state, removing dummy")
         self:_CancelExecutioner()
@@ -381,11 +379,6 @@ function ENT:Think()
 
     if now - self._LastSearchTime > EXECUTIONER_SEARCH_INTERVAL then
         self._LastSearchTime = now
-
-        if state == "init" then
-            self:Remove()
-            return
-        end
 
         self:_TryRefreshPotentialExecutioners()
         if table.IsEmpty(self._PotentialExecutioners) then
