@@ -87,6 +87,8 @@ function Manager:OnCreate(owner, ragdoll)
     local state = LifeCycleHandler:Init(ragdoll, damageContext)
 
     self:PlayAnimationForState(ragdoll, state, damageContext)
+
+    hook.Run(Constants.Events.OnRagdollInitialized, ragdoll, owner)
 end
 
 function Manager:OnTakeDamage(ragdoll, dmginfo)

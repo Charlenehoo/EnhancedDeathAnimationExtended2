@@ -3,6 +3,7 @@
 
 
 local CONSTANTS         = include("npc_monitor/config/constants.lua")
+local EDAEConstants     = include("edae/config/constants.lua")
 local Events            = include("npc_monitor/core/events.lua")
 local log               = include("npc_monitor/logging/log.lua")
 local helpers           = include("npc_monitor/helpers.lua")
@@ -88,7 +89,7 @@ addUniqueHook("InitPostEntity", function()
 end)
 
 -- Hook：当玩家/实体死亡生成布娃娃时，创建对应的 dummy 目标
-addUniqueHook("CreateEntityRagdoll", function(owner, ragdoll)
+addUniqueHook(EDAEConstants.Events.OnRagdollInitialized, function(ragdoll, owner)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
 
     if CONSTANTS.PLAYER_ONLY then
