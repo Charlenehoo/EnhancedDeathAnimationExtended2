@@ -254,9 +254,15 @@ end
 
 function AnimationPlayer:Stop(ragdoll)
     local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
-    if ctx then
-        ctx.stopSignal = true
+    if not ctx then return end
+
+    if ctx.coro and coroutine.status(ctx.coro) ~= "dead" then
+        Scheduler:Cancel(ctx.coro)
     end
+
+    cleanUp(ctx)
+
+    store:Clear(ragdoll)
 end
 
 --- 播放动画
