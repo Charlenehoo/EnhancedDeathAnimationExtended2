@@ -143,6 +143,60 @@ function Scheduler:Start(func, ...)
     return coro
 end
 
+--- 强制停止一个协程，将其从所有等待队列中移除
+--- @param coro thread 要停止的协程
+--- @return boolean 是否找到并移除了该协程
+function Scheduler:Cancel(coro)
+    if not coro or coroutine.status(coro) == "dead" then
+        return false
+    end
+
+    local found = false
+
+    -- 从 activeCoros 中移除
+    for i = #activeCoros, 1, -1 do
+        if activeCoros[i] == coro then
+            table.remove(activeCoros, i)
+            found = true
+        end
+    end
+
+    -- 从 timeWaiters 中移除
+    for i = #timeWaiters, 1, -1 do
+        if timeWaiters[i].coro == coro then
+            table.remove(timeWaiters, i)
+            found = true
+        end
+    end
+
+    -- 从 predicateWaiters 中移除
+    for i = #predicateWaiters, 1, -1 do
+        if predicateWaiters[i].coro == coro then
+            table.remove(predicateWaiters, i)
+            found = true
+        end
+    end
+
+    -- 从 eventNameToCorosMap 中移除，并清理空事件
+    for eventName, waiters in pairs(eventNameToCorosMap) do
+        for i = #waiters, 1, -1 do
+            if waiters[i] == coro then
+                table.remove(waiters, i)
+                found = true
+            end
+        end
+        if #waiters == 0 then
+            eventNameToCorosMap[eventName] = nil
+            if isRegistered[eventName] then
+                hook.Remove(eventName, self:_MakeHookIdentifier(eventName))
+                isRegistered[eventName] = nil
+            end
+        end
+    end
+
+    return found
+end
+
 --- Broadcast + Fire & Forget
 ---@param eventName string
 function Scheduler:WaitForEvent(eventName)
