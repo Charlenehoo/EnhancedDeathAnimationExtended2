@@ -267,12 +267,12 @@ end
 function AnimationPlayer:Play(ragdoll, animationName, opts)
     if not IsValid(ragdoll) then
         log.warn("Invalid ragdoll: ", tostring(ragdoll))
-        return nil
+        return false
     end
 
     if not animationName then
         log.warn("No animationName")
-        return nil
+        return false
     end
 
     opts = opts or {}
@@ -320,7 +320,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         not helper.FillShadowParamsTemplate(ctx)
     then
         cleanUp(ctx)
-        return nil
+        return false
     end
 
     -- 创建锚点获取闭包
@@ -336,7 +336,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     ctx.coro = coro
 
     store:Set(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY, ctx)
-    return ctx
+    return true
 end
 
 --- 请求布娃娃旋转到指定方向或背对指定位置
