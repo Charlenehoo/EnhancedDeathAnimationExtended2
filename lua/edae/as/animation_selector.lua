@@ -31,7 +31,6 @@ local function isRagdollStopped(ragdoll, boneWhitelist)
         local boneID = ragdoll:TranslatePhysBoneToBone(i)
         if boneID then
             local boneName = ragdoll:GetBoneName(boneID)
-            -- 如果提供了白名单，仅检查白名单内的骨骼
             if (not boneWhitelist) or (boneWhitelist and boneWhitelist[boneName]) then
                 local phys = ragdoll:GetPhysicsObjectNum(i)
                 if phys then
@@ -117,6 +116,11 @@ local function selectBoneWhitelist(state, animationName, opts)
         end
     end
 
+    -- 自救和起身动画：使用完整标准控制集
+    if state == STATE_ENUM.SELF_REVIVING or state == STATE_ENUM.GETTING_UP then
+        return BoneWhitelists.NrmTb
+    end
+
     return {}
 end
 
@@ -200,7 +204,6 @@ local function selectCrawlAnimation(opts)
     if isFacingUp then
         animName = useFemale and "crawling1_f" or "crawling1"
     else
-        -- 面朝下：只从 crawling5 和 crawling6 中选择
         local crawlNum = math.random(5, 6)
         animName = useFemale and ("crawling" .. crawlNum .. "_f") or ("crawling" .. crawlNum)
     end
@@ -222,7 +225,6 @@ local function selectWritheAnimation(opts)
 
     local animName = isFacingUp and "writhing1" or "writhing2"
 
-    -- 模拟原始的随机播放速率（0.4~1.5）
     local idealRate = math.Rand(0.4, 1) * (Constants.ANIMATION_SELECTOR.WRITHE_INTENSITY or 1.0)
     local basePlaybackRate = math.min(math.max(idealRate, 0.4), 1.5)
 
@@ -231,7 +233,7 @@ local function selectWritheAnimation(opts)
         totalLoops = 0,
         preWait = makeCrawlOrWrithePreWait(),
         boneWhitelist = selectBoneWhitelist(STATE_ENUM.WRITHING, animName, opts),
-        basePlaybackRate = basePlaybackRate, -- 新增
+        basePlaybackRate = basePlaybackRate,
     }
 end
 
@@ -246,8 +248,39 @@ local function selectTwitchAnimation(opts)
         twitchParams = {
             boneWhitelist = BoneWhitelists.TwitchTb,
             intensity     = opts.intensity or Constants.ANIMATION_SELECTOR.TWITCH_INTENSITY,
-            speedMode     = opts.speedMode, -- 若不指定则随机
+            speedMode     = opts.speedMode,
         },
+    }
+end
+
+-- ============================================================
+-- 自救动画选择（SELF_REVIVING 状态）
+-- ============================================================
+local function selectSelfReviveAnimation(opts)
+    opts = opts or {}
+    local animName = math.random(2) == 1 and "crawling_self_revive1" or "crawling_self_revive2"
+
+    return {
+        animationName = animName,
+        totalLoops = 1, -- 只播放一次
+        preWait = {},   -- 无需等待静止
+        boneWhitelist = selectBoneWhitelist(STATE_ENUM.SELF_REVIVING, animName, opts),
+    }
+end
+
+-- ============================================================
+-- 起身动画选择（GETTING_UP 状态）
+-- ============================================================
+local function selectGettingUpAnimation(opts)
+    opts = opts or {}
+    local isFacingUp = opts.isFacingUp
+    local animName = isFacingUp and "crawling_up_getup1" or "crawling_up_getup2"
+
+    return {
+        animationName = animName,
+        totalLoops = 1, -- 只播放一次
+        preWait = {},
+        boneWhitelist = selectBoneWhitelist(STATE_ENUM.GETTING_UP, animName, opts),
     }
 end
 
@@ -261,8 +294,6 @@ function AnimationSelector:Select(playBackInfo)
     local damageContext = playBackInfo.damageContext
     local opts = {
         isFacingUp = playBackInfo.isFacingUp,
-        -- 可在此扩展其他选项，如 isPlayerCameraMode
-        -- isPlayerCameraMode = playBackInfo.isPlayerCameraMode,
     }
 
     if state == STATE_ENUM.FALLING then
@@ -273,8 +304,11 @@ function AnimationSelector:Select(playBackInfo)
         return selectWritheAnimation(opts)
     elseif state == STATE_ENUM.TWITCHING then
         return selectTwitchAnimation(opts)
+    elseif state == STATE_ENUM.SELF_REVIVING then
+        return selectSelfReviveAnimation(opts)
+    elseif state == STATE_ENUM.GETTING_UP then
+        return selectGettingUpAnimation(opts)
     else
-        -- DEAD、REVIVING 以及其他未知状态不播放动画
         if state == STATE_ENUM.DEAD then
             log.trace("AnimationSelector: state is 'dead', no animation will be played")
         else

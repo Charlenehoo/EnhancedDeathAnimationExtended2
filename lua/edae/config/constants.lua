@@ -6,7 +6,8 @@ Constants.Events                                        = {
     OnRagdollStateChange = "EDAE_OnRagdollStateChange",
     OnAnimationFinished = "EDAE_OnAnimationFinished",
     OnRagdollInitialized = "EDAE_RagdollInitialized",
-    OnRagdollHealthChanged = "EDAE_OnRagdollHealthChanged"
+    OnRagdollHealthChanged = "EDAE_OnRagdollHealthChanged",
+    OnReviveRequested = "EDAE_OnReviveRequested"
 }
 
 Constants.NETWORK_STRING                                = {}
