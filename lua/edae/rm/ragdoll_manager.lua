@@ -18,7 +18,8 @@ local RagdollHealthManager        = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper           = include("edae/rm/pose_helper.lua")
 local AnimationPlaybackController = include("edae/rm/playback_controller.lua")
 local AnimationPlayer             = include("edae/ap/animation_player.lua")
-local VoiceManager                = include("edae/rm/voice_manager.lua") -- 新增
+local TwitchController            = include("edae/tc/twitch_controller.lua") -- 新增
+local VoiceManager                = include("edae/rm/voice_manager.lua")     -- 新增
 
 local store                       = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -116,6 +117,7 @@ function Manager:OnStateChange(ragdoll, state, fromState)
 
     -- 停止当前动画
     AnimationPlayer:Stop(ragdoll)
+    TwitchController:Stop(ragdoll)
 
     -- DEAD 状态无需播放动画（但上面已经播放了死亡语音）
     if state == STATE_ENUM.DEAD then

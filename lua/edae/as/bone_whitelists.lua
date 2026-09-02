@@ -246,11 +246,33 @@ local function GenerateMoveTbC()
     }
 end
 
+-- 生成抽搐用骨骼白名单
+local function GenerateTwitchTb()
+    return makeBoneSet({
+        BONE_SHORT.Pelvis,
+        BONE_SHORT.Spine,
+        BONE_SHORT.Spine1,
+        BONE_SHORT.Spine2,
+        BONE_SHORT.Spine3,
+        BONE_SHORT.Spine4,
+        BONE_SHORT.R_Thigh,
+        BONE_SHORT.L_Thigh,
+        BONE_SHORT.R_Clavicle,
+        BONE_SHORT.R_UpperArm,
+        BONE_SHORT.L_Clavicle,
+        BONE_SHORT.L_UpperArm,
+    }, true)
+end
+
+-- 添加到返回表
+BoneWhitelists.TwitchTb = GenerateTwitchTb()
+
 -- 生成所有白名单并缓存
 BoneWhitelists.GibTb    = GenerateGibTb()
 BoneWhitelists.HitboxTb = GenerateHitboxTb()
 BoneWhitelists.NrmTb    = GenerateNrmTb()
 BoneWhitelists.MoveTbD  = GenerateMoveTbD() -- 数组：[1]=MoveTb_1, [2]=MoveTb_2, [3]=MoveTb_3
 BoneWhitelists.MoveTbC  = GenerateMoveTbC() -- 表：{ MoveTb_1, MoveTb_2(数组), MoveTb_3(数组) }
+BoneWhitelists.TwitchTb = GenerateTwitchTb()
 
 return BoneWhitelists

@@ -231,6 +231,18 @@ local function selectWritheAnimation(opts)
     }
 end
 
+-- 选择物理抽搐效果（非动画）
+local function selectTwitchAnimation(opts)
+    opts = opts or {}
+
+    return {
+        isTwitch = true,
+        totalLoops = 0,
+        preWait = makeCrawlOrWrithePreWait(),
+        twitchParams = {}, -- 可在此处传递自定义抽搐参数
+    }
+end
+
 -- ============================================================
 -- 主选择函数
 -- @param playBackInfo table { state, damageContext, isFacingUp, ... }
@@ -251,6 +263,8 @@ function AnimationSelector:Select(playBackInfo)
         return selectCrawlAnimation(opts)
     elseif state == STATE_ENUM.WRITHING then
         return selectWritheAnimation(opts)
+    elseif state == STATE_ENUM.TWITCHING then
+        return selectTwitchAnimation(opts)
     else
         -- DEAD、REVIVING 以及其他未知状态不播放动画
         if state == STATE_ENUM.DEAD then

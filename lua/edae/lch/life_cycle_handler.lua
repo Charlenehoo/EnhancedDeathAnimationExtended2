@@ -9,20 +9,21 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants              = include("edae/config/constants.lua")
-local log                    = include("edae/log/init.lua")
-local EntityDataStore        = include("edae/eds/entity_data_store.lua")
+local Constants        = include("edae/config/constants.lua")
+local log              = include("edae/log/init.lua")
+local EntityDataStore  = include("edae/eds/entity_data_store.lua")
 
-local store                  = EntityDataStore:ForOwner(MODULE_NAME)
+local store            = EntityDataStore:ForOwner(MODULE_NAME)
 
-local STATE_KEY              = Constants.LifeCycleHandler.STATE_KEY
-local STATE_ENUM             = Constants.LifeCycleHandler.STATE_ENUM
-local HEALTH_KEY             = Constants.RagdollManager.HEALTH_KEY
+local STATE_KEY        = Constants.LifeCycleHandler.STATE_KEY
+local STATE_ENUM       = Constants.LifeCycleHandler.STATE_ENUM
+local HEALTH_KEY       = Constants.RagdollManager.HEALTH_KEY
 
-local WRITHE_CHANCE          = Constants.LifeCycleHandler.WRITHE_CHANCE
-local DEAD_AFTER_FALL_CHANCE = Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE
+local CRAWL_CHANCE     = Constants.LifeCycleHandler.CRAWL_CHANCE
+local TWITCH_CHANCE    = Constants.LifeCycleHandler.TWITCH_CHANCE
+local WRITHE_CHANCE    = Constants.LifeCycleHandler.WRITHE_CHANCE
 
-local LifeCycleHandler       = {}
+local LifeCycleHandler = {}
 
 -- 内部：获取当前状态
 local function getState(ragdoll)
@@ -100,7 +101,6 @@ function LifeCycleHandler:OnAnimationFinished(ragdoll, animationName)
 
     local currentState = getState(ragdoll)
 
-    -- 只有 FALLING 动画结束后才进行概率转换
     if currentState ~= STATE_ENUM.FALLING then
         return
     end
@@ -111,16 +111,17 @@ function LifeCycleHandler:OnAnimationFinished(ragdoll, animationName)
         return
     end
 
-    -- 根据概率决定下一个状态
     local rand = math.random()
     local newState
 
-    if rand < DEAD_AFTER_FALL_CHANCE then
-        newState = STATE_ENUM.DEAD
-    elseif rand < DEAD_AFTER_FALL_CHANCE + WRITHE_CHANCE then
+    if rand < CRAWL_CHANCE then
+        newState = STATE_ENUM.CRAWLING
+    elseif rand < CRAWL_CHANCE + WRITHE_CHANCE then
+        newState = STATE_ENUM.TWITCHING
+    elseif rand < CRAWL_CHANCE + WRITHE_CHANCE + TWITCH_CHANCE then
         newState = STATE_ENUM.WRITHING
     else
-        newState = STATE_ENUM.CRAWLING
+        newState = STATE_ENUM.DEAD
     end
 
     log.trace("LifeCycleHandler: falling finished for ", ragdoll, ", transitioning to '", newState, "'")

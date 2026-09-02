@@ -28,12 +28,14 @@ Constants.LifeCycleHandler.STATE_ENUM                   = {
     FALLING = "falling",
     CRAWLING = "crawling",
     WRITHING = "writhing",
+    TWITCHING = "twitching",
     DEAD = "dead",
     REVIVING = "reviving",
 }
-Constants.LifeCycleHandler.CRAWL_CHANCE                 = 0.5
+Constants.LifeCycleHandler.CRAWL_CHANCE                 = 0.4
 Constants.LifeCycleHandler.WRITHE_CHANCE                = 0.3
-Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE       = 0.2
+Constants.LifeCycleHandler.TWITCH_CHANCE                = 0.2
+-- Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE       = 0.1
 
 Constants.DamageContextManager                          = {}
 Constants.DamageContextManager.FLAG_ENUM                = {
