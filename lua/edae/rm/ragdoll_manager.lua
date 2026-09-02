@@ -12,7 +12,7 @@ end
 local Constants                   = include("edae/config/constants.lua")
 local log                         = include("edae/log/init.lua")
 local EntityDataStore             = include("edae/eds/entity_data_store.lua")
-local DamageContextManager        = include("edae/dcm/damage_context_manager.lua")
+local DamageContextManager        = include("edae/damage_context_manager.lua")
 local LifeCycleHandler            = include("edae/lch/life_cycle_handler.lua")
 local RagdollHealthManager        = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper           = include("edae/rm/pose_helper.lua")
