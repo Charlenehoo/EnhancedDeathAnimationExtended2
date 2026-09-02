@@ -63,7 +63,6 @@ if SERVER then
             log.warn("Cannot set model for player: ", self, "; Ragdoll: ", ragdoll)
             return cleanUp(self)
         end
-        ragdoll:Spawn()
 
         local physicsObjectCount = ragdoll:GetPhysicsObjectCount()
         if not physicsObjectCount or physicsObjectCount < 1 then
@@ -84,6 +83,11 @@ if SERVER then
             physObj:SetAngles(ang)
             physObj:EnableMotion(true)
             physObj:Wake()
+        end
+
+        ragdoll:Spawn()
+        function ragdoll:GetRagdollOwner()
+            return self
         end
 
         net.Start(Constants.NETWORK_STRING.Ragdoll)
