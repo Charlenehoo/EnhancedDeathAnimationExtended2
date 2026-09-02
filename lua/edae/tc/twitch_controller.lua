@@ -11,7 +11,7 @@ end
 
 local Constants        = include("edae/config/constants.lua")
 local log              = include("edae/log/init.lua")
-local Scheduler        = include("edae/cs/coroutine_scheduler.lua")
+local Scheduler        = include("edae/coroutine_scheduler.lua")
 local HealthManager    = include("edae/rm/health_manager.lua")
 local LifeCycleHandler = include("edae/lch/life_cycle_handler.lua")
 local EntityDataStore  = include("edae/eds/entity_data_store.lua")
@@ -273,8 +273,8 @@ function TwitchController:Start(ragdoll, opts)
         massFix       = massFix,
         baseForce     = math.random(10, 15),
         intensity     = intensity,
-        effects       = effects,  -- 自定义效果
-        effectStates  = {},       -- 效果状态存储
+        effects       = effects, -- 自定义效果
+        effectStates  = {},      -- 效果状态存储
         stopSignal    = false,
     }
 
