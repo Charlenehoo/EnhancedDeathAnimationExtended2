@@ -46,20 +46,16 @@ local function cleanUp(ctx)
     -- store:Clear(ragdoll)
 end
 
-function AnimationPlayer:Stop(ragdoll)
-    log.trace("AnimationPlayer:Stop called for ragdoll: ", tostring(ragdoll))
+function AnimationPlayer:Stop(ragdoll, reason)
+    log.trace("AnimationPlayer:Stop called for ragdoll: ", tostring(ragdoll), " reason: ", tostring(reason))
     local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
     if not ctx then
         log.warn("AnimationPlayer:Stop called for invalid context: ", tostring(ragdoll))
         return
     end
+    -- 记录请求的停止原因，默认为 "stop"
+    ctx.requestedStopReason = reason or "stop"
     ctx.stopSignal = true
-
-    -- if ctx.coro and coroutine.status(ctx.coro) ~= "dead" then
-    --     Scheduler:Cancel(ctx.coro)
-    -- end
-
-    -- cleanUp(ctx)
 end
 
 -- 旋转效果器：每帧检查旋转目标并调用 Helper 中的旋转算法
@@ -91,23 +87,14 @@ local function playAnimationCoroutine(ctx)
     ctx.HitWallCount = 0
 
     local stopReason = "normal"
-
-    -- 终止条件：实体无效、停止信号、Fall 计数达到限制、HitWall 计数达到总骨骼数
-    local function shouldTerminate()
-        return not IsValid(ragdoll) or
-            not IsValid(animationModel) or
-            ctx.stopSignal or
-            ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT or
-            ctx.HitWallCount >= ctx.totalBones
-    end
-
     local function shouldTerminate()
         if not IsValid(ragdoll) or not IsValid(animationModel) then
             stopReason = "invalid"
             return true
         end
         if ctx.stopSignal then
-            stopReason = "stop"
+            -- 使用请求的停止原因（若未指定则使用默认 "stop"）
+            stopReason = ctx.requestedStopReason or "stop"
             return true
         end
         if ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT then
