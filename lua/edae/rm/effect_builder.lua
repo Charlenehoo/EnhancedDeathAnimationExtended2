@@ -178,6 +178,10 @@ function EffectBuilder:Build(ragdoll, state, owner)
         return nil
     end
 
+    if state == STATE_ENUM.SELF_REVIVING or state == STATE_ENUM.GETTING_UP then
+        return nil
+    end
+
     local effects = {}
 
     -- 血量衰减（爬行、挣扎、抽搐）
