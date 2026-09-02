@@ -204,6 +204,7 @@ local function selectCrawlAnimation(opts)
     if isFacingUp then
         animName = useFemale and "crawling1_f" or "crawling1"
     else
+        -- 面朝下：只从 crawling5 和 crawling6 中选择
         local crawlNum = math.random(5, 6)
         animName = useFemale and ("crawling" .. crawlNum .. "_f") or ("crawling" .. crawlNum)
     end
@@ -225,6 +226,7 @@ local function selectWritheAnimation(opts)
 
     local animName = isFacingUp and "writhing1" or "writhing2"
 
+    -- 模拟原始的随机播放速率（0.4~1.5）
     local idealRate = math.Rand(0.4, 1) * (Constants.ANIMATION_SELECTOR.WRITHE_INTENSITY or 1.0)
     local basePlaybackRate = math.min(math.max(idealRate, 0.4), 1.5)
 
@@ -255,14 +257,24 @@ end
 
 -- ============================================================
 -- 自救动画选择（SELF_REVIVING 状态）
+-- 注意：严格按照原始 MOD 逻辑，面朝上时才播放 self_revive 动画，
+--       面朝下时播放一次 down_idle 作为过渡。
 -- ============================================================
 local function selectSelfReviveAnimation(opts)
     opts = opts or {}
-    local animName = math.random(2) == 1 and "crawling_self_revive1" or "crawling_self_revive2"
+    local animName
+
+    if opts.isFacingUp then
+        -- 面朝上：随机选择仰卧起坐自救动画
+        animName = math.random(2) == 1 and "crawling_self_revive1" or "crawling_self_revive2"
+    else
+        -- 面朝下：禁止播放 self_revive，使用 down_idle（只播放一次，结束后进入起身）
+        animName = "crawling_down_idle"
+    end
 
     return {
         animationName = animName,
-        totalLoops = 1, -- 只播放一次
+        totalLoops = 1, -- 只播放一次，确保动画结束后能触发状态流转
         preWait = {},   -- 无需等待静止
         boneWhitelist = selectBoneWhitelist(STATE_ENUM.SELF_REVIVING, animName, opts),
     }
@@ -274,7 +286,13 @@ end
 local function selectGettingUpAnimation(opts)
     opts = opts or {}
     local isFacingUp = opts.isFacingUp
-    local animName = isFacingUp and "crawling_up_getup1" or "crawling_up_getup2"
+    local animName
+
+    if isFacingUp then
+        animName = math.random(2) == 1 and "crawling_up_getup1" or "crawling_up_getup2"
+    else
+        animName = math.random(2) == 1 and "crawling_down_getup1" or "crawling_down_getup2"
+    end
 
     return {
         animationName = animName,
@@ -294,6 +312,8 @@ function AnimationSelector:Select(playBackInfo)
     local damageContext = playBackInfo.damageContext
     local opts = {
         isFacingUp = playBackInfo.isFacingUp,
+        -- 可在此扩展其他选项，如 isPlayerCameraMode
+        -- isPlayerCameraMode = playBackInfo.isPlayerCameraMode,
     }
 
     if state == STATE_ENUM.FALLING then
