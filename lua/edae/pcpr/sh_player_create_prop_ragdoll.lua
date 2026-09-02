@@ -41,7 +41,9 @@ if SERVER then
     end
 
     meta.CreateRagdoll = function(self)
+        log.trace("Player.CreateRagdoll called for player: ", self)
         if not IsValid(self) or not self:IsPlayer() then
+            log.warn("Invalid player: ", self)
             return originalCreateRagdoll(self)
         end
 
@@ -54,6 +56,7 @@ if SERVER then
         local ragdoll = ents.Create("prop_ragdoll")
         plyToRagdollMap[self] = ragdoll
         if not IsValid(ragdoll) then
+            log.warn("Cannot create ragdoll for player: ", self)
             return cleanUp(self)
         end
 
@@ -63,21 +66,34 @@ if SERVER then
             log.warn("Cannot set model for player: ", self, "; Ragdoll: ", ragdoll)
             return cleanUp(self)
         end
+        ragdoll:Spawn()
 
         local physicsObjectCount = ragdoll:GetPhysicsObjectCount()
         if not physicsObjectCount or physicsObjectCount < 1 then
+            log.warn("Cannot get physics object count for player: ", self, "; Ragdoll: ", ragdoll)
             return cleanUp(self)
         end
 
         for physObjNum = 0, physicsObjectCount - 1 do
             local boneID = ragdoll:TranslatePhysBoneToBone(physObjNum)
-            if not boneID then continue end
+            if not boneID then
+                log.trace("Cannot translate phys bone to bone for player: ", self, "; Ragdoll: ", ragdoll,
+                    "; PhysObjNum: ", physObjNum)
+                continue
+            end
 
             local pos, ang = self:GetBonePosition(boneID)
-            if not pos then continue end
+            if not pos then
+                log.trace("Cannot get bone position for player: ", self, "; Ragdoll: ", ragdoll, "; BoneID: ", boneID)
+                continue
+            end
 
             local physObj = ragdoll:GetPhysicsObjectNum(physObjNum)
-            if not physObj then continue end
+            if not physObj then
+                log.trace("Cannot get physics object for player: ", self, "; Ragdoll: ", ragdoll, "; PhysObjNum: ",
+                    physObjNum)
+                continue
+            end
 
             physObj:SetPos(pos, true)
             physObj:SetAngles(ang)
@@ -85,7 +101,6 @@ if SERVER then
             physObj:Wake()
         end
 
-        ragdoll:Spawn()
         function ragdoll:GetRagdollOwner()
             return self
         end
@@ -95,7 +110,7 @@ if SERVER then
         net.Send(self)
 
         hook.Run("CreateEntityRagdoll", self, ragdoll)
-
+        log.trace("Ragdoll created for player: ", self, "; Ragdoll: ", ragdoll)
         return ragdoll
     end
 

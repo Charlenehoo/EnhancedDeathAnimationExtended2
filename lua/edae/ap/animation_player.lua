@@ -255,7 +255,13 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     opts = opts or {}
 
-    local ragdollPos = ragdoll:GetPos()
+    local groundPos
+    if opts.groundPos then
+        groundPos = opts.groundPos
+    else
+        local ragdollPos = ragdoll:GetPos()
+        groundPos = traceGroundBelow(ragdollPos, { ragdoll }) or ragdollPos
+    end
 
     local ctx = {
         ragdoll                   = ragdoll,
@@ -263,7 +269,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         -- datum                     = helper.GetStandPos(ragdoll),
 
         totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
-        groundPos                 = opts.groundPos or traceGroundBelow(ragdollPos, { ragdoll }) or ragdollPos,
+        groundPos                 = groundPos,
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
         preWait                   = opts.preWait,

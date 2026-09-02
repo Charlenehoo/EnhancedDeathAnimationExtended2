@@ -201,10 +201,12 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
     end
 
     local yaw
+    local groundPos
     if state == STATE_ENUM.FALLING then
         -- 死亡倒地动画：使用 owner 的角度，如果 owner 无效则退回 ragdoll 角度
-        if IsValid(owner) then
+        if owner and owner:IsValid() then
             yaw = RagdollPoseHelper:GetYawFromOwner(owner)
+            groundPos = owner:GetPos()
         else
             log.trace("AnimationPlaybackController: owner not provided for FALLING state, using ragdoll yaw as fallback")
             yaw = RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
@@ -220,6 +222,7 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         damageContext = damageContext,
         isFacingUp = RagdollPoseHelper:IsFacingUp(ragdoll),
         yaw = yaw, -- 虽然选择器目前未使用，但保留以便扩展
+        groundPos = groundPos
     }
 
     -- 选择动画
@@ -236,8 +239,9 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
     local opts = {
         totalLoops = playbackData.totalLoops,
         preWait = playbackData.preWait,
-        yaw = yaw,         -- 关键：传递正确的偏航角
-        effects = effects, -- 表现效果器（谓词 + 动作）
+        yaw = yaw,
+        groundPos = groundPos,
+        effects = effects,
         enableRotate = true,
     }
 

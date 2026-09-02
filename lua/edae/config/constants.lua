@@ -36,7 +36,6 @@ Constants.LifeCycleHandler.WRITHE_CHANCE                = 0.3
 Constants.LifeCycleHandler.DEAD_AFTER_FALL_CHANCE       = 0.2
 
 Constants.DamageContextManager                          = {}
-Constants.DamageContextManager.FLAG_KEY                 = "Flag"
 Constants.DamageContextManager.FLAG_ENUM                = {
     NECK = 1,
     SHOTGUN = 2,
@@ -48,6 +47,7 @@ Constants.DamageContextManager.FLAG_ENUM                = {
     CLUB = 128,
     BULLET = 256,
 }
+Constants.DamageContextManager.FLAG_KEY                 = "Flag"
 Constants.DamageContextManager.HIT_GROUP_KEY            = "HitGroup"
 Constants.DamageContextManager.DMG_INFO_KEY             = "DmgInfo"
 
