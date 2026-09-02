@@ -81,9 +81,9 @@ Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE       = {
 
 
 Constants.ANIMATION_SELECTOR                            = {}
-Constants.ANIMATION_SELECTOR.PRE_WAIT_TIME              = 1.5  -- 播放前固定等待时间（秒）
-Constants.ANIMATION_SELECTOR.STOP_LINEAR_THRESHOLD      = 10   -- 停止判定：线速度阈值（单位/秒）
-Constants.ANIMATION_SELECTOR.STOP_ANGULAR_THRESHOLD     = 30   -- 停止判定：角速度阈值（度/秒，需根据实际调整）
+Constants.ANIMATION_SELECTOR.PRE_WAIT_TIME              = 0.6  -- 播放前固定等待时间（秒）
+Constants.ANIMATION_SELECTOR.STOP_LINEAR_THRESHOLD      = 100  -- 停止判定：线速度阈值（单位/秒）
+Constants.ANIMATION_SELECTOR.STOP_ANGULAR_THRESHOLD     = 180  -- 停止判定：角速度阈值（度/秒，需根据实际调整）
 Constants.ANIMATION_SELECTOR.STOP_TIMEOUT               = 4.5  -- 等待停止的超时时间（秒）
 Constants.ANIMATION_SELECTOR.STOP_CHECK_INTERVAL        = 0.15 -- 停止检测轮询间隔（秒）
 Constants.ANIMATION_SELECTOR.NATURAL_LEVEL              = 1
@@ -138,8 +138,20 @@ Constants.VOICE                                         = {
 }
 
 
-Constants.RagdollManager.HEALTH_DRAIN_INTERVAL = 1.5 -- 每隔多少秒扣一次血
-Constants.RagdollManager.HEALTH_DRAIN_AMOUNT   = 10  -- 每次扣减的血量
-
+-- 替换原来的单一配置
+Constants.DRAIN = {
+    [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = {
+        interval = 3.0, -- 爬行每 3 秒扣一次
+        amount   = 5,
+    },
+    [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = {
+        interval = 1.5,
+        amount   = 8,
+    },
+    [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = {
+        interval = 1.5,
+        amount   = 10,
+    },
+}
 
 return Constants

@@ -137,9 +137,11 @@ local function BuildVoiceEffects(owner, state)
 end
 
 --- 构建血量衰减效果器（每固定间隔扣血，触发健康变化钩子）
-local function BuildHealthDrainEffect()
-    local interval = Constants.RagdollManager.HEALTH_DRAIN_INTERVAL
-    local amount   = Constants.RagdollManager.HEALTH_DRAIN_AMOUNT
+--- 构建血量衰减效果器（根据状态使用不同的间隔/伤害）
+local function BuildHealthDrainEffect(state)
+    local config   = Constants.DRAIN[state]
+    local interval = config.interval
+    local amount   = config.amount
 
     return {
         name = "health_drain",
@@ -150,10 +152,8 @@ local function BuildHealthDrainEffect()
             local ragdoll = ctx.ragdoll
             local died = HealthManager:Damage(ragdoll, amount)
 
-            -- 触发健康变化钩子，让 RagdollManager 调用 DetermineState
             hook.Run(Constants.Events.OnRagdollHealthChanged, ragdoll, HealthManager:Get(ragdoll))
 
-            -- 如果已死亡，直接设置状态（兜底）
             if died then
                 LifeCycleHandler:SetState(ragdoll, STATE_ENUM.DEAD)
             end
@@ -182,7 +182,7 @@ function EffectBuilder:Build(ragdoll, state, owner)
 
     -- 血量衰减（爬行、挣扎、抽搐）
     if state == STATE_ENUM.CRAWLING or state == STATE_ENUM.WRITHING or state == STATE_ENUM.TWITCHING then
-        table.insert(effects, BuildHealthDrainEffect())
+        table.insert(effects, BuildHealthDrainEffect(state)) -- 传入 state
     end
 
     -- 血迹
