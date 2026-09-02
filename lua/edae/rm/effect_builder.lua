@@ -94,40 +94,51 @@ local function BuildBloodEffect(ragdoll, state)
 end
 
 --- 构建语音效果器
-local function BuildVoiceEffect(owner, state)
+local function BuildVoiceEffects(owner, state)
     local voiceCfg = Constants.VOICE
     if not voiceCfg then return nil end
 
-    local stateConfig = voiceCfg.CONFIG and voiceCfg.CONFIG[state]
-    if not stateConfig then return nil end
+    local stateConfigs = voiceCfg.CONFIG and voiceCfg.CONFIG[state]
+    if not stateConfigs then return nil end
 
-    local category = stateConfig.category or "external"
-    local soundKey = stateConfig.key
-    if not soundKey then return nil end
-
-    local interval = stateConfig.interval or voiceCfg.INTERVAL or 10
-    local priority = stateConfig.priority or voiceCfg.PRIORITY or 10
-    local interrupt = stateConfig.interrupt
-    if interrupt == nil then
-        interrupt = voiceCfg.INTERRUPT
-        if interrupt == nil then interrupt = true end
+    -- 兼容：如果配置是单个表，转为数组
+    if type(stateConfigs) == "table" and not stateConfigs[1] then
+        stateConfigs = { stateConfigs }
     end
 
-    return {
-        name = "voice_" .. tostring(state),
-        predicate = function(ctx, effectState)
-            return CurTime() >= (effectState.nextTime or 0)
-        end,
-        action = function(ctx, effectState)
-            if TFAVOX_PlayVoicePriority and IsValid(owner) then
-                local sounds = owner.TFAVOX_Sounds
-                if sounds and sounds[category] and sounds[category][soundKey] then
-                    TFAVOX_PlayVoicePriority(owner, sounds[category][soundKey], priority, interrupt)
-                end
+    local effects = {}
+    for _, cfg in ipairs(stateConfigs) do
+        local category = cfg.category or "external"
+        local soundKey = cfg.key
+        if soundKey then
+            local interval = cfg.interval or voiceCfg.INTERVAL or 10
+            local priority = cfg.priority or voiceCfg.PRIORITY or 10
+            local interrupt = cfg.interrupt
+            if interrupt == nil then
+                interrupt = voiceCfg.INTERRUPT
+                if interrupt == nil then interrupt = true end
             end
-            effectState.nextTime = CurTime() + interval
+
+            local effect = {
+                name = "voice_" .. tostring(state) .. "_" .. tostring(soundKey),
+                predicate = function(ctx, effectState)
+                    return CurTime() >= (effectState.nextTime or 0)
+                end,
+                action = function(ctx, effectState)
+                    if TFAVOX_PlayVoicePriority and IsValid(owner) then
+                        local sounds = owner.TFAVOX_Sounds
+                        if sounds and sounds[category] and sounds[category][soundKey] then
+                            TFAVOX_PlayVoicePriority(owner, sounds[category][soundKey], priority, interrupt)
+                        end
+                    end
+                    effectState.nextTime = CurTime() + interval
+                end
+            }
+            table.insert(effects, effect)
         end
-    }
+    end
+
+    return #effects > 0 and effects or nil
 end
 
 --- 构建血量衰减效果器（每固定间隔扣血，触发健康变化钩子）
@@ -187,9 +198,12 @@ function EffectBuilder:Build(ragdoll, state, owner)
 
     -- 语音
     if IsValid(owner) then
-        local voiceEffect = BuildVoiceEffect(owner, state)
-        if voiceEffect then
-            table.insert(effects, voiceEffect)
+        -- 在 EffectBuilder:Build 中替换语音部分
+        local voiceEffects = BuildVoiceEffects(owner, state)
+        if voiceEffects then
+            for _, ve in ipairs(voiceEffects) do
+                table.insert(effects, ve)
+            end
         end
     end
 

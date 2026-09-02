@@ -124,15 +124,22 @@ Constants.VOICE                                         = {
     PRIORITY = 3,
     INTERRUPT = false,
     CONFIG = {
-        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth", priority = 3, interrupt = false },
-        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "bubble", priority = 3, interrupt = false },
-        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = { category = "external", key = "overkill", priority = 3, interrupt = false }, -- 新增
+        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = {
+            { category = "main",          key = "crithealth", priority = 3, interrupt = false },
+            { category = "calloutsextra", key = "mandown",    priority = 3, interrupt = false, interval = 5 },
+        },
+        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = {
+            { category = "external", key = "bubble", priority = 3, interrupt = false },
+        },
+        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = {
+            { category = "external", key = "overkill", priority = 3, interrupt = false },
+        },
     },
 }
 
 
-Constants.RagdollManager.HEALTH_DRAIN_INTERVAL = 1.0 -- 每隔多少秒扣一次血
-Constants.RagdollManager.HEALTH_DRAIN_AMOUNT   = 5   -- 每次扣减的血量
+Constants.RagdollManager.HEALTH_DRAIN_INTERVAL = 1.5 -- 每隔多少秒扣一次血
+Constants.RagdollManager.HEALTH_DRAIN_AMOUNT   = 2   -- 每次扣减的血量
 
 
 return Constants
