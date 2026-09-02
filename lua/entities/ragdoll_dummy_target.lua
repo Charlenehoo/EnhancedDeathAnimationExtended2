@@ -37,6 +37,8 @@ local REPOSITION_INTERVAL           = CONSTANTS.RAGDOLL_DUMMY.REPOSITION_INTERVA
 local POSITION_RESET_INTERVAL       = CONSTANTS.RAGDOLL_DUMMY.POSITION_RESET_INTERVAL
 local BROAD_CAST_INTERVAL           = 9
 
+local executionerSearchInterval     = EXECUTIONER_SEARCH_INTERVAL
+
 function ENT:Initialize()
     self:SetModel(PROXY_MODEL)
     self:SetModelScale(SCALE_1)
@@ -58,13 +60,19 @@ function ENT:_TryRefreshPotentialExecutioners()
     if IsValid(owner) then
         local newList = {}
         NPCMonitor.ForEachActiveNPC(function(npc)
-            if not IsValid(npc) then return end
+            log.trace(self, "Checking NPC: ", npc, " for potential executioner")
+            if not IsValid(npc) then
+                log.trace(self, "NPC is not valid, skipping")
+                return
+            end
             local d = npc:Disposition(owner)
             if d == D_HT or d == D_FR then
                 table.insert(newList, npc)
             end
+            log.trace(self, "NPC: ", npc, " disposition to owner: ", d)
         end)
         self._PotentialExecutioners = newList
+        log.trace(self, "Potential executioners refreshed, count: ", #newList)
     else
         local oldList = self._PotentialExecutioners or {}
         local cleaned = {}
@@ -74,6 +82,7 @@ function ENT:_TryRefreshPotentialExecutioners()
             end
         end
         self._PotentialExecutioners = cleaned
+        log.trace(self, "Potential executioners cleaned, count: ", #cleaned)
     end
 end
 
@@ -377,13 +386,15 @@ function ENT:Think()
         end
     end
 
-    if now - self._LastSearchTime > EXECUTIONER_SEARCH_INTERVAL then
+    if now - self._LastSearchTime > executionerSearchInterval then
         self._LastSearchTime = now
 
         self:_TryRefreshPotentialExecutioners()
         if table.IsEmpty(self._PotentialExecutioners) then
-            self:Remove()
+            executionerSearchInterval = executionerSearchInterval * 2
             return
+        else
+            executionerSearchInterval = EXECUTIONER_SEARCH_INTERVAL
         end
 
         local searchRadius = STATE_TO_SEARCH_RADIUS[state]
