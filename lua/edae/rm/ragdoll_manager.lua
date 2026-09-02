@@ -153,6 +153,12 @@ hook.Add("PostEntityTakeDamage", Constants.ADDON_NAME .. MODULE_NAME .. "PostEnt
         Manager:OnTakeDamage(ent, dmginfo)
     end)
 
+hook.Add(Constants.Events.OnRagdollHealthChanged, Constants.ADDON_NAME .. MODULE_NAME .. "OnRagdollHealthChanged",
+    function(ragdoll, newHealth)
+        if not IsValid(ragdoll) then return end
+        LifeCycleHandler:DetermineState(ragdoll)
+    end)
+
 -- 注册单例
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = Manager
 return Manager

@@ -241,7 +241,9 @@ local function selectTwitchAnimation(opts)
         preWait = makeCrawlOrWrithePreWait(),
         twitchParams = {
             boneWhitelist = BoneWhitelists.TwitchTb,
-        }, -- 可在此处传递自定义抽搐参数
+            intensity     = opts.intensity or Constants.ANIMATION_SELECTOR.TWITCH_INTENSITY,
+            speedMode     = opts.speedMode, -- 若不指定则随机
+        },
     }
 end
 

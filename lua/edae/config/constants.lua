@@ -6,6 +6,7 @@ Constants.Events                                        = {
     OnRagdollStateChange = "EDAE_OnRagdollStateChange",
     OnAnimationFinished = "EDAE_OnAnimationFinished",
     OnRagdollInitialized = "EDAE_RagdollInitialized",
+    OnRagdollHealthChanged = "EDAE_OnRagdollHealthChanged"
 }
 
 Constants.NETWORK_STRING                                = {}
@@ -88,6 +89,9 @@ Constants.ANIMATION_SELECTOR.STOP_CHECK_INTERVAL        = 0.15 -- 停止检测�
 Constants.ANIMATION_SELECTOR.NATURAL_LEVEL              = 1
 Constants.ANIMATION_SELECTOR.USE_RANDOM_CRAWL_WHITELIST = false
 Constants.ANIMATION_SELECTOR.USE_FEMALE_ANIMATIONS      = true
+Constants.ANIMATION_SELECTOR.TWITCH_DURATION_MIN        = 10
+Constants.ANIMATION_SELECTOR.TWITCH_DURATION_MAX        = 20
+Constants.ANIMATION_SELECTOR.TWITCH_INTENSITY           = 1.0
 
 Constants.PlayerCreatePropRagdoll                       = {}
 Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50
@@ -123,9 +127,13 @@ Constants.VOICE                                         = {
     CONFIG = {
         [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth", priority = 3, interrupt = false },
         [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "overkill", priority = 3, interrupt = false },
-        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = { category = "external", key = "overkill", priority = 3, interrupt = false },         -- 新增
+        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = { category = "external", key = "overkill", priority = 3, interrupt = false }, -- 新增
     },
 }
+
+
+Constants.RagdollManager.HEALTH_DRAIN_INTERVAL = 1.0 -- 每隔多少秒扣一次血
+Constants.RagdollManager.HEALTH_DRAIN_AMOUNT   = 5   -- 每次扣减的血量
 
 
 return Constants

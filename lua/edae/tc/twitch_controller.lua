@@ -1,6 +1,6 @@
 -- lua/edae/tc/twitch_controller.lua
--- 物理驱动的抽搐控制器：通过协程对布娃娃特定骨骼施加冲量
--- 支持自定义 effects（与 AnimationPlayer 一致）
+-- 物理驱动的抽搐控制器（基于原始 animrag_writhe.lua 逻辑重构）
+-- 使用 CoroutineScheduler 实现循环，使用 HealthManager 获取血量并计算衰减
 
 local MODULE_NAME = "TwitchController"
 
@@ -19,8 +19,6 @@ local EntityDataStore  = include("edae/eds/entity_data_store.lua")
 local store            = EntityDataStore:ForOwner(MODULE_NAME)
 
 local STATE_ENUM       = Constants.LifeCycleHandler.STATE_ENUM
-
--- 存储键
 local TWITCH_CTX_KEY   = "TwitchContext"
 
 local TwitchController = {}
@@ -29,7 +27,7 @@ local TwitchController = {}
 -- 内部工具函数
 -- ============================================================
 
--- 获取在骨骼白名单内且具有有效物理对象的骨骼名称列表
+-- 获取白名单内且具有有效物理对象的骨骼名称列表
 local function GetValidBoneList(ragdoll, whitelist)
     local valid = {}
     local count = ragdoll:GetPhysicsObjectCount()
@@ -61,22 +59,28 @@ local function GetTotalMass(ragdoll)
     return totalMass
 end
 
--- 对指定骨骼的物理对象施加一个向上的力
-local function ApplyForce(ragdoll, boneName, forceVec)
+-- 模拟原始 ApplyForce 的多帧施加效果（连续 10 帧）
+local function ApplyForceOverFrames(ragdoll, boneName, forceVec)
     local boneID = ragdoll:LookupBone(boneName)
     if not boneID then return end
     local phyID = ragdoll:TranslateBoneToPhysBone(boneID)
     local phyObj = ragdoll:GetPhysicsObjectNum(phyID)
     if not IsValid(phyObj) then return end
 
-    phyObj:ApplyForceCenter(forceVec)
-    phyObj:AddAngleVelocity(-phyObj:GetAngleVelocity() / 10)
+    for i = 1, 10 do
+        if not IsValid(ragdoll) or not IsValid(phyObj) then break end
+        phyObj:ApplyForceOffset(forceVec, phyObj:GetPos())
+        phyObj:ApplyForceCenter(Vector(0, 0, forceVec.z * 0.1)) -- 近似原始额外中心力
+        phyObj:AddAngleVelocity(-phyObj:GetAngleVelocity() / 10)
+        if i < 10 then
+            coroutine.yield({ type = "time", targetTime = CurTime() + FrameTime() })
+        end
+    end
 end
 
--- 执行所有自定义 effects
+-- 执行自定义效果器（与 AnimationPlayer 一致的接口）
 local function RunEffects(ctx)
     if not ctx.effects then return end
-
     for idx, effect in ipairs(ctx.effects) do
         local stateKey = effect.name or idx
         local effectState = ctx.effectStates[stateKey]
@@ -84,7 +88,6 @@ local function RunEffects(ctx)
             effectState = {}
             ctx.effectStates[stateKey] = effectState
         end
-
         if effect.predicate(ctx, effectState) then
             effect.action(ctx, effectState)
         end
@@ -96,8 +99,6 @@ end
 -- ============================================================
 
 local function TwitchCoroutine(ragdoll, ctx)
-    local endTime       = ctx.endTime
-    local totalDuration = ctx.totalDuration
     local initialHealth = ctx.initialHealth
     local boneList      = ctx.boneList
     local speedMode     = ctx.speedMode
@@ -107,43 +108,36 @@ local function TwitchCoroutine(ragdoll, ctx)
 
     local currentIndex  = 0
 
-    -- 终止条件封装
     local function shouldTerminate()
         return not IsValid(ragdoll) or
             HealthManager:IsDead(ragdoll) or
-            CurTime() >= endTime or
             ctx.stopSignal
     end
 
     if ctx.preWait then
         for _, waitFunc in ipairs(ctx.preWait) do
             waitFunc(ctx)
+            if shouldTerminate() then return end
         end
     end
 
     while not shouldTerminate() do
-        -- 执行 effects（每轮循环开始时执行一次）
         RunEffects(ctx)
 
-        -- 计算 HP 衰减率
-        local timeFactor = math.max((endTime - CurTime()) / totalDuration, 0)
+        -- 根据当前血量计算衰减率
         local currentHealth = HealthManager:Get(ragdoll) or 0
         if currentHealth <= 0 then break end
-        local virtualHP = math.min(initialHealth * timeFactor, currentHealth)
-        local rate = math.max(virtualHP / initialHealth, 0)
-        if rate <= 0 then break end
-
+        local rate = math.max(currentHealth / initialHealth, 0)
         local r = math.ease.InOutCubic(rate)
 
-        -- 生成基础力向量（向上为主，只保留 Z 轴分量）
-        local dir = Vector(0, 0, 1)
-        local ang = dir:Angle()
-        ang:RotateAroundAxis(ang:Up(), math.random(-15, 15))
-        local vel = ang:Forward() * baseForce
-        local mass = ragdoll:GetPhysicsObject():GetMass() * 10
-        local forceVec = Vector(0, 0, mass * (0.9 * r + 0.1) * massFix * intensity * math.Rand(0.8, 1.2))
 
-        -- 选择目标骨骼（随机跳过、打乱列表）
+        -- 构造基础力向量（Z 轴向上，原始逻辑最终只保留 Z 分量）
+        local mass = ragdoll:GetPhysicsObject():GetMass() * 10
+        local forceMagnitude = math.Clamp(mass * baseForce, 0, 2000 * 0.12)
+        local forceVec = Vector(0, 0, forceMagnitude * massFix * (0.9 * r + 0.1) *
+            math.Rand(0.8, 1) * intensity)
+
+        -- 选择目标骨骼（随机跳过，达到末尾重新打乱）
         currentIndex = currentIndex + 1
         if math.Rand(0, 1) > 0.5 then
             currentIndex = currentIndex + 1
@@ -154,28 +148,30 @@ local function TwitchCoroutine(ragdoll, ctx)
         end
         local boneName = boneList[currentIndex]
 
-        -- 根据模式执行
+        -- 根据模式执行不同的施力与延迟逻辑
         if speedMode == "High" then
-            -- 快速小幅高频
-            ApplyForce(ragdoll, boneName, forceVec)
-            -- 有一定概率立即再对下一个骨骼施力
+            -- 快速小幅高频：施加一次力，可能立刻对第二个骨骼施力
+            ApplyForceOverFrames(ragdoll, boneName, forceVec)
+
             if math.Rand(0, 1) > 0.5 then
                 currentIndex = currentIndex + 1
                 if currentIndex > #boneList then
                     currentIndex = 1
                     table.Shuffle(boneList)
                 end
-                local secondBone = boneList[currentIndex]
                 Scheduler:Wait(0.01)
-                ApplyForce(ragdoll, secondBone, forceVec)
+                if not shouldTerminate() then
+                    ApplyForceOverFrames(ragdoll, boneList[currentIndex], forceVec)
+                end
             end
-            -- 计算延迟
+
+            -- 延迟随衰减因子增大（HP 越低延迟越长）
             local mult = 10 - 9 * r
             local mult2 = math.max((-19 * intensity + 20), 1)
             local delay = math.Rand(0.15, 0.3) * mult * mult2
             Scheduler:Wait(delay)
         else -- "Low"
-            -- 慢速大幅低频
+            -- 慢速大幅低频：可能连续施加多次力（最多3次），每次可能对两个骨骼
             local bias = 1 - rate
             local minDelay = Lerp(bias, 0.15, 1)
             local maxDelay = Lerp(bias, 3, 6)
@@ -191,15 +187,21 @@ local function TwitchCoroutine(ragdoll, ctx)
             for i = 0, forceCount - 1 do
                 if i > 0 then
                     Scheduler:Wait(math.Rand(0.05, 0.15))
+                    if shouldTerminate() then break end
                 end
-                ApplyForce(ragdoll, boneName, forceVec)
-                -- 移到下一个骨骼
+                ApplyForceOverFrames(ragdoll, boneName, forceVec)
+
+                -- 立即对下一个骨骼施力（模拟原始中对两个骨骼的操作）
                 currentIndex = currentIndex + 1
                 if currentIndex > #boneList then
                     currentIndex = 1
                     table.Shuffle(boneList)
                 end
                 boneName = boneList[currentIndex]
+                Scheduler:Wait(0.01)
+                if not shouldTerminate() then
+                    ApplyForceOverFrames(ragdoll, boneName, forceVec)
+                end
             end
             Scheduler:Wait(delay)
         end
@@ -208,12 +210,6 @@ local function TwitchCoroutine(ragdoll, ctx)
     -- 清理存储
     store:Clear(ragdoll)
     log.trace("TwitchController: twitch ended for ", ragdoll)
-
-    -- 如果是因为时间耗尽或虚拟 HP 归零，则触发死亡
-    if IsValid(ragdoll) and not HealthManager:IsDead(ragdoll) then
-        HealthManager:Set(ragdoll, 0)
-        LifeCycleHandler:SetState(ragdoll, STATE_ENUM.DEAD)
-    end
 end
 
 -- ============================================================
@@ -222,76 +218,59 @@ end
 
 --- 启动抽搐
 --- @param ragdoll Entity 布娃娃实体
---- @param opts table|nil 可选参数：
----   opts.boneWhitelist table|nil 骨骼白名单，默认为 Constants.BoneWhitelists.TwitchTb
----   opts.totalDuration number|nil 总持续时间（秒），默认随机 10~20
----   opts.intensity number|nil 强度系数，默认 1.0
----   opts.speedMode string|nil 速度模式："High" 或 "Low"，不指定则随机
----   opts.effects table|nil 自定义效果数组，格式同 AnimationPlayer（每个效果包含 name、predicate、action）
+--- @param opts table 可选参数：
+---   opts.boneWhitelist table 骨骼白名单（必填）
+---   opts.totalDuration number 总持续时间（秒），默认随机 10~20
+---   opts.intensity number 强度系数，默认 1.0
+---   opts.speedMode string 速度模式："High" 或 "Low"，不指定则随机
+---   opts.effects table|nil 自定义效果数组，格式同 AnimationPlayer
+---   opts.preWait table|nil 等待函数数组，格式同 AnimationPlayer
 --- @return boolean success
 function TwitchController:Start(ragdoll, opts)
-    if not IsValid(ragdoll) then
-        log.warn("TwitchController:Start invalid ragdoll")
-        return false
-    end
+    if not IsValid(ragdoll) then return false end
 
-    -- 若已在抽搐则先停止
     self:Stop(ragdoll)
 
     opts = opts or {}
     local whitelist = opts.boneWhitelist
-    if not whitelist then
-        log.warn("TwitchController:Start missing boneWhitelist")
-        return false
-    end
-    local totalDuration = opts.totalDuration or math.random(10, 20)
-    local intensity = opts.intensity or 1.0
-    local speedMode = opts.speedMode -- 若不指定则随机
-    local effects = opts.effects
+    if not whitelist then return false end
 
-    -- 获取有效骨骼列表并打乱
+    local intensity = opts.intensity or 1.0
+    local speedMode = opts.speedMode
+    local effects = opts.effects
+    local preWait = opts.preWait
+
     local boneList = GetValidBoneList(ragdoll, whitelist)
-    if #boneList == 0 then
-        log.warn("TwitchController:Start no valid bones for twitch")
-        return false
-    end
+    if #boneList == 0 then return false end
     table.Shuffle(boneList)
 
-    -- 质量修正系数
     local totalMass = GetTotalMass(ragdoll)
-    local massFix = totalMass / 50 -- 理想重量 50
+    local massFix = totalMass / 50
 
-    -- 初始健康值
     local initialHealth = HealthManager:Get(ragdoll)
-    if initialHealth <= 0 then
-        log.warn("TwitchController:Start ragdoll already dead")
-        return false
-    end
+    if initialHealth <= 0 then return false end
 
-    -- 随机选择速度模式
     if not speedMode then
         speedMode = math.random(2) == 1 and "High" or "Low"
     end
 
     local ctx = {
         ragdoll       = ragdoll,
-        endTime       = CurTime() + totalDuration,
-        totalDuration = totalDuration,
         initialHealth = initialHealth,
         boneList      = boneList,
         speedMode     = speedMode,
         massFix       = massFix,
         baseForce     = math.random(10, 15),
         intensity     = intensity,
-        effects       = effects, -- 自定义效果
-        effectStates  = {},      -- 效果状态存储
+        effects       = effects,
+        effectStates  = {},
+        preWait       = preWait,
         stopSignal    = false,
     }
 
     store:Set(ragdoll, TWITCH_CTX_KEY, ctx)
-    local coro = Scheduler:Start(TwitchCoroutine, ragdoll, ctx)
+    Scheduler:Start(TwitchCoroutine, ragdoll, ctx)
 
-    log.trace("TwitchController: started twitch for ", ragdoll, " mode=", speedMode, " duration=", totalDuration)
     return true
 end
 
@@ -304,9 +283,7 @@ function TwitchController:Stop(ragdoll)
     if ctx then
         ctx.stopSignal = true
     end
-
-    -- 立即清除存储，协程会在下一次循环检查时退出
-    store:Clear(ragdoll)
+    store:Clear(ragdoll) -- 立即清除存储，协程将在下一次检查时退出
 end
 
 -- 注册单例
