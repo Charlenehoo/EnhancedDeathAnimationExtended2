@@ -8,7 +8,7 @@ end
 
 local Constants = include("edae/config/constants.lua")
 local log = include("edae/log/init.lua")
-local Scheduler = include("edae/cs/coroutine_scheduler.lua")
+local Scheduler = include("edae/coroutine_scheduler.lua")
 local animationCategories = include("edae/as/animation_categories.lua")
 local BoneWhitelists = include("edae/as/bone_whitelists.lua")
 

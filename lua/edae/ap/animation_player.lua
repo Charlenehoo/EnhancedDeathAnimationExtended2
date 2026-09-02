@@ -7,7 +7,7 @@ end
 
 local Constants       = include("edae/config/constants.lua")
 local log             = include("edae/log/init.lua")
-local Scheduler       = include("edae/cs/coroutine_scheduler.lua")
+local Scheduler       = include("edae/coroutine_scheduler.lua")
 local helper          = include("edae/ap/helper.lua")
 local EntityDataStore = include("edae/eds/entity_data_store.lua")
 
