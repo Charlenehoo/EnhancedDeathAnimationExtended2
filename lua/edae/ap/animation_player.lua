@@ -130,6 +130,42 @@ local function playAnimationCoroutine(ctx)
         ctx.loopCount = ctx.loopCount + 1
         log.trace("Loop: ", ctx.loopCount, "/", ctx.totalLoops)
 
+        -- ============================================================
+        -- 硬编码血量驱动减慢逻辑（仅当开启且当前状态需要时）
+        if ctx.enableHealthBasedSlowdown then
+            local HealthManager = include("edae/rm/health_manager.lua") -- 顶部已引入则直接使用
+            local currentHealth = HealthManager:Get(ctx.ragdoll)
+            if currentHealth <= 0 then
+                break
+            end
+
+            local initialHealth = ctx.initialHealth or HealthManager:Get(ctx.ragdoll)
+            -- 如果未提供初始血量，则使用当前血量（避免除零）
+            if initialHealth <= 0 then initialHealth = 1 end
+
+            local rate = math.max(currentHealth / initialHealth, 0)
+            local r = math.ease.InOutCubic(rate)
+
+            -- 1. 调整播放速率
+            local newPlaybackRate = math.max(ctx.basePlaybackRate * r * math.Rand(0.8, 1.2), 0.1)
+            ctx.animationDuration = ctx.baseAnimationDuration / newPlaybackRate
+            ctx.animationModel:Fire("SetPlaybackRate", newPlaybackRate)
+
+            -- 2. 调整 CSC 参数（基于原始模板）
+            if ctx.baseShadowParams then
+                ctx.shadowParamsTemplate.maxangular = math.max(
+                    ctx.baseShadowParams.maxangular * r * math.Rand(0.8, 1.2),
+                    80
+                )
+                ctx.shadowParamsTemplate.secondstoarrive = ctx.baseShadowParams.secondstoarrive *
+                    (-0.5 * r + 1.5) * math.Rand(0.9, 1.1)
+            end
+        end
+
+        -- 设置动画并等待
+        ctx.animationModel:Fire("SetAnimation", ctx.animationName, 0)
+        Scheduler:Wait(0.15)
+
         ctx.animationEndTime = CurTime() + ctx.animationDuration
 
         -- 内层循环：播放单次动画
@@ -238,8 +274,6 @@ local function playAnimationCoroutine(ctx)
     cleanUp(ctx)
 end
 
-
-
 --- 播放动画
 --- @param ragdoll Entity
 --- @param animationName string
@@ -280,6 +314,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         groundPos                 = groundPos,
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
+        enableHealthBasedSlowdown = opts.enableHealthBasedSlowdown or false,
+        basePlaybackRate          = opts.basePlaybackRate or 1.0,
         preWait                   = opts.preWait,
         boneWhitelist             = opts.boneWhitelist,
         effects                   = opts.effects,
@@ -293,8 +329,10 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         enableRotate              = opts.enableRotate or false,
 
         shadowParamsTemplate      = opts.shadowParamsTemplate,
+        baseShadowParams          = nil, -- 由 helper 填充
         animationModel            = nil,
         animationDuration         = nil,
+        baseAnimationDuration     = nil, -- 由 helper 填充
         -- amDatumToPos              = nil,
         ragdollPhysicsObjectCount = nil,
         boneMap                   = nil,
@@ -306,7 +344,9 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         HitWallCount              = 0,
         coro                      = nil,
 
-        stopSignal                = nil,
+
+
+        stopSignal = nil,
     }
 
     if

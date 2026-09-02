@@ -92,6 +92,7 @@ Constants.ANIMATION_SELECTOR.USE_FEMALE_ANIMATIONS      = true
 Constants.ANIMATION_SELECTOR.TWITCH_DURATION_MIN        = 10
 Constants.ANIMATION_SELECTOR.TWITCH_DURATION_MAX        = 20
 Constants.ANIMATION_SELECTOR.TWITCH_INTENSITY           = 1.0
+Constants.ANIMATION_SELECTOR.WRITHE_INTENSITY           = 1.0
 
 Constants.PlayerCreatePropRagdoll                       = {}
 Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 50

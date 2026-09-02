@@ -220,14 +220,18 @@ local function selectWritheAnimation(opts)
     opts = opts or {}
     local isFacingUp = opts.isFacingUp
 
-    -- 挣扎动画：面朝上选 writhing1，面朝下选 writhing2
     local animName = isFacingUp and "writhing1" or "writhing2"
+
+    -- 模拟原始的随机播放速率（0.4~1.5）
+    local idealRate = math.Rand(0.4, 1) * (Constants.ANIMATION_SELECTOR.WRITHE_INTENSITY or 1.0)
+    local basePlaybackRate = math.min(math.max(idealRate, 0.4), 1.5)
 
     return {
         animationName = animName,
         totalLoops = 0,
         preWait = makeCrawlOrWrithePreWait(),
         boneWhitelist = selectBoneWhitelist(STATE_ENUM.WRITHING, animName, opts),
+        basePlaybackRate = basePlaybackRate, -- 新增
     }
 end
 

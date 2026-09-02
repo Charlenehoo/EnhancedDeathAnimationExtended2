@@ -44,7 +44,7 @@ function helper.FillShadowParamsTemplate(ctx)
         end
     end
     ctx.shadowParamsTemplate = shadowParams
-
+    ctx.baseShadowParams = table.Copy(shadowParams) -- 保存初始值
     return true
 end
 
@@ -107,8 +107,7 @@ function helper.CheckAnimationName(ctx)
         return false
     end
     ctx.animationDuration = animationDuration
-
-    log.trace("Animation duration: ", animationDuration)
+    ctx.baseAnimationDuration = animationDuration
     return true
 end
 

@@ -16,6 +16,7 @@ local AnimationPlayer             = include("edae/ap/animation_player.lua")
 local TwitchController            = include("edae/tc/twitch_controller.lua")
 local RagdollPoseHelper           = include("edae/rm/pose_helper.lua")
 local EffectBuilder               = include("edae/rm/effect_builder.lua")
+local HealthManager               = include("edae/rm/health_manager.lua")
 
 local STATE_ENUM                  = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -93,6 +94,8 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
     end
 
     -- 普通动画播放
+    local initialHealth = HealthManager:Get(ragdoll)
+
     local opts = {
         totalLoops = playbackData.totalLoops,
         preWait = playbackData.preWait,
@@ -100,7 +103,15 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         groundPos = groundPos,
         effects = effects,
         enableRotate = true,
+        -- 新增字段
+        initialHealth = initialHealth,
+        enableHealthBasedSlowdown = false,
+        basePlaybackRate = playbackData.basePlaybackRate or 1.0,
     }
+
+    if state == STATE_ENUM.WRITHING then
+        opts.enableHealthBasedSlowdown = true
+    end
 
     local ctx = AnimationPlayer:Play(ragdoll, playbackData.animationName, opts)
     if not ctx then
