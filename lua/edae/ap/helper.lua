@@ -232,7 +232,7 @@ function helper.RotateAnimationModel(ctx, targetYaw, targetPos, maxTurnSpeed)
     local origin = animationModel:GetPos() -- 动画模型原点 O
     local offset = origin - anchorPos      -- v = O - P
     offset:Rotate(Angle(0, deltaYaw, 0))
-    ctx.amDatumToPos:Rotate(Angle(0, deltaYaw, 0))
+    -- ctx.amDatumToPos:Rotate(Angle(0, deltaYaw, 0))
 
     local newOrigin = anchorPos + offset -- O' = P + R * v
 

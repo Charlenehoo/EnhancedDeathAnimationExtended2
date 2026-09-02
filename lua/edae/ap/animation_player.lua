@@ -42,8 +42,24 @@ local function cleanUp(ctx)
     if IsValid(animationModel) then
         animationModel:Remove()
     end
-    local ragdoll = ctx.ragdoll
-    store:Clear(ragdoll)
+    -- local ragdoll = ctx.ragdoll
+    -- store:Clear(ragdoll)
+end
+
+function AnimationPlayer:Stop(ragdoll)
+    log.trace("AnimationPlayer:Stop called for ragdoll: ", tostring(ragdoll))
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if not ctx then
+        log.warn("AnimationPlayer:Stop called for invalid context: ", tostring(ragdoll))
+        return
+    end
+    ctx.stopSignal = true
+
+    -- if ctx.coro and coroutine.status(ctx.coro) ~= "dead" then
+    --     Scheduler:Cancel(ctx.coro)
+    -- end
+
+    -- cleanUp(ctx)
 end
 
 -- 旋转效果器：每帧检查旋转目标并调用 Helper 中的旋转算法
@@ -78,6 +94,7 @@ local function playAnimationCoroutine(ctx)
     local function shouldTerminate()
         return not IsValid(ragdoll) or
             not IsValid(animationModel) or
+            ctx.stopSignal or
             ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT or
             ctx.HitWallCount >= ctx.totalBones
     end
@@ -221,16 +238,7 @@ local function playAnimationCoroutine(ctx)
     cleanUp(ctx)
 end
 
-function AnimationPlayer:Stop(ragdoll)
-    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
-    if not ctx then return end
 
-    if ctx.coro and coroutine.status(ctx.coro) ~= "dead" then
-        Scheduler:Cancel(ctx.coro)
-    end
-
-    cleanUp(ctx)
-end
 
 --- 播放动画
 --- @param ragdoll Entity
@@ -297,6 +305,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         FallCount                 = 0,
         HitWallCount              = 0,
         coro                      = nil,
+
+        stopSignal                = nil,
     }
 
     if
