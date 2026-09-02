@@ -1,6 +1,6 @@
 -- lua/edae/tc/twitch_controller.lua
 -- 物理驱动的抽搐控制器：通过协程对布娃娃特定骨骼施加冲量
--- 模块风格与 AnimationPlayer 保持一致
+-- 支持自定义 effects（与 AnimationPlayer 一致）
 
 local MODULE_NAME = "TwitchController"
 
@@ -22,7 +22,6 @@ local STATE_ENUM       = Constants.LifeCycleHandler.STATE_ENUM
 
 -- 存储键
 local TWITCH_CTX_KEY   = "TwitchContext"
-local TWITCH_CORO_KEY  = "TwitchCoroutine"
 
 local TwitchController = {}
 
@@ -74,6 +73,24 @@ local function ApplyForce(ragdoll, boneName, forceVec)
     phyObj:AddAngleVelocity(-phyObj:GetAngleVelocity() / 10)
 end
 
+-- 执行所有自定义 effects
+local function RunEffects(ctx)
+    if not ctx.effects then return end
+
+    for idx, effect in ipairs(ctx.effects) do
+        local stateKey = effect.name or idx
+        local effectState = ctx.effectStates[stateKey]
+        if not effectState then
+            effectState = {}
+            ctx.effectStates[stateKey] = effectState
+        end
+
+        if effect.predicate(ctx, effectState) then
+            effect.action(ctx, effectState)
+        end
+    end
+end
+
 -- ============================================================
 -- 抽搐协程
 -- ============================================================
@@ -90,12 +107,17 @@ local function TwitchCoroutine(ragdoll, ctx)
 
     local currentIndex  = 0
 
-    while true do
-        -- 终止条件检查
-        if not IsValid(ragdoll) then break end
-        if HealthManager:IsDead(ragdoll) then break end
-        if CurTime() >= endTime then break end
-        if ctx.stopRequested then break end
+    -- 终止条件封装
+    local function shouldTerminate()
+        return not IsValid(ragdoll) or
+            HealthManager:IsDead(ragdoll) or
+            CurTime() >= endTime or
+            ctx.stopSignal
+    end
+
+    while not shouldTerminate() do
+        -- 执行 effects（每轮循环开始时执行一次）
+        RunEffects(ctx)
 
         -- 计算 HP 衰减率
         local timeFactor = math.max((endTime - CurTime()) / totalDuration, 0)
@@ -122,7 +144,7 @@ local function TwitchCoroutine(ragdoll, ctx)
         end
         if currentIndex > #boneList then
             currentIndex = 1
-            table.Shuffle(boneList) -- 原地打乱
+            table.Shuffle(boneList)
         end
         local boneName = boneList[currentIndex]
 
@@ -194,7 +216,12 @@ end
 
 --- 启动抽搐
 --- @param ragdoll Entity 布娃娃实体
---- @param opts table|nil 可选参数：{ boneWhitelist, totalDuration, intensity, speedMode }
+--- @param opts table|nil 可选参数：
+---   opts.boneWhitelist table|nil 骨骼白名单，默认为 Constants.BoneWhitelists.TwitchTb
+---   opts.totalDuration number|nil 总持续时间（秒），默认随机 10~20
+---   opts.intensity number|nil 强度系数，默认 1.0
+---   opts.speedMode string|nil 速度模式："High" 或 "Low"，不指定则随机
+---   opts.effects table|nil 自定义效果数组，格式同 AnimationPlayer（每个效果包含 name、predicate、action）
 --- @return boolean success
 function TwitchController:Start(ragdoll, opts)
     if not IsValid(ragdoll) then
@@ -207,9 +234,10 @@ function TwitchController:Start(ragdoll, opts)
 
     opts = opts or {}
     local whitelist = opts.boneWhitelist or Constants.BoneWhitelists.TwitchTb
-    local totalDuration = opts.totalDuration or math.random(10, 20) -- 默认10-20秒
+    local totalDuration = opts.totalDuration or math.random(10, 20)
     local intensity = opts.intensity or 1.0
-    local speedMode = opts.speedMode                                -- 若不指定则随机
+    local speedMode = opts.speedMode -- 若不指定则随机
+    local effects = opts.effects
 
     -- 获取有效骨骼列表并打乱
     local boneList = GetValidBoneList(ragdoll, whitelist)
@@ -245,12 +273,13 @@ function TwitchController:Start(ragdoll, opts)
         massFix       = massFix,
         baseForce     = math.random(10, 15),
         intensity     = intensity,
-        stopRequested = false,
+        effects       = effects,  -- 自定义效果
+        effectStates  = {},       -- 效果状态存储
+        stopSignal    = false,
     }
 
     store:Set(ragdoll, TWITCH_CTX_KEY, ctx)
     local coro = Scheduler:Start(TwitchCoroutine, ragdoll, ctx)
-    store:Set(ragdoll, TWITCH_CORO_KEY, coro)
 
     log.trace("TwitchController: started twitch for ", ragdoll, " mode=", speedMode, " duration=", totalDuration)
     return true
@@ -263,7 +292,7 @@ function TwitchController:Stop(ragdoll)
 
     local ctx = store:Get(ragdoll, TWITCH_CTX_KEY)
     if ctx then
-        ctx.stopRequested = true
+        ctx.stopSignal = true
     end
 
     -- 立即清除存储，协程会在下一次循环检查时退出

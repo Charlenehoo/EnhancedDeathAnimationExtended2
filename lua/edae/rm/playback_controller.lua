@@ -13,6 +13,7 @@ local Constants                   = include("edae/config/constants.lua")
 local log                         = include("edae/log/init.lua")
 local AnimationSelector           = include("edae/as/animation_selector.lua")
 local AnimationPlayer             = include("edae/ap/animation_player.lua")
+local TwitchController            = include("edae/tc/twitch_controller.lua")
 local RagdollPoseHelper           = include("edae/rm/pose_helper.lua")
 
 local STATE_ENUM                  = Constants.LifeCycleHandler.STATE_ENUM
@@ -83,8 +84,8 @@ end
 --- @param state string 当前状态
 --- @return table|nil effect 单个效果器（若无则返回 nil）
 local function BuildBloodEffect(ragdoll, state)
-    -- 仅爬行和挣扎状态需要血迹
-    if state ~= STATE_ENUM.CRAWLING and state ~= STATE_ENUM.WRITHING then
+    -- 爬行、挣扎、抽搐状态需要血迹
+    if state ~= STATE_ENUM.CRAWLING and state ~= STATE_ENUM.WRITHING and state ~= STATE_ENUM.TWITCHING then
         return nil
     end
 
@@ -203,7 +204,6 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
     local yaw
     local groundPos
     if state == STATE_ENUM.FALLING then
-        -- 死亡倒地动画：使用 owner 的角度，如果 owner 无效则退回 ragdoll 角度
         if owner and owner:IsValid() then
             yaw = RagdollPoseHelper:GetYawFromOwner(owner)
             groundPos = owner:GetPos()
@@ -212,30 +212,40 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
             yaw = RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
         end
     else
-        -- 爬行/挣扎等状态：直接从 ragdoll 提取
         yaw = RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
     end
 
-    -- 组装选择器所需信息
     local playBackInfo = {
         state = state,
         damageContext = damageContext,
         isFacingUp = RagdollPoseHelper:IsFacingUp(ragdoll),
-        yaw = yaw, -- 虽然选择器目前未使用，但保留以便扩展
+        yaw = yaw,
         groundPos = groundPos
     }
 
-    -- 选择动画
     local playbackData = AnimationSelector:Select(playBackInfo)
     if not playbackData then
         log.warn("AnimationPlaybackController: no playback data for state ", state)
         return false
     end
 
-    -- 构建效果器（传递 owner 以支持语音效果）
+    -- 构建效果（用于动画或抽搐）
     local effects = BuildEffects(ragdoll, state, owner)
 
-    -- 组装 AnimationPlayer 的 opts
+    -- 如果是抽搐，则启动 TwitchController 并传入效果
+    if playbackData.isTwitch then
+        local twitchOpts = playbackData.twitchParams or {}
+        twitchOpts.effects = effects -- 将 effects 合并到抽搐参数中
+        local success = TwitchController:Start(ragdoll, twitchOpts)
+        if not success then
+            log.warn("AnimationPlaybackController: failed to start twitch for state ", state)
+            return false
+        end
+        log.trace("AnimationPlaybackController: started twitch for state '", state, "'")
+        return true
+    end
+
+    -- 普通动画播放
     local opts = {
         totalLoops = playbackData.totalLoops,
         preWait = playbackData.preWait,
@@ -245,7 +255,6 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
         enableRotate = true,
     }
 
-    -- 启动播放
     local ctx = AnimationPlayer:Play(ragdoll, playbackData.animationName, opts)
     if not ctx then
         log.warn("AnimationPlaybackController: failed to start animation ", playbackData.animationName)

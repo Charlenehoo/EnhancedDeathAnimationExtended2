@@ -123,6 +123,7 @@ Constants.VOICE                                         = {
     CONFIG = {
         [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = { category = "main", key = "crithealth", priority = 3, interrupt = false },
         [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = { category = "external", key = "overkill", priority = 3, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = { category = "external", key = "overkill", priority = 3, interrupt = false },         -- 新增
     },
 }
 
