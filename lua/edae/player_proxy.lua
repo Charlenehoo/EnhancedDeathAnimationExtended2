@@ -34,7 +34,14 @@ else
     local accumulatedDelta = 0 -- 累积的旋转增量
     local lastSendTime = 0
 
-    hook.Add("CreateMove", "EDAE_PlayerProxy_CreateMove", function(cmd)
+    hook.Add("PlayerSpawn", Constants.ADDON_NAME .. MODULE_NAME .. "PlayerSpawn", function(ply)
+        if ply == LocalPlayer() then
+            accumulatedDelta = 0
+            lastSendTime = 0
+        end
+    end)
+
+    hook.Add("CreateMove", Constants.ADDON_NAME .. MODULE_NAME .. "CreateMove", function(cmd)
         local ply = LocalPlayer()
         if not IsValid(ply) or ply:Alive() then return end
         local ragdoll = ply:GetRagdollEntity()
