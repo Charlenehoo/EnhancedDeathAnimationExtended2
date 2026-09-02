@@ -64,6 +64,8 @@ local function cleanUp(ctx)
     if IsValid(animationModel) then
         animationModel:Remove()
     end
+    local ragdoll = ctx.ragdoll
+    store:Clear(ragdoll)
 end
 
 -- 旋转效果器：每帧检查旋转目标并调用 Helper 中的旋转算法
@@ -250,8 +252,6 @@ function AnimationPlayer:Stop(ragdoll)
     end
 
     cleanUp(ctx)
-
-    store:Clear(ragdoll)
 end
 
 --- 播放动画
