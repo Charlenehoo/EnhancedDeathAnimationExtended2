@@ -90,6 +90,8 @@ local function playAnimationCoroutine(ctx)
     ctx.FallCount = 0
     ctx.HitWallCount = 0
 
+    local stopReason = "normal"
+
     -- 终止条件：实体无效、停止信号、Fall 计数达到限制、HitWall 计数达到总骨骼数
     local function shouldTerminate()
         return not IsValid(ragdoll) or
@@ -99,10 +101,24 @@ local function playAnimationCoroutine(ctx)
             ctx.HitWallCount >= ctx.totalBones
     end
 
-    if shouldTerminate() then
-        log.warn("Ragdoll or animation model invalid at start, cleaning up")
-        cleanUp(ctx)
-        return
+    local function shouldTerminate()
+        if not IsValid(ragdoll) or not IsValid(animationModel) then
+            stopReason = "invalid"
+            return true
+        end
+        if ctx.stopSignal then
+            stopReason = "stop"
+            return true
+        end
+        if ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT then
+            stopReason = "fall"
+            return true
+        end
+        if ctx.HitWallCount >= ctx.totalBones then
+            stopReason = "hitwall"
+            return true
+        end
+        return false
     end
 
     helper.EnableMotion(ctx, false)
@@ -270,7 +286,7 @@ local function playAnimationCoroutine(ctx)
         Scheduler:Wait(0.15)
     end
 
-    hook.Run(Constants.Events.OnAnimationFinished, ragdoll, ctx.animationName)
+    hook.Run(Constants.Events.OnAnimationFinished, ragdoll, ctx.animationName, stopReason)
     cleanUp(ctx)
 end
 

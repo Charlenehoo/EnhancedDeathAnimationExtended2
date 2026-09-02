@@ -96,36 +96,40 @@ end
 -- 处理动画结束事件（由 AnimationPlayer 在动画循环结束后触发）
 -- @param ragdoll Entity
 -- @param animationName string 刚结束的动画名称（可选，用于调试）
-function LifeCycleHandler:OnAnimationFinished(ragdoll, animationName)
+-- @param stopReason string 动画停止的原因
+function LifeCycleHandler:OnAnimationFinished(ragdoll, animationName, stopReason)
     if not IsValid(ragdoll) then return end
 
     local currentState = getState(ragdoll)
 
-    if currentState ~= STATE_ENUM.FALLING then
-        return
+    if currentState == STATE_ENUM.FALLING then
+        local health = getHealth(ragdoll)
+        if health <= 0 then
+            setState(ragdoll, STATE_ENUM.DEAD)
+            return
+        end
+
+        local rand = math.random()
+        local newState
+
+        if rand < CRAWL_CHANCE then
+            newState = STATE_ENUM.CRAWLING
+        elseif rand < CRAWL_CHANCE + WRITHE_CHANCE then
+            newState = STATE_ENUM.TWITCHING
+        elseif rand < CRAWL_CHANCE + WRITHE_CHANCE + TWITCH_CHANCE then
+            newState = STATE_ENUM.WRITHING
+        else
+            newState = STATE_ENUM.DEAD
+        end
+
+        log.trace("LifeCycleHandler: falling finished for ", ragdoll, ", transitioning to '", newState, "'")
+        setState(ragdoll, newState)
+    elseif currentState == STATE_ENUM.CRAWLING or currentState == STATE_ENUM.WRITHING then
+        if stopReason == "fall" or stopReason == "hitwall" then
+            log.trace("LifeCycleHandler: crawling stopped due to ", stopReason, ", transitioning to twitching")
+            setState(ragdoll, STATE_ENUM.TWITCHING)
+        end
     end
-
-    local health = getHealth(ragdoll)
-    if health <= 0 then
-        setState(ragdoll, STATE_ENUM.DEAD)
-        return
-    end
-
-    local rand = math.random()
-    local newState
-
-    if rand < CRAWL_CHANCE then
-        newState = STATE_ENUM.CRAWLING
-    elseif rand < CRAWL_CHANCE + WRITHE_CHANCE then
-        newState = STATE_ENUM.TWITCHING
-    elseif rand < CRAWL_CHANCE + WRITHE_CHANCE + TWITCH_CHANCE then
-        newState = STATE_ENUM.WRITHING
-    else
-        newState = STATE_ENUM.DEAD
-    end
-
-    log.trace("LifeCycleHandler: falling finished for ", ragdoll, ", transitioning to '", newState, "'")
-    setState(ragdoll, newState)
 end
 
 -- 供外部查询当前状态
@@ -149,9 +153,10 @@ function LifeCycleHandler:SetState(ragdoll, newState)
 end
 
 -- 监听动画结束事件（由 AnimationPlayer 发出）
-hook.Add(Constants.Events.OnAnimationFinished, MODULE_NAME .. "_OnAnimationFinished", function(ragdoll, animationName)
-    LifeCycleHandler:OnAnimationFinished(ragdoll, animationName)
-end)
+hook.Add(Constants.Events.OnAnimationFinished, MODULE_NAME .. "_OnAnimationFinished",
+    function(ragdoll, animationName, stopReason)
+        LifeCycleHandler:OnAnimationFinished(ragdoll, animationName, stopReason)
+    end)
 
 -- 注册单例
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = LifeCycleHandler
