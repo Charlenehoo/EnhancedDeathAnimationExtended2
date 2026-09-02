@@ -264,9 +264,6 @@ local function GenerateTwitchTb()
     }, true)
 end
 
--- 添加到返回表
-BoneWhitelists.TwitchTb = GenerateTwitchTb()
-
 -- 生成所有白名单并缓存
 BoneWhitelists.GibTb    = GenerateGibTb()
 BoneWhitelists.HitboxTb = GenerateHitboxTb()

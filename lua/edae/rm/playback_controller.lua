@@ -38,12 +38,11 @@ local function BuildBloodTimeEffect(bloodCfg)
         end,
         action = function(ctx, effectState)
             local ragdoll = ctx.ragdoll
-            local animModel = ctx.animationModel
-
-            util.Decal(decal, ragdoll:GetPos(),
-                ragdoll:GetPos() - Vector(0, 0, 50),
-                { ragdoll, animModel })
-
+            local filter = { ragdoll }
+            if ctx.animationModel then
+                table.insert(filter, ctx.animationModel)
+            end
+            util.Decal(decal, ragdoll:GetPos(), ragdoll:GetPos() - Vector(0, 0, 50), filter)
             effectState.nextTime = CurTime() + interval
         end
     }
@@ -68,11 +67,14 @@ local function BuildBloodDistanceEffect(bloodCfg)
         end,
         action = function(ctx, effectState)
             local ragdoll = ctx.ragdoll
-            local animModel = ctx.animationModel
+            local filter = { ragdoll }
+            if ctx.animationModel then
+                table.insert(filter, ctx.animationModel)
+            end
 
             util.Decal(decal, ragdoll:GetPos(),
                 ragdoll:GetPos() - Vector(0, 0, 50),
-                { ragdoll, animModel })
+                filter)
 
             effectState.lastPos = ragdoll:GetPos()
         end
@@ -235,7 +237,9 @@ function AnimationPlaybackController:PlayForState(ragdoll, state, damageContext,
     -- 如果是抽搐，则启动 TwitchController 并传入效果
     if playbackData.isTwitch then
         local twitchOpts = playbackData.twitchParams or {}
-        twitchOpts.effects = effects -- 将 effects 合并到抽搐参数中
+        twitchOpts.effects = effects
+        twitchOpts.preWait = playbackData.preWait -- 从 playbackData 传递
+
         local success = TwitchController:Start(ragdoll, twitchOpts)
         if not success then
             log.warn("AnimationPlaybackController: failed to start twitch for state ", state)

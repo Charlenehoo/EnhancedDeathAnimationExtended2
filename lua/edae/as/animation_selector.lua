@@ -239,7 +239,9 @@ local function selectTwitchAnimation(opts)
         isTwitch = true,
         totalLoops = 0,
         preWait = makeCrawlOrWrithePreWait(),
-        twitchParams = {}, -- 可在此处传递自定义抽搐参数
+        twitchParams = {
+            boneWhitelist = BoneWhitelists.TwitchTb,
+        }, -- 可在此处传递自定义抽搐参数
     }
 end
 

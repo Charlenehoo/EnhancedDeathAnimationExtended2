@@ -115,6 +115,12 @@ local function TwitchCoroutine(ragdoll, ctx)
             ctx.stopSignal
     end
 
+    if ctx.preWait then
+        for _, waitFunc in ipairs(ctx.preWait) do
+            waitFunc(ctx)
+        end
+    end
+
     while not shouldTerminate() do
         -- 执行 effects（每轮循环开始时执行一次）
         RunEffects(ctx)
@@ -233,7 +239,11 @@ function TwitchController:Start(ragdoll, opts)
     self:Stop(ragdoll)
 
     opts = opts or {}
-    local whitelist = opts.boneWhitelist or Constants.BoneWhitelists.TwitchTb
+    local whitelist = opts.boneWhitelist
+    if not whitelist then
+        log.warn("TwitchController:Start missing boneWhitelist")
+        return false
+    end
     local totalDuration = opts.totalDuration or math.random(10, 20)
     local intensity = opts.intensity or 1.0
     local speedMode = opts.speedMode -- 若不指定则随机
