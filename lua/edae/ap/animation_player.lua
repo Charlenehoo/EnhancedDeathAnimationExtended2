@@ -31,31 +31,9 @@ end
 
 local function alignAnimationModel(ctx)
     local animationModel = ctx.animationModel
-    local ragdoll = ctx.ragdoll
-
-    -- 0. 旋转对齐 yaw
     animationModel:SetAngles(Angle(0, ctx.yaw, 0))
-
-    -- 1. 从 ragdoll:GetPos() 向下打射线获得地面位置
-    local groundPos = traceGroundBelow(ragdoll:GetPos(), { ragdoll, animationModel })
-    if not groundPos then
-        log.warn("Cannot find ground below ragdoll for alignment")
-        return false
-    end
-
-    -- 2. 获取 animationModel 的脚底到模型原点的偏移（datumToPos）
-    local footPos = helper.GetStandPos(animationModel)
-    if not footPos then
-        log.warn("Cannot find stand pos for animationModel")
-        return false
-    end
-    local datumToPos = animationModel:GetPos() - footPos -- 模型原点 - 脚底 = 偏移
-
-    -- 3. 设置动画模型位置，使脚底与地面点重合
-    animationModel:SetPos(groundPos + datumToPos)
-
-    -- 记录偏移供旋转算法使用
-    ctx.amDatumToPos = datumToPos
+    local groundPos = ctx.groundPos
+    animationModel:SetPos(groundPos)
     return true
 end
 
@@ -233,7 +211,7 @@ local function playAnimationCoroutine(ctx)
         -- 正常完成一次循环，重新定位动画模型
         local ragdollPos = ragdoll:GetPos()
         local groundPos = traceGroundBelow(ragdollPos, { ragdoll, animationModel }) or ragdollPos
-        animationModel:SetPos(groundPos + ctx.amDatumToPos)
+        animationModel:SetPos(groundPos)
 
         animationModel:Fire("SetAnimation", ctx.animationName, 0)
         Scheduler:Wait(0.15)
@@ -277,12 +255,15 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     opts = opts or {}
 
+    local ragdollPos = ragdoll:GetPos()
+
     local ctx = {
         ragdoll                   = ragdoll,
         animationName             = animationName,
-        datum                     = helper.GetStandPos(ragdoll),
+        -- datum                     = helper.GetStandPos(ragdoll),
 
         totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
+        groundPos                 = opts.groundPos or traceGroundBelow(ragdollPos, { ragdoll }) or ragdollPos,
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
         preWait                   = opts.preWait,
@@ -300,7 +281,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         shadowParamsTemplate      = opts.shadowParamsTemplate,
         animationModel            = nil,
         animationDuration         = nil,
-        amDatumToPos              = nil,
+        -- amDatumToPos              = nil,
         ragdollPhysicsObjectCount = nil,
         boneMap                   = nil,
         amRefBoneID               = nil,

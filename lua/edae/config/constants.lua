@@ -53,6 +53,7 @@ Constants.DamageContextManager.DMG_INFO_KEY             = "DmgInfo"
 
 Constants.ANIMATION_PLAYER                              = {}
 Constants.ANIMATION_PLAYER.CONEXT_KEY                   = "Context"
+-- Constants.ANIMATION_PLAYER.AM_DATUM_TO_POS_KEY          = "AmDatumToPos"
 Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME = "models/brutal_deaths/model_anim_modify.mdl"
 Constants.ANIMATION_PLAYER.FALL_LIMIT                   = 5
 Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD        = 20
@@ -74,7 +75,7 @@ Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE       = {
     pos = vector_origin,
     angle = angle_zero,
 }
-Constants.ANIMATION_PLAYER.AM_DATUM_TO_POS_KEY          = "AmDatumToPos"
+
 
 Constants.ANIMATION_SELECTOR                            = {}
 Constants.ANIMATION_SELECTOR.PRE_WAIT_TIME              = 1.5  -- 播放前固定等待时间（秒）
