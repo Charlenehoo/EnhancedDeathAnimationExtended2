@@ -58,6 +58,10 @@ function AnimationPlayer:Stop(ragdoll, reason)
     ctx.stopSignal = true
 end
 
+function AnimationPlayer:Cancel(ragdoll)
+    self:Stop(ragdoll, "cancelled")
+end
+
 -- 旋转效果器：每帧检查旋转目标并调用 Helper 中的旋转算法
 local function BuildRotateEffect()
     return {
