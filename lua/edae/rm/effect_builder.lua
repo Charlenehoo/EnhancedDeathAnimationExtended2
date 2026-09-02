@@ -101,11 +101,6 @@ local function BuildVoiceEffects(owner, state)
     local stateConfigs = voiceCfg.CONFIG and voiceCfg.CONFIG[state]
     if not stateConfigs then return nil end
 
-    -- 兼容：如果配置是单个表，转为数组
-    if type(stateConfigs) == "table" and not stateConfigs[1] then
-        stateConfigs = { stateConfigs }
-    end
-
     local effects = {}
     for _, cfg in ipairs(stateConfigs) do
         local category = cfg.category or "external"

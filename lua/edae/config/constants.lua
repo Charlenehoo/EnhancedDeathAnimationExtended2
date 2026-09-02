@@ -139,7 +139,7 @@ Constants.VOICE                                         = {
 
 
 Constants.RagdollManager.HEALTH_DRAIN_INTERVAL = 1.5 -- 每隔多少秒扣一次血
-Constants.RagdollManager.HEALTH_DRAIN_AMOUNT   = 2   -- 每次扣减的血量
+Constants.RagdollManager.HEALTH_DRAIN_AMOUNT   = 10  -- 每次扣减的血量
 
 
 return Constants

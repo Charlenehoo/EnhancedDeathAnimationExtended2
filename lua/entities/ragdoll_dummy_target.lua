@@ -37,8 +37,6 @@ local REPOSITION_INTERVAL           = CONSTANTS.RAGDOLL_DUMMY.REPOSITION_INTERVA
 local POSITION_RESET_INTERVAL       = CONSTANTS.RAGDOLL_DUMMY.POSITION_RESET_INTERVAL
 local BROAD_CAST_INTERVAL           = 9
 
-local executionerSearchInterval     = EXECUTIONER_SEARCH_INTERVAL
-
 function ENT:Initialize()
     self:SetModel(PROXY_MODEL)
     self:SetModelScale(SCALE_1)
@@ -210,6 +208,8 @@ function ENT:Init(owner, ragdoll)
 
     self._LastRagdollState = nil
     self._RagdollState = nil -- 首次 _UpdateState 时设置
+
+    self._executionerSearchInterval = EXECUTIONER_SEARCH_INTERVAL
 end
 
 function ENT:_GetActivePosition()
@@ -386,15 +386,15 @@ function ENT:Think()
         end
     end
 
-    if now - self._LastSearchTime > executionerSearchInterval then
+    if now - self._LastSearchTime > self._executionerSearchInterval then
         self._LastSearchTime = now
 
         self:_TryRefreshPotentialExecutioners()
         if table.IsEmpty(self._PotentialExecutioners) then
-            executionerSearchInterval = executionerSearchInterval * 2
+            self._executionerSearchInterval = self._executionerSearchInterval * 2
             return
         else
-            executionerSearchInterval = EXECUTIONER_SEARCH_INTERVAL
+            self._executionerSearchInterval = EXECUTIONER_SEARCH_INTERVAL
         end
 
         local searchRadius = STATE_TO_SEARCH_RADIUS[state]
@@ -416,6 +416,7 @@ function ENT:Think()
 
     if now - self._LastBroadCastTime > BROAD_CAST_INTERVAL then
         self._LastBroadCastTime = now
+        self._executionerSearchInterval = EXECUTIONER_SEARCH_INTERVAL
         for _, exec in ipairs(self._PotentialExecutioners) do
             NPCMonitor.TryControlNPC(exec)
         end
