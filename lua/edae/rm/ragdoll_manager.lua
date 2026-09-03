@@ -5,6 +5,8 @@
 --   2. 监听状态变化事件（OnRagdollStateChange），只启动新播放，不停止旧播放
 --   3. 对外提供自救请求/取消接口
 --   4. 复活逻辑委托给 ReviveManager
+-- 注意：DropItem 和 FlexPlayer 功能已迁移至独立扩展模块（di 和 fp），
+--       它们通过自注册事件钩子工作，不再由此模块直接调用。
 
 local MODULE_NAME = "RagdollManager"
 
@@ -22,9 +24,7 @@ local HealthManager        = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper    = include("edae/rm/pose_helper.lua")
 local PlaybackCoordinator  = include("edae/rm/playback_coordinator.lua")
 local VoiceManager         = include("edae/rm/voice_manager.lua")
-local ReviveManager        = include("edae/rm/revive_manager.lua") -- 引入复活管理器
-local FlexPlayer           = include("edae/fp/flex_player.lua")
-local DropItemManager      = include("edae/di/drop_item_manager.lua")
+local ReviveManager        = include("edae/rm/revive_manager.lua")
 
 local store                = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -83,19 +83,9 @@ function Manager:OnCreate(owner, ragdoll)
     -- 初始化血量
     HealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
 
-    -- 获取并清除伤害上下文
+    -- 获取并清除伤害上下文（供后续模块使用，但 DropItem 会自行获取）
     local damageContext = DamageContextManager:Get(owner)
     DamageContextManager:Clear(owner)
-
-    -- 获取伤害上下文中的 hitgroup
-    local hitgroup, isMoving
-    if damageContext then
-        hitgroup = damageContext.hitGroup
-        isMoving = damageContext.isMoving or false
-    end
-
-    -- 调用 DropItemManager 执行 DURING 阶段
-    DropItemManager:OnRagdollCreated(owner, ragdoll, hitgroup, isMoving)
 
     -- 初始化状态机：会触发 OnRagdollStateChange，从而自动启动初始播放
     LifeCycleHandler:Init(ragdoll, damageContext)
@@ -109,8 +99,6 @@ function Manager:OnTakeDamage(ragdoll, dmginfo)
 
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
-
-    DropItemManager:OnRagdollTakeDamage(ragdoll, dmginfo)
 
     -- 爬行状态受击播放音效
     if currentState == STATE_ENUM.CRAWLING and IsValid(owner) then
@@ -139,17 +127,6 @@ function Manager:OnStateChange(ragdoll, state, fromState, initData)
         end
     else
         VoiceManager:StopAll(owner)
-    end
-
-    -- FlexPlayer 控制（新增）
-    if state == STATE_ENUM.DEAD then
-        if fromState == STATE_ENUM.CRAWLING then
-            FlexPlayer:SwitchMode(ragdoll, "spike_fade")
-        else
-            FlexPlayer:SwitchMode(ragdoll, "fade")
-        end
-    else
-        FlexPlayer:SwitchMode(ragdoll, "oscillate")
     end
 
     if state == STATE_ENUM.DEAD then
@@ -187,9 +164,6 @@ hook.Add("PostEntityTakeDamage", MODULE_NAME .. "_PostEntityTakeDamage", functio
     if not IsValid(ent) or not ent:IsRagdoll() or ent:GetClass() ~= Constants.RAGDOLL_CLASS then return end
     Manager:OnTakeDamage(ent, dmginfo)
 end)
-
--- 注意：OnRagdollHealthDepleted 事件已不再由任何模块触发，故移除相关监听
--- 血量耗尽停止已由播放器自身检测处理（见 animation_player.lua / twitch_controller.lua）
 
 -- 复活请求已由 ReviveManager 监听处理，此处不再重复注册
 

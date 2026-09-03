@@ -3,11 +3,11 @@
 local config = {}
 
 local modelConfigs = {
-    kasumi = include("edae/fp/config/kasumi.lua"),
-    hitomi = include("edae/fp/config/hitomi.lua"),
-    lc_90  = include("edae/fp/config/lc_90.lua"),
-    zt_zdf = include("edae/fp/config/zt_zdf.lua"),
-    eve    = include("edae/fp/config/eve.lua"),
+    kasumi = include("flex_player/config/kasumi.lua"),
+    hitomi = include("flex_player/config/hitomi.lua"),
+    lc_90  = include("flex_player/config/lc_90.lua"),
+    -- zt_zdf = include("flex_player/config/zt_zdf.lua"),
+    eve    = include("flex_player/config/eve.lua"),
 }
 
 function config.GetModelConfig(model)

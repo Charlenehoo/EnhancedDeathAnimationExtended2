@@ -1,8 +1,11 @@
--- lua/edae/fp/flex_player.lua
+-- lua/fp/flex_player.lua
 -- FlexPlayer：面部形态键动画播放器
 -- 负责驱动 ragdoll 的面部 Flex 权重与眼睛方向，支持 oscillate / spike_fade / fade 三种模式
 -- 使用统一的 Scheduler 协程管理器，上下文存储在 EntityDataStore 中
 -- 振荡衰减因子基于布娃娃当前血量计算（血量比例），血量越低，振荡幅度越小
+--
+-- 本模块已从 edae/fp/ 迁移至 fp/（与 edae 同级），作为独立扩展
+-- 通过自注册 OnRagdollStateChange 事件钩子自动控制，无需 RagdollManager 直接调用
 
 local MODULE_NAME = "FlexPlayer"
 
@@ -15,8 +18,8 @@ local Constants          = include("edae/config/constants.lua")
 local log                = include("edae/log/init.lua")
 local Scheduler          = include("edae/coroutine_scheduler.lua")
 local EntityDataStore    = include("edae/eds/entity_data_store.lua")
-local HealthManager      = include("edae/rm/health_manager.lua") -- 新增：获取血量
-local config             = include("edae/fp/config.lua")         -- 模型配置
+local HealthManager      = include("edae/rm/health_manager.lua")
+local config             = include("fp/config.lua") -- 路径调整：从 fp/config.lua 加载
 
 local store              = EntityDataStore:ForOwner(MODULE_NAME)
 local FLEX_CTX_KEY       = "FlexContext"
@@ -29,7 +32,6 @@ local OSCILLATE_DURATION = 99999 -- 无限振荡
 local SPIKE_DURATION     = 0.3
 local SPIKE_COOLDOWN     = 2.1
 local FREQ               = 10.0
--- DECAY 标志保留，但实际衰减由血量决定，此变量仅用于兼容（可忽略）
 
 -- ============================================================
 -- 数学与辅助
@@ -221,15 +223,12 @@ local function ProcessOscillate(ctx, animState, t_local, elapsed)
         end
     end
 
-    -- 可选：对血量比例做缓动，使衰减更平滑（例如 easeOutCubic）
-    -- local globalDecay = easeOutCubic(healthRatio)
-    -- 这里直接使用线性比例
     local globalDecay = healthRatio
 
     for name, cfg in pairs(ctx.flexConfig) do
         local decayFactor
         if cfg.oscillateDecay == false then
-            decayFactor = 1 -- 该键不衰减
+            decayFactor = 1
         else
             decayFactor = globalDecay
         end
@@ -444,13 +443,24 @@ function FlexPlayer:IsRunning(ragdoll)
 end
 
 -- ============================================================
--- 实体移除时自动清理（可选，协程本身也会检查实体有效性）
+-- 自注册事件钩子（取代 RagdollManager 中的直接调用）
 -- ============================================================
--- hook.Add("EntityRemoved", MODULE_NAME .. "_EntityRemoved", function(ent)
---     if IsValid(ent) and store:Get(ent, FLEX_CTX_KEY) then
---         store:Clear(ent)
---     end
--- end)
+local STATE_ENUM = Constants.LifeCycleHandler.STATE_ENUM
+
+hook.Add(Constants.Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
+    function(ragdoll, state, fromState)
+        if not IsValid(ragdoll) then return end
+
+        if state == STATE_ENUM.DEAD then
+            if fromState == STATE_ENUM.CRAWLING then
+                FlexPlayer:SwitchMode(ragdoll, "spike_fade")
+            else
+                FlexPlayer:SwitchMode(ragdoll, "fade")
+            end
+        else
+            FlexPlayer:SwitchMode(ragdoll, "oscillate")
+        end
+    end)
 
 -- 注册单例
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = FlexPlayer
