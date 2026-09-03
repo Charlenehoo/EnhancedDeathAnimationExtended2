@@ -14,7 +14,7 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants         = include("edae2/config/constants.lua")
+local Constants         = include("edae/config/constants.lua")
 local NET_STRING_ROTATE = Constants.NETWORK_STRING.PlayerRotateRagdoll
 local NET_STRING_START  = Constants.NETWORK_STRING.PlayerSelfRevive_Start
 local NET_STRING_CANCEL = Constants.NETWORK_STRING.PlayerSelfRevive_Cancel
@@ -23,8 +23,8 @@ local PlayerProxy       = {}
 
 if SERVER then
     -- 服务器端：引入依赖
-    local PlaybackCoordinator = include("edae2/rm/playback_coordinator.lua")
-    local RagdollManager      = include("edae2/rm/ragdoll_manager.lua")
+    local PlaybackCoordinator = include("edae/rm/playback_coordinator.lua")
+    local RagdollManager      = include("edae/rm/ragdoll_manager.lua")
 
     -- 接收旋转请求
     net.Receive(NET_STRING_ROTATE, function(len, ply)
