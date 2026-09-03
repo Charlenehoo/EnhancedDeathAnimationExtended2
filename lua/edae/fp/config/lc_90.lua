@@ -13,8 +13,8 @@ return {
             oscillateBase = 0.30,
             oscillateAmp = 0.20,
             oscillateFreq = 2.0,
-            fadeTarget = 0.25,
-            spikeTarget = 0.05, -- 强直期睁眼
+            fadeTarget = 0.60,
+            spikeTarget = 0.20, -- 强直期睁眼
         },
 
         -- 张嘴（原始 death_expression: ah * 0.9，终值 ah ≈ 0.14）
@@ -77,8 +77,8 @@ return {
             oscillateBase = 0,
             oscillateAmp  = math.pi / 36, -- 垂直游移
             oscillateFreq = 1.8,
-            fadeTarget    = math.pi / 10, -- 约 18°，对应权重 ≈ 0.157
-            spikeTarget   = 0.35,         -- 强直期上翻明显
+            fadeTarget    = math.pi / 6,
+            spikeTarget   = math.pi / 3,
         },
     },
 }

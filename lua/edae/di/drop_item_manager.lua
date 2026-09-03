@@ -68,7 +68,8 @@ end
 --- @param owner Entity 原始实体
 --- @param ragdoll Entity 布娃娃实体
 --- @param hitgroup number|nil 致命伤害的 hitgroup（可由 DamageContextManager 获取）
-function DropItemManager:OnRagdollCreated(owner, ragdoll, hitgroup)
+--- @param isMoving boolean|nil 表示 owner 是否在移动
+function DropItemManager:OnRagdollCreated(owner, ragdoll, hitgroup, isMoving)
     if not IsValid(ragdoll) then return end
 
     local configs = tryGetConfigurations(ragdoll)
@@ -79,6 +80,7 @@ function DropItemManager:OnRagdollCreated(owner, ragdoll, hitgroup)
         local data = {
             owner    = owner,
             hitgroup = hitgroup,
+            isMoving = isMoving,
         }
         RuleEngine:ApplyRules(ragdoll, phaseDuringConfigurations, data, PHASES.DURING)
     end

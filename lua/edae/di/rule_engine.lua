@@ -61,8 +61,13 @@ local function checkConditions(rule, ent, data, phase)
     -- IS_MOVING
     if bit.band(conditionMask, CONDITIONS.IS_MOVING) ~= 0 then
         local thresholdSqr = values[CONDITIONS.IS_MOVING] or DEFAULT_MOVING_THRESHOLD_SQR
-        local vel = ent:GetVelocity()
-        if vel:LengthSqr() < thresholdSqr then
+        local moving = data.isMoving
+        if moving == nil then
+            -- 回退：实时检测
+            local vel = ent:GetVelocity()
+            moving = vel:LengthSqr() >= thresholdSqr
+        end
+        if not moving then
             return false
         end
     end

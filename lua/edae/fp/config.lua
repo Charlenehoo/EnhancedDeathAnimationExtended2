@@ -16,8 +16,8 @@ function config.GetModelConfig(model)
             return modelConfigs.kasumi
         elseif model:find("hitomi", 1, true) then
             return modelConfigs.hitomi
-        elseif model:find("zt_zdf", 1, true) then
-            return modelConfigs.zt_zdf
+            -- elseif model:find("zt_zdf", 1, true) then
+            --     return modelConfigs.zt_zdf
         elseif model:find("eve_pm", 1, true) or model:find("stellar_blade/eve", 1, true) then
             return modelConfigs.eve
         elseif model:find("lc_90", 1, true) then
