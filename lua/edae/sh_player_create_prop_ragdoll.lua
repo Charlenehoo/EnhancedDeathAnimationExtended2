@@ -1,10 +1,10 @@
+-- lua/edae/sh_player_create_prop_ragdoll.lua
 local MODULE_NAME = "PlayerCreatePropRagdoll"
 
 local Constants = include("edae/config/constants.lua")
 local log = include("edae/log/init.lua")
 
 local ORIGIN_OFFSET = Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET
-local ORIGIN_OFFSET_SQR = ORIGIN_OFFSET * ORIGIN_OFFSET
 local ANTI_CLIP_OFFSET = Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET
 
 local meta = FindMetaTable("Player")
@@ -23,6 +23,11 @@ local plyToRagdollMap = {}
 meta.GetRagdollEntity = function(self)
     return plyToRagdollMap[self] or originalGetRagdollEntity(self)
 end
+
+-- 第一人称死亡视角状态标志
+local enableFirstPersonDeathCam = false
+local activeOffset = ORIGIN_OFFSET
+local activeOffsetSqr = activeOffset * activeOffset
 
 if SERVER then
     local originalCreateRagdoll = meta.CreateRagdoll
@@ -144,9 +149,16 @@ else -- CLIENT
         local wheel = cmd:GetMouseWheel()
         if wheel == 0 then return end
 
-        -- 步长 8，范围限制在 16 ~ 256
-        ORIGIN_OFFSET = math.Clamp(ORIGIN_OFFSET - wheel * 8, 16, 256)
-        ORIGIN_OFFSET_SQR = ORIGIN_OFFSET * ORIGIN_OFFSET
+        activeOffset = math.Clamp(activeOffset - wheel * 5, ANTI_CLIP_OFFSET, ORIGIN_OFFSET)
+        activeOffsetSqr = activeOffset * activeOffset
+
+        -- 滚轮缩到最小时进入第一人称模式
+        if activeOffset <= ANTI_CLIP_OFFSET and not enableFirstPersonDeathCam then
+            enableFirstPersonDeathCam = true
+            -- 滚轮放大时退出第一人称模式
+        elseif activeOffset > ANTI_CLIP_OFFSET and enableFirstPersonDeathCam then
+            enableFirstPersonDeathCam = false
+        end
     end)
 
     hook.Add("CalcView", Constants.ADDON_NAME .. MODULE_NAME .. "CalcView",
@@ -155,23 +167,31 @@ else -- CLIENT
             local ragdoll = ply:GetRagdollEntity()
             if not IsValid(ragdoll) then return end
 
-            local ragdollEye
-            local eyesID = ragdoll:LookupAttachment("eyes")
-            if eyesID and eyesID ~= 0 and eyesID ~= -1 then
-                local attach = ragdoll:GetAttachment(eyesID)
-                if attach then
-                    ragdollEye = attach.Pos
-                end
+            -- 公用：获取眼睛位置和附件数据
+            local eyeAttachID = ragdoll:LookupAttachment("eyes")
+            local eyeAttach = (eyeAttachID and eyeAttachID > 0) and ragdoll:GetAttachment(eyeAttachID) or nil
+            local ragdollEye = eyeAttach and eyeAttach.Pos or ragdoll:EyePos()
+            local ragdollEyeAng = eyeAttach and eyeAttach.Ang or nil
+
+            -- ========== 第一人称死亡视角（固定视角） ==========
+            if enableFirstPersonDeathCam then
+                -- 使用布娃娃眼睛附件的角度，若不存在则回退到玩家视角角度
+                local viewAngles = ragdollEyeAng or angles
+                return {
+                    origin = ragdollEye,
+                    angles = viewAngles,
+                    fov = fov,
+                    znear = znear + ANTI_CLIP_OFFSET,
+                    zfar = zfar,
+                    drawviewer = false,
+                }
             end
 
-            if not ragdollEye then
-                ragdollEye = ragdoll:EyePos()
-            end
-
+            -- ========== 原有第三人称逻辑 ==========
             local dir = -angles:Forward()
             local tr = util.TraceLine({
                 start = ragdollEye,
-                endpos = ragdollEye + dir * ORIGIN_OFFSET,
+                endpos = ragdollEye + dir * activeOffset,
                 filter = { ply, ragdoll },
             })
 
@@ -189,7 +209,7 @@ else -- CLIENT
                     end
 
                     horizDir:Normalize()
-                    local rCircleSqr = ORIGIN_OFFSET_SQR - d * d
+                    local rCircleSqr = activeOffsetSqr - d * d
                     if hitPos:Distance2DSqr(center) < rCircleSqr then
                         local r_circle = math.sqrt(rCircleSqr)
                         local pointOnCircle = center + horizDir * r_circle
@@ -201,7 +221,7 @@ else -- CLIENT
                     newOrigin = hitPos - dir * ANTI_CLIP_OFFSET
                 end
             else
-                newOrigin = ragdollEye + dir * ORIGIN_OFFSET
+                newOrigin = ragdollEye + dir * activeOffset
             end
 
             local viewAngles = (ragdollEye - newOrigin):Angle()
