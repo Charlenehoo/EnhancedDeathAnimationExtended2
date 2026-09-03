@@ -1,10 +1,11 @@
 -- lua/edae/rm/ragdoll_manager.lua
 -- 布娃娃管理器（门面）：负责协调布娃娃生命周期中的各个模块
--- 本模块只负责：
---   1. 响应状态变化事件，停止旧动画并启动新动画（通过 AnimationPlaybackController）
---   2. 监听复活请求事件，执行实际复活（PerformRevive）
---   3. 提供对外的自救请求/取消接口，内部委托给 LifeCycleHandler
--- 所有状态决策逻辑均在 LifeCycleHandler 中
+-- 职责：
+--   1. 监听原始游戏事件（创建、伤害、网络消息），翻译为停止原因并调用 PlaybackCoordinator:Stop
+--   2. 监听状态变化事件（OnRagdollStateChange），只启动新播放，不停止旧播放
+--   3. 处理血量耗尽事件，触发停止
+--   4. 对外提供自救请求/取消接口
+--   5. 执行复活逻辑
 
 local MODULE_NAME = "RagdollManager"
 
@@ -13,74 +14,64 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants                   = include("edae/config/constants.lua")
-local log                         = include("edae/log/init.lua")
-local EntityDataStore             = include("edae/eds/entity_data_store.lua")
-local DamageContextManager        = include("edae/damage_context_manager.lua")
-local LifeCycleHandler            = include("edae/lch/life_cycle_handler.lua")
-local RagdollHealthManager        = include("edae/rm/health_manager.lua")
-local RagdollPoseHelper           = include("edae/rm/pose_helper.lua")
-local AnimationPlaybackController = include("edae/rm/playback_controller.lua")
-local AnimationPlayer             = include("edae/ap/animation_player.lua")
-local TwitchController            = include("edae/tc/twitch_controller.lua")
-local VoiceManager                = include("edae/rm/voice_manager.lua")
+local Constants            = include("edae/config/constants.lua")
+local log                  = include("edae/log/init.lua")
+local EntityDataStore      = include("edae/eds/entity_data_store.lua")
+local DamageContextManager = include("edae/damage_context_manager.lua")
+local LifeCycleHandler     = include("edae/life_cycle_handler.lua")
+local HealthManager        = include("edae/rm/health_manager.lua")
+local RagdollPoseHelper    = include("edae/rm/pose_helper.lua")
+local PlaybackCoordinator  = include("edae/rm/playback_coordinator.lua")
+local VoiceManager         = include("edae/rm/voice_manager.lua")
 
-local store                       = EntityDataStore:ForOwner(MODULE_NAME)
+local store                = EntityDataStore:ForOwner(MODULE_NAME)
 
-local STATE_ENUM                  = Constants.LifeCycleHandler.STATE_ENUM
-local Events                      = Constants.Events
+local STATE_ENUM           = Constants.LifeCycleHandler.STATE_ENUM
+local PlaybackReasons      = Constants.PlaybackReasons
+local Events               = Constants.Events
 
-local Manager                     = {}
+local Manager              = {}
 
 -- ============================================================
--- 对外委托接口（保留部分常用方法，方便外部调用）
+-- 对外委托接口
 -- ============================================================
 
---- 获取布娃娃血量
 function Manager:GetHealth(ragdoll)
-    return RagdollHealthManager:Get(ragdoll)
+    return HealthManager:Get(ragdoll)
 end
 
---- 设置布娃娃血量
 function Manager:SetHealth(ragdoll, health)
-    return RagdollHealthManager:Set(ragdoll, health)
+    return HealthManager:Set(ragdoll, health)
 end
 
---- 判断布娃娃是否面朝上
 function Manager:IsFacingUp(ragdoll)
     return RagdollPoseHelper:IsFacingUp(ragdoll)
 end
 
 -- ============================================================
--- 自救接口（对外，内部委托给 LifeCycleHandler）
+-- 自救/取消自救接口（由 PlayerProxy 调用）
 -- ============================================================
 
---- 请求开始自救
---- @param ply Player 死亡玩家的实体
 function Manager:RequestSelfRevive(ply)
     if not IsValid(ply) or ply:Alive() then return end
     local ragdoll = ply:GetRagdollEntity()
     if not IsValid(ragdoll) then return end
 
-    LifeCycleHandler:RequestSelfRevive(ragdoll)
+    PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.InterruptedBySelfRevive)
 end
 
---- 请求取消自救
---- @param ply Player 死亡玩家的实体
 function Manager:CancelSelfRevive(ply)
     if not IsValid(ply) or ply:Alive() then return end
     local ragdoll = ply:GetRagdollEntity()
     if not IsValid(ragdoll) then return end
 
-    LifeCycleHandler:CancelSelfRevive(ragdoll)
+    PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.Cancelled)
 end
 
 -- ============================================================
--- 复活执行（实际重生玩家）
+-- 复活执行
 -- ============================================================
 
---- 执行真正复活：删除布娃娃，重生玩家，给予短暂无敌
---- @param ragdoll Entity 布娃娃实体
 function Manager:PerformRevive(ragdoll)
     if not IsValid(ragdoll) then return end
 
@@ -121,17 +112,15 @@ function Manager:OnCreate(owner, ragdoll)
 
     store:Set(ragdoll, "Owner", owner)
 
-    local currentHealth = RagdollHealthManager:Get(ragdoll)
-    if currentHealth == nil then
-        RagdollHealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
-    end
+    -- 初始化血量
+    HealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
 
+    -- 获取并清除伤害上下文
     local damageContext = DamageContextManager:Get(owner)
     DamageContextManager:Clear(owner)
 
-    local state = LifeCycleHandler:Init(ragdoll, damageContext)
-
-    AnimationPlaybackController:PlayForState(ragdoll, state, damageContext, owner)
+    -- 初始化状态机：会触发 OnRagdollStateChange，从而自动启动初始播放
+    LifeCycleHandler:Init(ragdoll, damageContext)
 
     hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
 end
@@ -143,93 +132,82 @@ function Manager:OnTakeDamage(ragdoll, dmginfo)
     local owner = store:Get(ragdoll, "Owner")
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
+    -- 爬行状态受击播放音效
     if currentState == STATE_ENUM.CRAWLING and IsValid(owner) then
         VoiceManager:PlayDamageSound(owner)
     end
 
     local damage = dmginfo:GetDamage()
-    local died = RagdollHealthManager:Damage(ragdoll, damage)
+    local died = HealthManager:Damage(ragdoll, damage)
 
     if died then
-        LifeCycleHandler:SetState(ragdoll, STATE_ENUM.DEAD)
-        VoiceManager:StopAll(owner)
-    else
-        LifeCycleHandler:DetermineState(ragdoll)
+        PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.InterruptedByHealthDepleted)
     end
 end
 
---- 布娃娃状态改变（由 LifeCycleHandler 触发事件）
---- 职责：停止旧动画，启动新动画（除非新状态为 DEAD）
-function Manager:OnStateChange(ragdoll, state, fromState)
+--- 状态变化响应：只启动新播放，不停止旧播放
+function Manager:OnStateChange(ragdoll, state, fromState, initData)
     if not IsValid(ragdoll) then return end
 
     local owner = store:Get(ragdoll, "Owner")
 
-    if fromState == STATE_ENUM.CRAWLING and state == STATE_ENUM.DEAD then
-        VoiceManager:PlayDeathSound(owner)
+    -- 语音处理
+    if state == STATE_ENUM.DEAD then
+        VoiceManager:StopAll(owner)
+        if fromState == STATE_ENUM.CRAWLING then
+            VoiceManager:PlayDeathSound(owner)
+        end
     else
         VoiceManager:StopAll(owner)
     end
 
-    -- 停止当前动画（无论新状态是什么，先停止之前的）
-    AnimationPlayer:Stop(ragdoll)
-    TwitchController:Stop(ragdoll)
-
-    -- DEAD 状态无需播放动画
     if state == STATE_ENUM.DEAD then
-        return
+        return -- 死亡不播放
     end
 
-    -- 所有非 DEAD 状态（包括 FALLING、CRAWLING、WRITHING、TWITCHING、SELF_REVIVING、GETTING_UP）
-    -- 都通过 AnimationPlaybackController 自动播放对应动画
-    AnimationPlaybackController:PlayForState(ragdoll, state, nil, owner)
-end
+    -- 玩家相机模式：默认 false，可根据实际需求从上层传入
+    local isPlayerCameraMode = false
 
--- ============================================================
--- 监听取消自救请求事件（由 LifeCycleHandler 发出）
--- ============================================================
-hook.Add("EDAE_OnSelfReviveCancelRequested", Constants.ADDON_NAME .. MODULE_NAME .. "OnSelfReviveCancelRequested",
-    function(ragdoll)
-        if not IsValid(ragdoll) then return end
-        AnimationPlayer:Cancel(ragdoll)
-    end)
+    -- 启动新播放
+    PlaybackCoordinator:Start(ragdoll, state, initData, owner, isPlayerCameraMode)
+end
 
 -- ============================================================
 -- 事件订阅
 -- ============================================================
 
-hook.Add(Events.OnRagdollStateChange, Constants.ADDON_NAME .. MODULE_NAME .. Events.OnRagdollStateChange,
-    function(ragdoll, state, fromState)
+-- 状态变化
+hook.Add(Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
+    function(ragdoll, state, fromState, initData)
         if not IsValid(ragdoll) then return end
-        Manager:OnStateChange(ragdoll, state, fromState)
+        Manager:OnStateChange(ragdoll, state, fromState, initData)
     end)
 
-hook.Add("CreateEntityRagdoll", Constants.ADDON_NAME .. MODULE_NAME .. "CreateEntityRagdoll",
-    function(owner, ragdoll)
-        if not IsValid(owner) or not IsValid(ragdoll) then return end
-        if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
-        Manager:OnCreate(owner, ragdoll)
-    end)
+-- 布娃娃创建
+hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
+    if not IsValid(owner) or not IsValid(ragdoll) then return end
+    if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
+    Manager:OnCreate(owner, ragdoll)
+end)
 
-hook.Add("PostEntityTakeDamage", Constants.ADDON_NAME .. MODULE_NAME .. "PostEntityTakeDamage",
-    function(ent, dmginfo, wasDamageTaken)
-        if not wasDamageTaken then return end
-        if not IsValid(ent) or not ent:IsRagdoll() or ent:GetClass() ~= Constants.RAGDOLL_CLASS then return end
-        Manager:OnTakeDamage(ent, dmginfo)
-    end)
+-- 布娃娃受到伤害
+hook.Add("PostEntityTakeDamage", MODULE_NAME .. "_PostEntityTakeDamage", function(ent, dmginfo, wasDamageTaken)
+    if not wasDamageTaken then return end
+    if not IsValid(ent) or not ent:IsRagdoll() or ent:GetClass() ~= Constants.RAGDOLL_CLASS then return end
+    Manager:OnTakeDamage(ent, dmginfo)
+end)
 
-hook.Add(Constants.Events.OnRagdollHealthChanged, Constants.ADDON_NAME .. MODULE_NAME .. "OnRagdollHealthChanged",
-    function(ragdoll, newHealth)
-        if not IsValid(ragdoll) then return end
-        LifeCycleHandler:DetermineState(ragdoll)
-    end)
+-- 血量耗尽事件（由 EffectBuilder 在血量归零时触发）
+hook.Add(Events.OnRagdollHealthDepleted, MODULE_NAME .. "_OnRagdollHealthDepleted", function(ragdoll, health)
+    if not IsValid(ragdoll) then return end
+    PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.InterruptedByHealthDepleted)
+end)
 
--- 监听复活请求事件（由 LifeCycleHandler 发出）
-hook.Add(Events.OnReviveRequested, Constants.ADDON_NAME .. MODULE_NAME .. "OnReviveRequested",
-    function(ragdoll)
-        if not IsValid(ragdoll) then return end
-        Manager:PerformRevive(ragdoll)
-    end)
+-- 复活请求
+hook.Add(Events.OnReviveRequested, MODULE_NAME .. "_OnReviveRequested", function(ragdoll)
+    if not IsValid(ragdoll) then return end
+    Manager:PerformRevive(ragdoll)
+end)
 
 -- 注册单例
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = Manager

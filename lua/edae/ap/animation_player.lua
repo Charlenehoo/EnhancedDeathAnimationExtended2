@@ -1,3 +1,8 @@
+-- lua/edae/ap/animation_player.lua
+-- 动画播放器：负责创建动画模型，驱动布娃娃骨骼跟随动画
+-- 底层只提供 Stop(ragdoll, reason) 接口，语义化别名（如 Cancel）由上层 Coordinator 提供
+-- 停止后先清理上下文，再发出 OnAnimationFinished 事件
+
 local MODULE_NAME = "AnimationPlayer"
 
 _EnhancedDeathAnimationExtendedSingletons = _EnhancedDeathAnimationExtendedSingletons or {}
@@ -37,29 +42,36 @@ local function alignAnimationModel(ctx)
     return true
 end
 
+-- 安全清理：仅清除自己的上下文，防止误删新播放的上下文
 local function cleanUp(ctx)
     local animationModel = ctx.animationModel
     if IsValid(animationModel) then
         animationModel:Remove()
     end
-    -- local ragdoll = ctx.ragdoll
-    -- store:Clear(ragdoll)
+
+    -- 只有存储中的上下文还是当前 ctx 时才清除
+    local currentCtx = store:Get(ctx.ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if currentCtx == ctx then
+        store:Clear(ctx.ragdoll)
+    end
 end
 
+--- 停止动画播放
+--- 底层唯一停止接口，接受原因字符串
+--- @param ragdoll Entity
+--- @param reason string 停止原因（Constants.PlaybackReasons 中的值）
+--- @return boolean 是否找到并标记了活动上下文
 function AnimationPlayer:Stop(ragdoll, reason)
     log.trace("AnimationPlayer:Stop called for ragdoll: ", tostring(ragdoll), " reason: ", tostring(reason))
     local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
     if not ctx then
-        log.warn("AnimationPlayer:Stop called for invalid context: ", tostring(ragdoll))
-        return
+        log.trace("AnimationPlayer:Stop no active context for ragdoll: ", tostring(ragdoll))
+        return false
     end
-    -- 记录请求的停止原因，默认为 "stop"
-    ctx.requestedStopReason = reason or "stop"
-    ctx.stopSignal = true
-end
 
-function AnimationPlayer:Cancel(ragdoll)
-    self:Stop(ragdoll, "cancelled")
+    ctx.requestedStopReason = reason or Constants.PlaybackReasons.Cancelled
+    ctx.stopSignal = true
+    return true
 end
 
 -- 旋转效果器：每帧检查旋转目标并调用 Helper 中的旋转算法
@@ -76,7 +88,6 @@ local function BuildRotateEffect()
                 ctx.rotateTargetPos,
                 ctx.rotateMaxTurnSpeed
             )
-            -- 旋转目标持续有效，由外部更新或清除
         end
     }
 end
@@ -90,23 +101,23 @@ local function playAnimationCoroutine(ctx)
     ctx.FallCount = 0
     ctx.HitWallCount = 0
 
-    local stopReason = "normal"
+    local stopReason = Constants.PlaybackReasons.CompletedNormally
+
     local function shouldTerminate()
         if not IsValid(ragdoll) or not IsValid(animationModel) then
-            stopReason = "invalid"
+            stopReason = Constants.PlaybackReasons.FailedByFall
             return true
         end
         if ctx.stopSignal then
-            -- 使用请求的停止原因（若未指定则使用默认 "stop"）
-            stopReason = ctx.requestedStopReason or "stop"
+            stopReason = ctx.requestedStopReason or Constants.PlaybackReasons.Cancelled
             return true
         end
         if ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT then
-            stopReason = "fall"
+            stopReason = Constants.PlaybackReasons.FailedByFall
             return true
         end
         if ctx.HitWallCount >= ctx.totalBones then
-            stopReason = "hitwall"
+            stopReason = Constants.PlaybackReasons.FailedByHitWall
             return true
         end
         return false
@@ -137,28 +148,25 @@ local function playAnimationCoroutine(ctx)
         ctx.loopCount = ctx.loopCount + 1
         log.trace("Loop: ", ctx.loopCount, "/", ctx.totalLoops)
 
-        -- ============================================================
-        -- 硬编码血量驱动减慢逻辑（仅当开启且当前状态需要时）
+        -- 血量驱动减慢逻辑（仅挣扎状态启用）
         if ctx.enableHealthBasedSlowdown then
-            local HealthManager = include("edae/rm/health_manager.lua") -- 顶部已引入则直接使用
+            local HealthManager = include("edae/rm/health_manager.lua")
             local currentHealth = HealthManager:Get(ctx.ragdoll)
             if currentHealth <= 0 then
+                stopReason = Constants.PlaybackReasons.InterruptedByHealthDepleted
                 break
             end
 
             local initialHealth = ctx.initialHealth or HealthManager:Get(ctx.ragdoll)
-            -- 如果未提供初始血量，则使用当前血量（避免除零）
             if initialHealth <= 0 then initialHealth = 1 end
 
             local rate = math.max(currentHealth / initialHealth, 0)
             local r = math.ease.InOutCubic(rate)
 
-            -- 1. 调整播放速率
             local newPlaybackRate = math.max(ctx.basePlaybackRate * r * math.Rand(0.8, 1.2), 0.1)
             ctx.animationDuration = ctx.baseAnimationDuration / newPlaybackRate
             ctx.animationModel:Fire("SetPlaybackRate", newPlaybackRate)
 
-            -- 2. 调整 CSC 参数（基于原始模板）
             if ctx.baseShadowParams then
                 ctx.shadowParamsTemplate.maxangular = math.max(
                     ctx.baseShadowParams.maxangular * r * math.Rand(0.8, 1.2),
@@ -169,15 +177,13 @@ local function playAnimationCoroutine(ctx)
             end
         end
 
-        -- 设置动画并等待
         ctx.animationModel:Fire("SetAnimation", ctx.animationName, 0)
         Scheduler:Wait(0.15)
-
         ctx.animationEndTime = CurTime() + ctx.animationDuration
 
         -- 内层循环：播放单次动画
         while not shouldTerminate() and CurTime() < ctx.animationEndTime do
-            -- 执行效果器（谓词 + 动作）
+            -- 执行效果器
             if ctx.effects then
                 for idx, effect in ipairs(ctx.effects) do
                     local stateKey = effect.name or idx
@@ -193,7 +199,7 @@ local function playAnimationCoroutine(ctx)
                 end
             end
 
-            -- 遍历所有骨骼（跳过已标记 Fall 的骨骼）
+            -- 遍历骨骼
             for i = 1, #ctx.boneMap do
                 local bone = ctx.boneMap[i]
 
@@ -210,9 +216,7 @@ local function playAnimationCoroutine(ctx)
                         continue
                     end
 
-                    -- 高度修正计算（与原版一致）
                     local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
-
                     local groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
                     if not groundPos then
                         bone.Fall = true
@@ -223,7 +227,6 @@ local function playAnimationCoroutine(ctx)
 
                     local hitDist = refer.z - groundPos.z
                     local diff = hitDist - bone.lastHitZ
-
                     bone.lastAddZ = diff + bone.lastAddZ
                     bone.lastHitZ = hitDist
 
@@ -272,25 +275,20 @@ local function playAnimationCoroutine(ctx)
         local ragdollPos = ragdoll:GetPos()
         local groundPos = traceGroundBelow(ragdollPos, { ragdoll, animationModel }) or ragdollPos
         animationModel:SetPos(groundPos)
-
         animationModel:Fire("SetAnimation", ctx.animationName, 0)
         Scheduler:Wait(0.15)
     end
 
-    hook.Run(Constants.Events.OnAnimationFinished, ragdoll, ctx.animationName, stopReason)
+    -- 先清理，再发射事件，确保状态机启动新播放时旧上下文已清除
     cleanUp(ctx)
+    hook.Run(Constants.Events.OnAnimationFinished, ragdoll, ctx.animationName, stopReason)
 end
 
 --- 播放动画
 --- @param ragdoll Entity
 --- @param animationName string
---- @param opts table|nil
----   opts.animationModelName string
----   opts.shadowParamsTemplate table
----   opts.preWait table|nil 等待函数数组，每个函数接收 ctx
----   opts.effects table|nil 效果器数组，每个效果器格式：{ name = "string", predicate = function(ctx, state), action = function(ctx, state) }
----   opts.enableRotate boolean 是否启用旋转功能，默认 false
----   opts.rotateMaxTurnSpeed number|nil 最大旋转角速度（度/秒），nil 表示瞬时旋转
+--- @param opts table|nil 可选参数，包含动画模型名、总循环次数、预等待、效果器等
+--- @return boolean 是否成功启动
 function AnimationPlayer:Play(ragdoll, animationName, opts)
     if not IsValid(ragdoll) then
         log.warn("Invalid ragdoll: ", tostring(ragdoll))
@@ -315,8 +313,6 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     local ctx = {
         ragdoll                   = ragdoll,
         animationName             = animationName,
-        -- datum                     = helper.GetStandPos(ragdoll),
-
         totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
         groundPos                 = groundPos,
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
@@ -325,22 +321,20 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         basePlaybackRate          = opts.basePlaybackRate or 1.0,
         preWait                   = opts.preWait,
         boneWhitelist             = opts.boneWhitelist,
-        effects                   = opts.effects,
+        effects                   = opts.effects and table.Copy(opts.effects) or nil,
         effectStates              = {},
 
-        -- 旋转相关字段
         rotateTargetYaw           = nil,
         rotateTargetPos           = nil,
-        rotateMaxTurnSpeed        = opts.rotateMaxTurnSpeed or 360, -- 默认瞬时旋转
-        anchorPosGetter           = nil,                            -- 将在模型创建后设置
+        rotateMaxTurnSpeed        = opts.rotateMaxTurnSpeed or 360,
+        anchorPosGetter           = nil,
         enableRotate              = opts.enableRotate or false,
 
         shadowParamsTemplate      = opts.shadowParamsTemplate,
-        baseShadowParams          = nil, -- 由 helper 填充
+        baseShadowParams          = nil,
         animationModel            = nil,
         animationDuration         = nil,
-        baseAnimationDuration     = nil, -- 由 helper 填充
-        -- amDatumToPos              = nil,
+        baseAnimationDuration     = nil,
         ragdollPhysicsObjectCount = nil,
         boneMap                   = nil,
         amRefBoneID               = nil,
@@ -350,10 +344,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         FallCount                 = 0,
         HitWallCount              = 0,
         coro                      = nil,
-
-
-
-        stopSignal = nil,
+        stopSignal                = nil,
     }
 
     if
@@ -367,10 +358,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         return false
     end
 
-    -- 创建锚点获取闭包
     ctx.anchorPosGetter = helper.CreateAnchorPositionGetter(ctx.animationModel, ragdoll)
 
-    -- 如果启用旋转，添加旋转效果器
     if ctx.enableRotate then
         ctx.effects = ctx.effects or {}
         table.insert(ctx.effects, BuildRotateEffect())
@@ -420,11 +409,9 @@ function AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
         return false
     end
 
-    -- 获取当前实际朝向
     local currentYaw = ctx.animationModel:GetAngles().yaw
     local targetYaw = currentYaw + deltaYaw
 
-    -- 调用绝对旋转接口
     return self:Rotate(ragdoll, targetYaw, nil, maxTurnSpeed)
 end
 

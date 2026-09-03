@@ -1,7 +1,6 @@
---[[
-    骨骼白名单生成模块
-    集中管理所有骨骼名称，按需生成各类白名单表，避免重复定义。
---]]
+-- lua/edae/as/bone_whitelists.lua
+-- 骨骼白名单数据：按语义化结构组织，供动画/抽搐组装器使用
+-- 所有白名单的值均为 true 或数字（数字用于肢解分组）
 
 local BoneWhitelists = {}
 
@@ -88,9 +87,11 @@ local function makeBoneSet(shortNames, value)
     return t
 end
 
--- 生成 Animrag_Gib_Tb（肢解分组白名单）
-local function GenerateGibTb()
-    local t = {}
+-- ============================================================
+-- 肢解分组白名单（值表示所属分组，用于 Gib 相关逻辑）
+-- ============================================================
+local gib = {}
+do
     local groupAssignments = {
         [BONE_SHORT.Pelvis]     = 1,
         [BONE_SHORT.Spine1]     = 1,
@@ -112,28 +113,32 @@ local function GenerateGibTb()
         [BONE_SHORT.L_Hand]     = 2.4,
     }
     for short, group in pairs(groupAssignments) do
-        t[PREFIX .. short] = group
+        gib[PREFIX .. short] = group
     end
-    return t
 end
 
--- 生成 Hitbox_Tb（受伤骨骼有效性白名单）
-local function GenerateHitboxTb()
-    return makeBoneSet(FULL_BODY, true)
-end
+-- ============================================================
+-- 受伤有效性白名单（全部骨骼，值 true）
+-- ============================================================
+local hitbox = makeBoneSet(FULL_BODY, true)
 
--- 生成 NrmTb（完整标准控制集）
-local function GenerateNrmTb()
-    return makeBoneSet(STANDARD_CONTROL, true)
-end
+-- ============================================================
+-- 标准控制集（值 true）
+-- ============================================================
+local normal = makeBoneSet(STANDARD_CONTROL, true)
 
--- 生成 MoveTb_D 系列（死亡动画控制骨骼集合，返回数组 {MoveTb_1, MoveTb_2, MoveTb_3}）
-local function GenerateMoveTbD()
-    -- MoveTb_1：全量控制
-    local MoveTb_1 = makeBoneSet(STANDARD_CONTROL, true)
+-- ============================================================
+-- 死亡动画控制白名单（三个强度等级）
+-- level: full（全量）, moderate（中等）, minimal（最小）
+-- ============================================================
+local death = {}
 
-    -- MoveTb_2：减少部分控制
-    local exclude_2 = {
+-- full：使用标准控制集
+death.full = makeBoneSet(STANDARD_CONTROL, true)
+
+-- moderate：在标准控制集基础上移除部分骨骼
+do
+    local exclude = {
         BONE_SHORT.Spine1,
         BONE_SHORT.R_Foot,
         BONE_SHORT.L_Foot,
@@ -142,13 +147,15 @@ local function GenerateMoveTbD()
         BONE_SHORT.L_Clavicle,
         BONE_SHORT.L_UpperArm,
     }
-    local MoveTb_2 = makeBoneSet(STANDARD_CONTROL, true)
-    for _, short in ipairs(exclude_2) do
-        MoveTb_2[PREFIX .. short] = nil
+    death.moderate = makeBoneSet(STANDARD_CONTROL, true)
+    for _, short in ipairs(exclude) do
+        death.moderate[PREFIX .. short] = nil
     end
+end
 
-    -- MoveTb_3：进一步减少
-    local exclude_3 = {
+-- minimal：进一步减少
+do
+    local exclude = {
         BONE_SHORT.Pelvis,
         BONE_SHORT.Spine1,
         BONE_SHORT.R_Thigh,
@@ -160,116 +167,156 @@ local function GenerateMoveTbD()
         BONE_SHORT.L_Forearm,
         BONE_SHORT.L_Hand,
     }
-    local MoveTb_3 = makeBoneSet(STANDARD_CONTROL, true)
-    for _, short in ipairs(exclude_3) do
-        MoveTb_3[PREFIX .. short] = nil
+    death.minimal = makeBoneSet(STANDARD_CONTROL, true)
+    for _, short in ipairs(exclude) do
+        death.minimal[PREFIX .. short] = nil
     end
-
-    return { MoveTb_1, MoveTb_2, MoveTb_3 }
 end
 
--- 生成 MoveTb_C 系列（爬行/挣扎动画控制骨骼集合）
-local function GenerateMoveTbC()
-    -- 面朝上使用的 MoveTb_1
-    local MoveTb_1 = makeBoneSet({
-        BONE_SHORT.Pelvis,
-        BONE_SHORT.Spine4,
-        BONE_SHORT.R_Calf,
-        BONE_SHORT.L_Calf,
-        BONE_SHORT.R_Forearm,
-        BONE_SHORT.R_Hand,
-        BONE_SHORT.L_Forearm,
-        BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
+-- ============================================================
+-- 爬行动画控制白名单
+-- face_up：面朝上
+-- face_down：面朝下，包含两组变体（group_a 对应原 MoveTb_2 系列，group_b 对应原 MoveTb_3 系列）
+-- ============================================================
+local crawl = {}
 
-    -- 面朝下使用的 MoveTb_2 系列（6个子表）
-    local MoveTb_2_1 = makeBoneSet({
-        BONE_SHORT.R_Thigh, BONE_SHORT.R_Calf, BONE_SHORT.R_Foot,
-        BONE_SHORT.L_Thigh, BONE_SHORT.L_Calf, BONE_SHORT.L_Foot,
-        BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
-        BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_2_2 = makeBoneSet({
-        BONE_SHORT.R_Clavicle, BONE_SHORT.R_UpperArm, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
-        BONE_SHORT.L_Clavicle, BONE_SHORT.L_UpperArm, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_2_3 = makeBoneSet({
-        BONE_SHORT.L_Thigh, BONE_SHORT.L_Calf, BONE_SHORT.L_Foot,
-        BONE_SHORT.R_Clavicle, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
-        BONE_SHORT.L_Clavicle, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_2_4 = makeBoneSet({
-        BONE_SHORT.R_Thigh, BONE_SHORT.R_Calf, BONE_SHORT.R_Foot,
-        BONE_SHORT.R_Clavicle, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
-        BONE_SHORT.L_Clavicle, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_2_5 = makeBoneSet({
-        BONE_SHORT.R_Thigh, BONE_SHORT.R_Calf, BONE_SHORT.R_Foot,
-        BONE_SHORT.L_Clavicle, BONE_SHORT.L_UpperArm, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_2_6 = makeBoneSet({
-        BONE_SHORT.L_Thigh, BONE_SHORT.L_Calf, BONE_SHORT.L_Foot,
-        BONE_SHORT.R_Clavicle, BONE_SHORT.R_UpperArm, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_2 = { MoveTb_2_1, MoveTb_2_2, MoveTb_2_3, MoveTb_2_4, MoveTb_2_5, MoveTb_2_6 }
+-- 面朝上（使用与挣扎相同的控制集）
+crawl.face_up = makeBoneSet({
+    BONE_SHORT.Pelvis,
+    BONE_SHORT.Spine4,
+    BONE_SHORT.R_Calf,
+    BONE_SHORT.L_Calf,
+    BONE_SHORT.R_Forearm,
+    BONE_SHORT.R_Hand,
+    BONE_SHORT.L_Forearm,
+    BONE_SHORT.L_Hand,
+    BONE_SHORT.Head1,
+}, true)
 
-    -- 面朝下使用的 MoveTb_3 系列（3个子表）
-    local MoveTb_3_1 = makeBoneSet({
-        BONE_SHORT.Spine4,
-        BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
-        BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_3_2 = makeBoneSet({
-        BONE_SHORT.Spine4,
-        BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_3_3 = makeBoneSet({
-        BONE_SHORT.Spine4,
-        BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
-        BONE_SHORT.Head1,
-    }, true)
-    local MoveTb_3 = { MoveTb_3_1, MoveTb_3_2, MoveTb_3_3 }
+-- 面朝下：group_a（原 MoveTb_2，6 个变体）
+crawl.face_down = {
+    group_a = {},
+    group_b = {},
+}
 
-    return {
-        MoveTb_1 = MoveTb_1,
-        MoveTb_2 = MoveTb_2,
-        MoveTb_3 = MoveTb_3,
+-- 生成 group_a 的 6 个变体
+do
+    local variants = {
+        { -- variant 1
+            BONE_SHORT.R_Thigh, BONE_SHORT.R_Calf, BONE_SHORT.R_Foot,
+            BONE_SHORT.L_Thigh, BONE_SHORT.L_Calf, BONE_SHORT.L_Foot,
+            BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
+            BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
+            BONE_SHORT.Head1,
+        },
+        { -- variant 2
+            BONE_SHORT.R_Clavicle, BONE_SHORT.R_UpperArm, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
+            BONE_SHORT.L_Clavicle, BONE_SHORT.L_UpperArm, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
+            BONE_SHORT.Head1,
+        },
+        { -- variant 3
+            BONE_SHORT.L_Thigh, BONE_SHORT.L_Calf, BONE_SHORT.L_Foot,
+            BONE_SHORT.R_Clavicle, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
+            BONE_SHORT.L_Clavicle, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
+            BONE_SHORT.Head1,
+        },
+        { -- variant 4
+            BONE_SHORT.R_Thigh, BONE_SHORT.R_Calf, BONE_SHORT.R_Foot,
+            BONE_SHORT.R_Clavicle, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
+            BONE_SHORT.L_Clavicle, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
+            BONE_SHORT.Head1,
+        },
+        { -- variant 5
+            BONE_SHORT.R_Thigh, BONE_SHORT.R_Calf, BONE_SHORT.R_Foot,
+            BONE_SHORT.L_Clavicle, BONE_SHORT.L_UpperArm, BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
+            BONE_SHORT.Head1,
+        },
+        { -- variant 6
+            BONE_SHORT.L_Thigh, BONE_SHORT.L_Calf, BONE_SHORT.L_Foot,
+            BONE_SHORT.R_Clavicle, BONE_SHORT.R_UpperArm, BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
+            BONE_SHORT.Head1,
+        },
     }
+    for i, v in ipairs(variants) do
+        crawl.face_down.group_a[i] = makeBoneSet(v, true)
+    end
 end
 
--- 生成抽搐用骨骼白名单
-local function GenerateTwitchTb()
-    return makeBoneSet({
-        BONE_SHORT.Pelvis,
-        BONE_SHORT.Spine,
-        BONE_SHORT.Spine1,
-        BONE_SHORT.Spine2,
-        BONE_SHORT.Spine3,
-        BONE_SHORT.Spine4,
-        BONE_SHORT.R_Thigh,
-        BONE_SHORT.L_Thigh,
-        BONE_SHORT.R_Clavicle,
-        BONE_SHORT.R_UpperArm,
-        BONE_SHORT.L_Clavicle,
-        BONE_SHORT.L_UpperArm,
-    }, true)
+-- 生成 group_b 的 3 个变体（原 MoveTb_3 系列）
+do
+    local variants = {
+        { -- variant 1
+            BONE_SHORT.Spine4,
+            BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
+            BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
+            BONE_SHORT.Head1,
+        },
+        { -- variant 2
+            BONE_SHORT.Spine4,
+            BONE_SHORT.L_Forearm, BONE_SHORT.L_Hand,
+            BONE_SHORT.Head1,
+        },
+        { -- variant 3
+            BONE_SHORT.Spine4,
+            BONE_SHORT.R_Forearm, BONE_SHORT.R_Hand,
+            BONE_SHORT.Head1,
+        },
+    }
+    for i, v in ipairs(variants) do
+        crawl.face_down.group_b[i] = makeBoneSet(v, true)
+    end
 end
 
--- 生成所有白名单并缓存
-BoneWhitelists.GibTb    = GenerateGibTb()
-BoneWhitelists.HitboxTb = GenerateHitboxTb()
-BoneWhitelists.NrmTb    = GenerateNrmTb()
-BoneWhitelists.MoveTbD  = GenerateMoveTbD() -- 数组：[1]=MoveTb_1, [2]=MoveTb_2, [3]=MoveTb_3
-BoneWhitelists.MoveTbC  = GenerateMoveTbC() -- 表：{ MoveTb_1, MoveTb_2(数组), MoveTb_3(数组) }
-BoneWhitelists.TwitchTb = GenerateTwitchTb()
+-- ============================================================
+-- 挣扎动画控制白名单（与爬行面朝上相同）
+-- ============================================================
+local writhe                                     = makeBoneSet({
+    BONE_SHORT.Pelvis,
+    BONE_SHORT.Spine4,
+    BONE_SHORT.R_Calf,
+    BONE_SHORT.L_Calf,
+    BONE_SHORT.R_Forearm,
+    BONE_SHORT.R_Hand,
+    BONE_SHORT.L_Forearm,
+    BONE_SHORT.L_Hand,
+    BONE_SHORT.Head1,
+}, true)
+
+-- ============================================================
+-- 抽搐控制白名单
+-- ============================================================
+local twitch                                     = makeBoneSet({
+    BONE_SHORT.Pelvis,
+    BONE_SHORT.Spine,
+    BONE_SHORT.Spine1,
+    BONE_SHORT.Spine2,
+    BONE_SHORT.Spine3,
+    BONE_SHORT.Spine4,
+    BONE_SHORT.R_Thigh,
+    BONE_SHORT.L_Thigh,
+    BONE_SHORT.R_Clavicle,
+    BONE_SHORT.R_UpperArm,
+    BONE_SHORT.L_Clavicle,
+    BONE_SHORT.L_UpperArm,
+}, true)
+
+-- ============================================================
+-- 玩家相机模式下的爬行白名单（基于标准控制集，移除 Head1 和 Spine4）
+-- ============================================================
+local player_camera_crawl                        = makeBoneSet(STANDARD_CONTROL, true)
+player_camera_crawl[PREFIX .. BONE_SHORT.Head1]  = nil
+player_camera_crawl[PREFIX .. BONE_SHORT.Spine4] = nil
+
+-- ============================================================
+-- 组装最终输出
+-- ============================================================
+BoneWhitelists.gib                               = gib
+BoneWhitelists.hitbox                            = hitbox
+BoneWhitelists.normal                            = normal
+BoneWhitelists.death                             = death
+BoneWhitelists.crawl                             = crawl
+BoneWhitelists.writhe                            = writhe
+BoneWhitelists.twitch                            = twitch
+BoneWhitelists.player_camera_crawl               = player_camera_crawl
 
 return BoneWhitelists
