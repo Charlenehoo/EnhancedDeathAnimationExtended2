@@ -1,20 +1,8 @@
 -- lua/edae/as/animation_selector.lua
 -- 动画选择器：根据状态和必要信息返回一个动画名字符串
 -- 该模块只负责动画名称的选择，不涉及骨骼白名单、效果器等组装参数
--- 参数传递完全展平，所有必要信息通过一个 info 表传入
--- info 表字段：
---   state       : string 当前状态（STATE_ENUM 之一）
---   isBurn      : boolean (可选，FALLING 使用)
---   isBlast     : boolean (可选)
---   isMoving    : boolean (可选)
---   isClub      : boolean (可选)
---   hitGroup    : number (可选，HITGROUP_*)
---   neckShot    : boolean (可选)
---   shotgunShot : boolean (可选)
---   backShot    : boolean (可选)
---   pelvisShot  : boolean (可选)
---   isFacingUp  : boolean (可选，用于非 FALLING 状态)
---   useFemale   : boolean (可选，用于爬行动画选择)
+-- 参数透明：主函数接收 state 和 info 表，info 中仅包含除 state 外的其他必要参数
+-- 子选择器只接收自己所需的参数，不接触完整 info 表
 
 local MODULE_NAME = "AnimationSelector"
 
@@ -40,38 +28,47 @@ local function randomFromList(list)
 end
 
 -- ============================================================
--- 各状态对应的动画选择函数（均返回动画名字符串）
+-- 各状态对应的动画选择函数（参数透明，只接收必要参数）
 -- ============================================================
 
 --- 死亡动画选择（FALLING 状态）
---- @param info table 展平的伤害信息
+--- @param isBurn boolean
+--- @param isBlast boolean
+--- @param isMoving boolean
+--- @param isClub boolean
+--- @param hitGroup number
+--- @param neckShot boolean
+--- @param shotgunShot boolean
+--- @param backShot boolean
+--- @param pelvisShot boolean
 --- @return string|nil 动画名
-local function selectDeathAnimation(info)
+local function selectDeathAnimation(isBurn, isBlast, isMoving, isClub, hitGroup, neckShot, shotgunShot, backShot,
+                                    pelvisShot)
     local category = nil
 
-    if info.isBurn then
+    if isBurn then
         category = animationCategories.damage.fire
-    elseif info.isBlast then
+    elseif isBlast then
         category = animationCategories.damage.explosion
-    elseif info.isMoving then
+    elseif isMoving then
         category = animationCategories.damage.moving
-    elseif info.isClub then
+    elseif isClub then
         category = animationCategories.damage.club
     else
-        local hitGroup = info.hitGroup or HITGROUP_GENERIC
+        hitGroup = hitGroup or HITGROUP_GENERIC
 
         if hitGroup == HITGROUP_HEAD then
-            if info.neckShot then
+            if neckShot then
                 category = animationCategories.damage.neck
             else
                 category = animationCategories.damage.head
             end
-        elseif info.shotgunShot then
+        elseif shotgunShot then
             category = animationCategories.damage.shotgun
         elseif hitGroup == HITGROUP_CHEST or hitGroup == HITGROUP_STOMACH then
-            if info.pelvisShot then
+            if pelvisShot then
                 category = animationCategories.damage.pelvis
-            elseif info.backShot then
+            elseif backShot then
                 category = animationCategories.damage.back
             else
                 category = animationCategories.damage.torso
@@ -99,12 +96,10 @@ local function selectDeathAnimation(info)
 end
 
 --- 爬行动画选择（CRAWLING 状态）
---- @param info table 包含 isFacingUp, useFemale 字段
+--- @param isFacingUp boolean
+--- @param useFemale boolean
 --- @return string 动画名
-local function selectCrawlAnimation(info)
-    local isFacingUp = info.isFacingUp
-    local useFemale = info.useFemale
-
+local function selectCrawlAnimation(isFacingUp, useFemale)
     if isFacingUp then
         if useFemale then
             return animationCategories.crawl.face_up.female[1]
@@ -123,10 +118,10 @@ local function selectCrawlAnimation(info)
 end
 
 --- 挣扎动画选择（WRITHING 状态）
---- @param info table 包含 isFacingUp 字段
+--- @param isFacingUp boolean
 --- @return string 动画名
-local function selectWritheAnimation(info)
-    if info.isFacingUp then
+local function selectWritheAnimation(isFacingUp)
+    if isFacingUp then
         return animationCategories.writhe.face_up[1]
     else
         return animationCategories.writhe.face_down[1]
@@ -134,10 +129,10 @@ local function selectWritheAnimation(info)
 end
 
 --- 自救动画选择（SELF_REVIVING 状态）
---- @param info table 包含 isFacingUp 字段
+--- @param isFacingUp boolean
 --- @return string 动画名
-local function selectSelfReviveAnimation(info)
-    if info.isFacingUp then
+local function selectSelfReviveAnimation(isFacingUp)
+    if isFacingUp then
         return randomFromList(animationCategories.self_revive.face_up)
     else
         return animationCategories.self_revive.face_down[1]
@@ -145,10 +140,10 @@ local function selectSelfReviveAnimation(info)
 end
 
 --- 起身动画选择（GETTING_UP 状态）
---- @param info table 包含 isFacingUp 字段
+--- @param isFacingUp boolean
 --- @return string 动画名
-local function selectGettingUpAnimation(info)
-    if info.isFacingUp then
+local function selectGettingUpAnimation(isFacingUp)
+    if isFacingUp then
         return randomFromList(animationCategories.getting_up.face_up)
     else
         return randomFromList(animationCategories.getting_up.face_down)
@@ -159,9 +154,9 @@ end
 -- 主选择函数（供 AnimationAssembler 调用）
 -- ============================================================
 
---- 根据展平的 info 表选择动画名
---- @param info table 包含以下字段：
----   state       : string 当前状态（STATE_ENUM 之一）
+--- 根据状态和展平的 info 表选择动画名
+--- @param state string 当前状态（STATE_ENUM 之一）
+--- @param info table 包含除 state 外的其他必要参数，字段如下：
 ---   isBurn      : boolean (可选，FALLING 使用)
 ---   isBlast     : boolean (可选)
 ---   isMoving    : boolean (可选)
@@ -174,24 +169,33 @@ end
 ---   isFacingUp  : boolean (可选，用于非 FALLING 状态)
 ---   useFemale   : boolean (可选，用于爬行动画选择)
 --- @return string|nil 动画名，若无法选择返回 nil
-function AnimationSelector:SelectAnimation(info)
-    if not info or not info.state then
-        log.warn("AnimationSelector: missing state in info")
+function AnimationSelector:SelectAnimation(state, info)
+    if not state then
+        log.warn("AnimationSelector: missing state")
         return nil
     end
-
-    local state = info.state
+    info = info or {}
 
     if state == STATE_ENUM.FALLING then
-        return selectDeathAnimation(info)
+        return selectDeathAnimation(
+            info.isBurn,
+            info.isBlast,
+            info.isMoving,
+            info.isClub,
+            info.hitGroup,
+            info.neckShot,
+            info.shotgunShot,
+            info.backShot,
+            info.pelvisShot
+        )
     elseif state == STATE_ENUM.CRAWLING then
-        return selectCrawlAnimation(info)
+        return selectCrawlAnimation(info.isFacingUp, info.useFemale)
     elseif state == STATE_ENUM.WRITHING then
-        return selectWritheAnimation(info)
+        return selectWritheAnimation(info.isFacingUp)
     elseif state == STATE_ENUM.SELF_REVIVING then
-        return selectSelfReviveAnimation(info)
+        return selectSelfReviveAnimation(info.isFacingUp)
     elseif state == STATE_ENUM.GETTING_UP then
-        return selectGettingUpAnimation(info)
+        return selectGettingUpAnimation(info.isFacingUp)
     else
         if state == STATE_ENUM.DEAD then
             log.trace("AnimationSelector: state is 'dead', no animation will be played")
