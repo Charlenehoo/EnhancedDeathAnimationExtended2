@@ -14,7 +14,7 @@ local Constants       = include("edae/config/constants.lua")
 local log             = include("edae/log/init.lua")
 local boneWhitelists  = include("edae/as/bone_whitelists.lua")
 local PreWaitBuilder  = include("edae/as/prewait_builder.lua")
-local EffectBuilder   = include("edae/rm/effect_builder.lua")
+local EffectBuilder   = include("edae/as/effect_builder.lua")
 local HealthManager   = include("edae/rm/health_manager.lua")
 
 local STATE_ENUM      = Constants.LifeCycleHandler.STATE_ENUM

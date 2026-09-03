@@ -266,6 +266,7 @@ function TwitchController:Start(ragdoll, opts)
         effects             = effects and table.Copy(effects) or nil,
         effectStates        = {},
         preWait             = preWait,
+        boneWhitelist       = whitelist, -- 缺失此行
         stopSignal          = false,
         requestedStopReason = nil,
     }

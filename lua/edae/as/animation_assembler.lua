@@ -15,23 +15,24 @@ local log                   = include("edae/log/init.lua")
 local AnimationSelector     = include("edae/as/animation_selector.lua")
 local BoneWhitelistSelector = include("edae/as/bone_whitelist_selector.lua")
 local PreWaitBuilder        = include("edae/as/prewait_builder.lua")
-local EffectBuilder         = include("edae/rm/effect_builder.lua")
+local EffectBuilder         = include("edae/as/effect_builder.lua")
 local HealthManager         = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper     = include("edae/rm/pose_helper.lua")
 local helper                = include("edae/helper.lua")
-local isFemaleModels        = include("edae/config/is_female.lua") -- 女性模型名单
+local femaleModels          = include("edae/config/female_models.lua") -- 女性模型名单
 
 local STATE_ENUM            = Constants.LifeCycleHandler.STATE_ENUM
 
 local AnimationAssembler    = {}
 
--- 判断模型是否为女性（从 is_female.lua 名单查找）
+-- 判断模型是否为女性
 local function isFemaleModel(ragdoll)
     local modelName = ragdoll:GetModel()
     if not modelName then return false end
-
-    for _, femaleModel in ipairs(isFemaleModels) do
-        if modelName == femaleModel then
+    -- 提取文件名（去掉路径和扩展名）
+    local fileName = string.match(modelName, "([^/]+)%.mdl$") or modelName
+    for _, femaleModel in ipairs(femaleModels) do
+        if fileName == femaleModel then
             return true
         end
     end
