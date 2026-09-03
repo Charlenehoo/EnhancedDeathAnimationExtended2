@@ -3,6 +3,8 @@
 -- 此表由 AnimationAssembler 使用，通过 include 获取
 
 return {
+    "eve",
+    "kasumi",
     "alyx",
     "mossman",
     "female_01",
