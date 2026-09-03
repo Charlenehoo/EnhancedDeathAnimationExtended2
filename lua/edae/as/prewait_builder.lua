@@ -10,7 +10,9 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
+local Constants = include("edae/constants.lua")
 local Scheduler = include("edae/coroutine_scheduler.lua")
+local STATE_ENUM = Constants.LifeCycleHandler.STATE_ENUM
 
 local PreWaitBuilder = {}
 
@@ -48,7 +50,7 @@ end
 function PreWaitBuilder:Build(state, preWaitTime, stopLinearThreshold, stopAngularThreshold, stopTimeout,
                               stopCheckInterval)
     -- 仅爬行、挣扎、抽搐需要等待静止
-    if state ~= "crawling" and state ~= "writhing" and state ~= "twitching" then
+    if state ~= STATE_ENUM.CRAWLING and state ~= STATE_ENUM.WRITHING and state ~= STATE_ENUM.TWITCHING then
         return {}
     end
 

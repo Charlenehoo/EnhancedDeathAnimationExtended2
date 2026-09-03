@@ -77,8 +77,8 @@ return {
             oscillateBase = 0,
             oscillateAmp  = math.pi / 36, -- 垂直游移
             oscillateFreq = 1.8,
-            fadeTarget    = math.pi / 6,
-            spikeTarget   = math.pi / 3,
+            fadeTarget    = math.pi / 12,
+            spikeTarget   = math.pi / 6,
         },
     },
 }
