@@ -2,7 +2,7 @@
 -- FlexPlayer：面部形态键动画播放器
 -- 负责驱动 ragdoll 的面部 Flex 权重与眼睛方向，支持 oscillate / spike_fade / fade 三种模式
 -- 使用统一的 Scheduler 协程管理器，上下文存储在 EntityDataStore 中
--- 对外提供 Start(ragdoll, mode) 和 Stop(ragdoll) 接口
+-- 振荡衰减因子基于布娃娃当前血量计算（血量比例），血量越低，振荡幅度越小
 
 local MODULE_NAME = "FlexPlayer"
 
@@ -15,20 +15,21 @@ local Constants          = include("edae/config/constants.lua")
 local log                = include("edae/log/init.lua")
 local Scheduler          = include("edae/coroutine_scheduler.lua")
 local EntityDataStore    = include("edae/eds/entity_data_store.lua")
-local config             = include("edae/fp/config.lua") -- 模型配置
+local HealthManager      = include("edae/rm/health_manager.lua") -- 新增：获取血量
+local config             = include("edae/fp/config.lua")         -- 模型配置
 
 local store              = EntityDataStore:ForOwner(MODULE_NAME)
 local FLEX_CTX_KEY       = "FlexContext"
 
 -- ============================================================
--- 常量（可由 config 覆盖）
+-- 常量
 -- ============================================================
 local ANIM_DURATION      = 9.0
 local OSCILLATE_DURATION = 99999 -- 无限振荡
 local SPIKE_DURATION     = 0.3
 local SPIKE_COOLDOWN     = 2.1
 local FREQ               = 10.0
-local DECAY              = true
+-- DECAY 标志保留，但实际衰减由血量决定，此变量仅用于兼容（可忽略）
 
 -- ============================================================
 -- 数学与辅助
@@ -47,7 +48,7 @@ local function MakeEyeDir(hor, ver)
 end
 
 -- ============================================================
--- 眼睛控制策略（与 Death Face 原版一致，略作整理）
+-- 眼睛控制策略（与原版一致）
 -- ============================================================
 local function SetEyeDirection_EyeTarget(ent, hor, ver)
     local dir = MakeEyeDir(hor, ver)
@@ -210,9 +211,28 @@ end
 -- 状态处理函数
 -- ============================================================
 local function ProcessOscillate(ctx, animState, t_local, elapsed)
-    local globalDecay = DECAY and math.max(0, 1 - t_local / OSCILLATE_DURATION) or 1
+    -- 基于血量的衰减因子计算
+    local healthRatio = 1.0
+    if IsValid(ctx.entity) then
+        local currentHealth = HealthManager:Get(ctx.entity)
+        local maxHealth = Constants.RagdollManager.MAX_HEALTH
+        if maxHealth and maxHealth > 0 then
+            healthRatio = math.Clamp(currentHealth / maxHealth, 0, 1)
+        end
+    end
+
+    -- 可选：对血量比例做缓动，使衰减更平滑（例如 easeOutCubic）
+    -- local globalDecay = easeOutCubic(healthRatio)
+    -- 这里直接使用线性比例
+    local globalDecay = healthRatio
+
     for name, cfg in pairs(ctx.flexConfig) do
-        local decayFactor = (cfg.oscillateDecay == false) and 1 or globalDecay
+        local decayFactor
+        if cfg.oscillateDecay == false then
+            decayFactor = 1 -- 该键不衰减
+        else
+            decayFactor = globalDecay
+        end
         local layers = animState.flexWaves[name]
         if layers then
             animState.currentWeights[name] = ComputeOscillateWeight(cfg, layers, t_local, decayFactor)
@@ -220,6 +240,7 @@ local function ProcessOscillate(ctx, animState, t_local, elapsed)
             animState.currentWeights[name] = cfg.oscillateBase
         end
     end
+
     animState.currentHor = ComputeEyeAngle(animState.eyeHoriz, t_local, globalDecay)
     animState.currentVer = ComputeEyeAngle(animState.eyeVert, t_local, globalDecay)
 end
@@ -425,11 +446,11 @@ end
 -- ============================================================
 -- 实体移除时自动清理（可选，协程本身也会检查实体有效性）
 -- ============================================================
-hook.Add("EntityRemoved", MODULE_NAME .. "_EntityRemoved", function(ent)
-    if IsValid(ent) and store:Get(ent, FLEX_CTX_KEY) then
-        store:Clear(ent)
-    end
-end)
+-- hook.Add("EntityRemoved", MODULE_NAME .. "_EntityRemoved", function(ent)
+--     if IsValid(ent) and store:Get(ent, FLEX_CTX_KEY) then
+--         store:Clear(ent)
+--     end
+-- end)
 
 -- 注册单例
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = FlexPlayer
