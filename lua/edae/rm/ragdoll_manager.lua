@@ -23,6 +23,7 @@ local RagdollPoseHelper    = include("edae/rm/pose_helper.lua")
 local PlaybackCoordinator  = include("edae/rm/playback_coordinator.lua")
 local VoiceManager         = include("edae/rm/voice_manager.lua")
 local ReviveManager        = include("edae/rm/revive_manager.lua") -- 引入复活管理器
+local FlexPlayer           = include("edae/fp/flex_player.lua")
 
 local store                = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -125,6 +126,17 @@ function Manager:OnStateChange(ragdoll, state, fromState, initData)
         end
     else
         VoiceManager:StopAll(owner)
+    end
+
+    -- FlexPlayer 控制（新增）
+    if state == STATE_ENUM.DEAD then
+        if fromState == STATE_ENUM.CRAWLING then
+            FlexPlayer:SwitchMode(ragdoll, "spike_fade")
+        else
+            FlexPlayer:SwitchMode(ragdoll, "fade")
+        end
+    else
+        FlexPlayer:SwitchMode(ragdoll, "oscillate")
     end
 
     if state == STATE_ENUM.DEAD then
