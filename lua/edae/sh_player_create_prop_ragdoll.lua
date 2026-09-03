@@ -40,57 +40,57 @@ if SERVER then
         return originalCreateRagdoll(ply)
     end
 
-    meta.CreateRagdoll = function(self)
-        log.trace("Player.CreateRagdoll called for player: ", self)
-        if not IsValid(self) or not self:IsPlayer() then
-            log.warn("Invalid player: ", self)
-            return originalCreateRagdoll(self)
+    meta.CreateRagdoll = function(ply)
+        log.trace("Player.CreateRagdoll called for player: ", ply)
+        if not IsValid(ply) or not ply:IsPlayer() then
+            log.warn("Invalid player: ", ply)
+            return originalCreateRagdoll(ply)
         end
 
-        local plyModel = self:GetModel()
+        local plyModel = ply:GetModel()
         if not plyModel then
-            log.warn("Cannot find model for player: ", self)
-            return originalCreateRagdoll(self)
+            log.warn("Cannot find model for player: ", ply)
+            return originalCreateRagdoll(ply)
         end
 
         local ragdoll = ents.Create("prop_ragdoll")
-        plyToRagdollMap[self] = ragdoll
+        plyToRagdollMap[ply] = ragdoll
         if not IsValid(ragdoll) then
-            log.warn("Cannot create ragdoll for player: ", self)
-            return cleanUp(self)
+            log.warn("Cannot create ragdoll for player: ", ply)
+            return cleanUp(ply)
         end
 
         ragdoll:SetModel(plyModel)
         local ragdollModel = ragdoll:GetModel()
         if not ragdollModel or ragdollModel ~= plyModel then
-            log.warn("Cannot set model for player: ", self, "; Ragdoll: ", ragdoll)
-            return cleanUp(self)
+            log.warn("Cannot set model for player: ", ply, "; Ragdoll: ", ragdoll)
+            return cleanUp(ply)
         end
         ragdoll:Spawn()
 
         local physicsObjectCount = ragdoll:GetPhysicsObjectCount()
         if not physicsObjectCount or physicsObjectCount < 1 then
-            log.warn("Cannot get physics object count for player: ", self, "; Ragdoll: ", ragdoll)
-            return cleanUp(self)
+            log.warn("Cannot get physics object count for player: ", ply, "; Ragdoll: ", ragdoll)
+            return cleanUp(ply)
         end
 
         for physObjNum = 0, physicsObjectCount - 1 do
             local boneID = ragdoll:TranslatePhysBoneToBone(physObjNum)
             if not boneID then
-                log.trace("Cannot translate phys bone to bone for player: ", self, "; Ragdoll: ", ragdoll,
+                log.trace("Cannot translate phys bone to bone for player: ", ply, "; Ragdoll: ", ragdoll,
                     "; PhysObjNum: ", physObjNum)
                 continue
             end
 
-            local pos, ang = self:GetBonePosition(boneID)
+            local pos, ang = ply:GetBonePosition(boneID)
             if not pos then
-                log.trace("Cannot get bone position for player: ", self, "; Ragdoll: ", ragdoll, "; BoneID: ", boneID)
+                log.trace("Cannot get bone position for player: ", ply, "; Ragdoll: ", ragdoll, "; BoneID: ", boneID)
                 continue
             end
 
             local physObj = ragdoll:GetPhysicsObjectNum(physObjNum)
             if not physObj then
-                log.trace("Cannot get physics object for player: ", self, "; Ragdoll: ", ragdoll, "; PhysObjNum: ",
+                log.trace("Cannot get physics object for player: ", ply, "; Ragdoll: ", ragdoll, "; PhysObjNum: ",
                     physObjNum)
                 continue
             end
@@ -101,16 +101,16 @@ if SERVER then
             physObj:Wake()
         end
 
-        function ragdoll:GetRagdollOwner()
-            return self
+        ragdoll.GetRagdollOwner = function(self)
+            return ply
         end
 
         net.Start(Constants.NETWORK_STRING.Ragdoll)
         net.WriteEntity(ragdoll)
-        net.Send(self)
+        net.Send(ply)
 
-        hook.Run("CreateEntityRagdoll", self, ragdoll)
-        log.trace("Ragdoll created for player: ", self, "; Ragdoll: ", ragdoll)
+        hook.Run("CreateEntityRagdoll", ply, ragdoll)
+        log.trace("Ragdoll created for player: ", ply, "; Ragdoll: ", ragdoll)
         return ragdoll
     end
 
