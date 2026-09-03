@@ -24,6 +24,7 @@ local PlaybackCoordinator  = include("edae/rm/playback_coordinator.lua")
 local VoiceManager         = include("edae/rm/voice_manager.lua")
 local ReviveManager        = include("edae/rm/revive_manager.lua") -- 引入复活管理器
 local FlexPlayer           = include("edae/fp/flex_player.lua")
+local DropItemManager      = include("edae/di/drop_item_manager.lua")
 
 local store                = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -86,6 +87,15 @@ function Manager:OnCreate(owner, ragdoll)
     local damageContext = DamageContextManager:Get(owner)
     DamageContextManager:Clear(owner)
 
+    -- 获取伤害上下文中的 hitgroup
+    local hitgroup = nil
+    if damageContext then
+        hitgroup = damageContext.hitGroup
+    end
+
+    -- 调用 DropItemManager 执行 DURING 阶段
+    DropItemManager:OnRagdollCreated(owner, ragdoll, hitgroup)
+
     -- 初始化状态机：会触发 OnRagdollStateChange，从而自动启动初始播放
     LifeCycleHandler:Init(ragdoll, damageContext)
 
@@ -98,6 +108,8 @@ function Manager:OnTakeDamage(ragdoll, dmginfo)
 
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
+
+    DropItemManager:OnRagdollTakeDamage(ragdoll, dmginfo)
 
     -- 爬行状态受击播放音效
     if currentState == STATE_ENUM.CRAWLING and IsValid(owner) then
