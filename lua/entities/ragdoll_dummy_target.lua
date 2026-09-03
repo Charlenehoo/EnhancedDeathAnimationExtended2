@@ -14,7 +14,7 @@ local findRandomEntity              = helpers.findRandomEntity
 local getEyePos                     = helpers.getEyePos
 
 -- EDAE 生命周期处理器（用于获取 ragdoll 状态）
-local LifeCycleHandler              = include("edae/lch/life_cycle_handler.lua")
+local LifeCycleHandler              = include("edae/life_cycle_handler.lua")
 
 local BONE_FALLBACK_ORDER           = include("npc_monitor/config/bones.lua")
 

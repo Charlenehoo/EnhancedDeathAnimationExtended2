@@ -141,10 +141,6 @@ local function TwitchCoroutine(ragdoll, ctx)
         RunEffects(ctx)
 
         local currentHealth = HealthManager:Get(ragdoll) or 0
-        if currentHealth <= 0 then
-            stopReason = Constants.PlaybackReasons.InterruptedByHealthDepleted
-            break
-        end
         local rate = math.max(currentHealth / initialHealth, 0)
         local r = math.ease.InOutCubic(rate)
 

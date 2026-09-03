@@ -3,9 +3,8 @@
 -- 职责：
 --   1. 监听原始游戏事件（创建、伤害、网络消息），翻译为停止原因并调用 PlaybackCoordinator:Stop
 --   2. 监听状态变化事件（OnRagdollStateChange），只启动新播放，不停止旧播放
---   3. 处理血量耗尽事件，触发停止
---   4. 对外提供自救请求/取消接口
---   5. 执行复活逻辑
+--   3. 对外提供自救请求/取消接口
+--   4. 复活逻辑委托给 ReviveManager
 
 local MODULE_NAME = "RagdollManager"
 
@@ -23,6 +22,7 @@ local HealthManager        = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper    = include("edae/rm/pose_helper.lua")
 local PlaybackCoordinator  = include("edae/rm/playback_coordinator.lua")
 local VoiceManager         = include("edae/rm/voice_manager.lua")
+local ReviveManager        = include("edae/rm/revive_manager.lua") -- 引入复活管理器
 
 local store                = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -69,40 +69,6 @@ function Manager:CancelSelfRevive(ply)
 end
 
 -- ============================================================
--- 复活执行
--- ============================================================
-
-function Manager:PerformRevive(ragdoll)
-    if not IsValid(ragdoll) then return end
-
-    local owner = store:Get(ragdoll, "Owner")
-    if not IsValid(owner) then
-        log.warn("RagdollManager:PerformRevive - owner not found for ragdoll")
-        ragdoll:Remove()
-        return
-    end
-
-    local pos = ragdoll:GetPos()
-    local ang = ragdoll:GetAngles()
-
-    ragdoll:Remove()
-
-    owner:Spawn()
-    if IsValid(owner) then
-        owner:SetPos(pos)
-        owner:SetEyeAngles(Angle(0, ang.yaw, 0))
-        owner:SetHealth(Constants.RagdollManager.MAX_HEALTH)
-        owner:GodEnable()
-        timer.Simple(2, function()
-            if IsValid(owner) then owner:GodDisable() end
-        end)
-        log.trace("RagdollManager:PerformRevive - player ", owner, " revived at ", pos)
-    else
-        log.warn("RagdollManager:PerformRevive - player spawn failed")
-    end
-end
-
--- ============================================================
 -- 事件处理方法
 -- ============================================================
 
@@ -110,7 +76,7 @@ end
 function Manager:OnCreate(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
 
-    store:Set(ragdoll, "Owner", owner)
+    store:Set(ragdoll, Constants.RagdollManager.OWNER_KEY, owner)
 
     -- 初始化血量
     HealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
@@ -129,7 +95,7 @@ end
 function Manager:OnTakeDamage(ragdoll, dmginfo)
     if not IsValid(ragdoll) or not dmginfo then return end
 
-    local owner = store:Get(ragdoll, "Owner")
+    local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
     -- 爬行状态受击播放音效
@@ -149,7 +115,7 @@ end
 function Manager:OnStateChange(ragdoll, state, fromState, initData)
     if not IsValid(ragdoll) then return end
 
-    local owner = store:Get(ragdoll, "Owner")
+    local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
 
     -- 语音处理
     if state == STATE_ENUM.DEAD then
@@ -197,17 +163,10 @@ hook.Add("PostEntityTakeDamage", MODULE_NAME .. "_PostEntityTakeDamage", functio
     Manager:OnTakeDamage(ent, dmginfo)
 end)
 
--- 血量耗尽事件（由 EffectBuilder 在血量归零时触发）
-hook.Add(Events.OnRagdollHealthDepleted, MODULE_NAME .. "_OnRagdollHealthDepleted", function(ragdoll, health)
-    if not IsValid(ragdoll) then return end
-    PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.InterruptedByHealthDepleted)
-end)
+-- 注意：OnRagdollHealthDepleted 事件已不再由任何模块触发，故移除相关监听
+-- 血量耗尽停止已由播放器自身检测处理（见 animation_player.lua / twitch_controller.lua）
 
--- 复活请求
-hook.Add(Events.OnReviveRequested, MODULE_NAME .. "_OnReviveRequested", function(ragdoll)
-    if not IsValid(ragdoll) then return end
-    Manager:PerformRevive(ragdoll)
-end)
+-- 复活请求已由 ReviveManager 监听处理，此处不再重复注册
 
 -- 注册单例
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = Manager

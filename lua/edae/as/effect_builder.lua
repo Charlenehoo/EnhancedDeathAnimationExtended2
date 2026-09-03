@@ -162,16 +162,7 @@ local function BuildHealthDrainEffect(state)
         end,
         action = function(ctx, effectState)
             local ragdoll = ctx.ragdoll
-            local died = HealthManager:Damage(ragdoll, amount)
-
-            if died then
-                -- 血量耗尽，触发专门事件（事件名待 Constants 定义，例如 OnRagdollHealthDepleted）
-                hook.Run(Constants.Events.OnRagdollHealthDepleted, ragdoll, HealthManager:Get(ragdoll))
-            else
-                -- 普通血量变化
-                hook.Run(Constants.Events.OnRagdollHealthChanged, ragdoll, HealthManager:Get(ragdoll))
-            end
-
+            HealthManager:Damage(ragdoll, amount)
             effectState.nextTime = CurTime() + interval
         end
     }

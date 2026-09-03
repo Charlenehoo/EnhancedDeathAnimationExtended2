@@ -15,6 +15,7 @@ local log             = include("edae/log/init.lua")
 local Scheduler       = include("edae/coroutine_scheduler.lua")
 local helper          = include("edae/ap/helper.lua")
 local EntityDataStore = include("edae/eds/entity_data_store.lua")
+local HealthManager   = include("edae/rm/health_manager.lua")
 
 local store           = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -120,6 +121,10 @@ local function playAnimationCoroutine(ctx)
             stopReason = Constants.PlaybackReasons.FailedByHitWall
             return true
         end
+        if HealthManager:IsDead(ragdoll) then
+            stopReason = Constants.PlaybackReasons.InterruptedByHealthDepleted
+            return true
+        end
         return false
     end
 
@@ -150,13 +155,7 @@ local function playAnimationCoroutine(ctx)
 
         -- 血量驱动减慢逻辑（仅挣扎状态启用）
         if ctx.enableHealthBasedSlowdown then
-            local HealthManager = include("edae/rm/health_manager.lua")
             local currentHealth = HealthManager:Get(ctx.ragdoll)
-            if currentHealth <= 0 then
-                stopReason = Constants.PlaybackReasons.InterruptedByHealthDepleted
-                break
-            end
-
             local initialHealth = ctx.initialHealth or HealthManager:Get(ctx.ragdoll)
             if initialHealth <= 0 then initialHealth = 1 end
 

@@ -8,8 +8,6 @@ Constants.Events                                        = {
     OnTwitchFinished = "EDAE_OnTwitchFinished",
     OnPlaybackStopped = "EDAE_OnPlaybackStopped",
     OnRagdollInitialized = "EDAE_RagdollInitialized",
-    OnRagdollHealthChanged = "EDAE_OnRagdollHealthChanged",
-    OnRagdollHealthDepleted = "EDAE_OnRagdollHealthDepleted",
     OnReviveRequested = "EDAE_OnReviveRequested"
 }
 
