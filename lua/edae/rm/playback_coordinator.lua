@@ -13,7 +13,7 @@ end
 local Constants           = include("edae/config/constants.lua")
 local log                 = include("edae/log/init.lua")
 local AnimationPlayer     = include("edae/ap/animation_player.lua")
-local TwitchController    = include("edae/tc/twitch_controller.lua")
+local TwitchController    = include("edae/ap/twitch_controller.lua")
 local AnimationAssembler  = include("edae/as/animation_assembler.lua")
 local TwitchAssembler     = include("edae/as/twitch_assembler.lua")
 
