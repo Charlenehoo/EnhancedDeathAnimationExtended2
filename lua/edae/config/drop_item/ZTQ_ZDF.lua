@@ -1,43 +1,15 @@
-local constants = include("includes/config/constants.lua")
+-- ./lua/edae/config/drop_item/ZTQ_ZDF.lua
+local constants       = include("edae/config/drop_item_constants.lua")
 
-local BONE_HEAD = constants.BONES.HEAD
-local BONE_LEFT_CALF = constants.BONES.LEFT_CALF
+local BONE_HEAD       = constants.BONES.HEAD
+local BONE_LEFT_CALF  = constants.BONES.LEFT_CALF
 local BONE_RIGHT_CALF = constants.BONES.RIGHT_CALF
-local BONE_LEFT_FOOT = constants.BONES.LEFT_FOOT
+local BONE_LEFT_FOOT  = constants.BONES.LEFT_FOOT
 local BONE_RIGHT_FOOT = constants.BONES.RIGHT_FOOT
-local PHASES = constants.PHASES
-local CONDITIONS = constants.CONDITIONS
+local PHASES          = constants.PHASES
+local CONDITIONS      = constants.CONDITIONS
 
 return {
-    [PHASES.BEFORE] = {
-        { -- 匕首
-            condition = CONDITIONS.IS_HITGROUP + CONDITIONS.RANDOM,
-            conditionValues = {
-                [CONDITIONS.IS_HITGROUP] = HITGROUP_LEFTLEG,
-                [CONDITIONS.RANDOM] = 0.5
-            },
-            bodyGroupName = "腿装备",
-            boneName = BONE_LEFT_CALF,
-            fromSubModelID = 0,
-            toSubModelID = 1,
-            createEnt = "models/fj/ty_bs.mdl",
-            createEntCount = 1,
-            playSound = nil
-        },
-        { -- 手枪
-            condition = CONDITIONS.IS_HITGROUP + CONDITIONS.RANDOM,
-            conditionValues = {
-                [CONDITIONS.IS_HITGROUP] = HITGROUP_RIGHTLEG,
-                [CONDITIONS.RANDOM] = 0.5
-            },
-            bodyGroupName = "腿枪套",
-            boneName = BONE_RIGHT_CALF,
-            fromSubModelID = 0,
-            toSubModelID = 1,
-            createEnt = "models/fj/ty_wq_sq1.mdl",
-            playSound = nil
-        },
-    },
     [PHASES.DURING] = {
         {
             condition = CONDITIONS.IS_HITGROUP + CONDITIONS.RANDOM,
@@ -67,7 +39,7 @@ return {
                 "physics/glass/glass_sheet_break1.wav",
             }
         },
-        { -- 匕首
+        {
             condition = CONDITIONS.IS_HITGROUP + CONDITIONS.RANDOM,
             conditionValues = {
                 [CONDITIONS.IS_HITGROUP] = HITGROUP_LEFTLEG,
@@ -81,7 +53,7 @@ return {
             createEntCount = 1,
             playSound = nil
         },
-        { -- 手枪
+        {
             condition = CONDITIONS.IS_HITGROUP + CONDITIONS.RANDOM,
             conditionValues = {
                 [CONDITIONS.IS_HITGROUP] = HITGROUP_RIGHTLEG,
@@ -97,27 +69,27 @@ return {
         {
             condition = CONDITIONS.IS_MOVING + CONDITIONS.RANDOM,
             conditionValues = {
-                [CONDITIONS.IS_MOVING] = 240 * 240, -- IS_MOVING_THRESHOLD_SQR
+                [CONDITIONS.IS_MOVING] = 240 * 240,
                 [CONDITIONS.RANDOM] = 0.3,
             },
             bodyGroupName = "鞋子左",
             boneName = BONE_LEFT_FOOT,
             fromSubModelID = 0,
             toSubModelID = 2,
-            createEnt = "models/fj/ty_xz3_z.mdl", -- 长靴,
+            createEnt = "models/fj/ty_xz3_z.mdl",
             playSound = nil
         },
         {
             condition = CONDITIONS.IS_MOVING + CONDITIONS.RANDOM,
             conditionValues = {
-                [CONDITIONS.IS_MOVING] = 240 * 240, -- IS_MOVING_THRESHOLD_SQR
+                [CONDITIONS.IS_MOVING] = 240 * 240,
                 [CONDITIONS.RANDOM] = 0.3,
             },
             bodyGroupName = "鞋子右",
             boneName = BONE_RIGHT_FOOT,
             fromSubModelID = 0,
             toSubModelID = 2,
-            createEnt = "models/fj/ty_xz3_y.mdl", -- 长靴,
+            createEnt = "models/fj/ty_xz3_y.mdl",
             playSound = nil
         },
     },
@@ -152,7 +124,7 @@ return {
         },
         {
             condition = CONDITIONS.IS_BULLET_NEAR_BONE,
-            conditionValues = { [CONDITIONS.IS_BULLET_NEAR_BONE] = 32 * 32 }, -- IS_HEADSHOT_THRESHOLD_SQR = 32 * 32
+            conditionValues = { [CONDITIONS.IS_BULLET_NEAR_BONE] = 32 * 32 },
             bodyGroupName = "头盔",
             boneName = BONE_HEAD,
             fromSubModelID = 1,
