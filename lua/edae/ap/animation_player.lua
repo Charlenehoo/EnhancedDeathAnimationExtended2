@@ -109,22 +109,33 @@ local function playAnimationCoroutine(ctx)
             stopReason = Constants.PlaybackReasons.FailedByFall
             return true
         end
+
         if ctx.stopSignal then
             stopReason = ctx.requestedStopReason or Constants.PlaybackReasons.Cancelled
             return true
         end
+
         if ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT then
             stopReason = Constants.PlaybackReasons.FailedByFall
             return true
         end
-        if ctx.HitWallCount >= ctx.totalBones then
+
+        local activeBoneCount = 0
+        for _, b in ipairs(ctx.boneMap) do
+            if not b.skip and not b.Fall then
+                activeBoneCount = activeBoneCount + 1
+            end
+        end
+        if ctx.HitWallCount >= activeBoneCount then
             stopReason = Constants.PlaybackReasons.FailedByHitWall
             return true
         end
+
         if HealthManager:IsDead(ragdoll) then
             stopReason = Constants.PlaybackReasons.InterruptedByHealthDepleted
             return true
         end
+
         return false
     end
 
@@ -202,64 +213,76 @@ local function playAnimationCoroutine(ctx)
             for i = 1, #ctx.boneMap do
                 local bone = ctx.boneMap[i]
 
-                if not bone.Fall then
-                    local boneName = bone.boneName
-                    local amBoneID = bone.amBoneID
-                    local ragdollPhysObj = bone.ragdollPhysObj
-
-                    local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
-                    if not amBonePos then
-                        log.warn("Cannot get bone position for ", boneName, ", marking as Fall")
-                        bone.Fall = true
-                        ctx.FallCount = ctx.FallCount + 1
-                        continue
-                    end
-
-                    local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
-                    local groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
-                    if not groundPos then
-                        bone.Fall = true
-                        ctx.FallCount = ctx.FallCount + 1
-                        log.trace("Bone ", boneName, " no ground found, marking as Fall")
-                        continue
-                    end
-
-                    local hitDist = refer.z - groundPos.z
-                    local diff = hitDist - bone.lastHitZ
-                    bone.lastAddZ = diff + bone.lastAddZ
-                    bone.lastHitZ = hitDist
-
-                    if diff >= Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD then
-                        bone.Fall = true
-                        ctx.FallCount = ctx.FallCount + 1
-                        log.trace("Bone ", boneName, " fall detected (diff=", diff, "), marking as Fall")
-                        continue
-                    end
-
-                    local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
-
-                    local tr = util.TraceLine({
-                        start = ragdollPhysObj:GetPos(),
-                        endpos = bone_pos,
-                        mask = MASK_ALL,
-                        filter = { ragdoll, animationModel }
-                    })
-
-                    if tr.Hit then
-                        if not bone.HitWall then
-                            bone.HitWall = true
-                            ctx.HitWallCount = ctx.HitWallCount + 1
-                            log.trace("Bone ", boneName, " hit wall, marking as HitWall")
-                        end
-                        continue
-                    end
-
-                    local shadowParams = ctx.shadowParamsTemplate
-                    shadowParams.pos = bone_pos
-                    shadowParams.angle = amBoneAngle
-                    ragdollPhysObj:Wake()
-                    ragdollPhysObj:ComputeShadowControl(shadowParams)
+                -- 1. 跳过被显式禁用的骨骼
+                if bone.skip then
+                    continue
                 end
+
+                -- 2. 跳过已失效的骨骼（之前已标记为 Fall）
+                if bone.Fall then
+                    continue
+                end
+
+                local boneName = bone.boneName
+                local amBoneID = bone.amBoneID
+                local ragdollPhysObj = bone.ragdollPhysObj
+
+                -- 3. 获取动画模型骨骼位置
+                local amBonePos, amBoneAngle = animationModel:GetBonePosition(amBoneID)
+                if not amBonePos then
+                    log.warn("Cannot get bone position for ", boneName, ", marking as Fall")
+                    bone.Fall = true
+                    ctx.FallCount = ctx.FallCount + 1
+                    continue
+                end
+
+                -- 4. 地面检测
+                local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
+                local groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
+                if not groundPos then
+                    bone.Fall = true
+                    ctx.FallCount = ctx.FallCount + 1
+                    log.trace("Bone ", boneName, " no ground found, marking as Fall")
+                    continue
+                end
+
+                local hitDist = refer.z - groundPos.z
+                local diff = hitDist - bone.lastHitZ
+                bone.lastAddZ = diff + bone.lastAddZ
+                bone.lastHitZ = hitDist
+
+                -- 5. 检测高度突变（悬空）
+                if diff >= Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD then
+                    bone.Fall = true
+                    ctx.FallCount = ctx.FallCount + 1
+                    log.trace("Bone ", boneName, " fall detected (diff=", diff, "), marking as Fall")
+                    continue
+                end
+
+                -- 6. 计算目标位置并检测墙壁
+                local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
+                local tr = util.TraceLine({
+                    start = ragdollPhysObj:GetPos(),
+                    endpos = bone_pos,
+                    mask = MASK_ALL,
+                    filter = { ragdoll, animationModel }
+                })
+
+                if tr.Hit then
+                    if not bone.HitWall then
+                        bone.HitWall = true
+                        ctx.HitWallCount = ctx.HitWallCount + 1
+                        log.trace("Bone ", boneName, " hit wall, marking as HitWall")
+                    end
+                    continue
+                end
+
+                -- 7. 正常驱动骨骼
+                local shadowParams = ctx.shadowParamsTemplate
+                shadowParams.pos = bone_pos
+                shadowParams.angle = amBoneAngle
+                ragdollPhysObj:Wake()
+                ragdollPhysObj:ComputeShadowControl(shadowParams)
             end
 
             coroutine.yield()
@@ -412,6 +435,30 @@ function AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
     local targetYaw = currentYaw + deltaYaw
 
     return self:Rotate(ragdoll, targetYaw, nil, maxTurnSpeed)
+end
+
+--- 设置指定骨骼是否跳过动画控制
+--- @param ragdoll Entity 布娃娃实体
+--- @param boneName string 完整骨骼名（如 "ValveBiped.Bip01_Head1"）
+--- @param skip boolean 是否跳过（true=跳过，false=恢复控制）
+--- @return boolean 是否成功找到并修改了该骨骼
+function AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if not ctx or not ctx.boneMap then
+        log.warn("AnimationPlayer:SetBoneSkip no active context or boneMap for ragdoll: ", tostring(ragdoll))
+        return false
+    end
+
+    for _, bone in ipairs(ctx.boneMap) do
+        if bone.boneName == boneName then
+            bone.skip = skip and true or false
+            log.trace("AnimationPlayer:SetBoneSkip set bone '", boneName, "' skip = ", tostring(bone.skip))
+            return true
+        end
+    end
+
+    log.warn("AnimationPlayer:SetBoneSkip bone not found in boneMap: ", boneName)
+    return false
 end
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = AnimationPlayer

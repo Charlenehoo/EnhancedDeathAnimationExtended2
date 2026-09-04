@@ -50,7 +50,6 @@ end
 
 function helper.MakeBoneMap(ctx)
     local ragdoll = ctx.ragdoll
-
     local ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
     if not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 then return false end
     ctx.ragdollPhysicsObjectCount = ragdollPhysicsObjectCount
@@ -60,18 +59,17 @@ function helper.MakeBoneMap(ctx)
         local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
         if not ragdollBoneID then continue end
 
-        -- "__INVALIDBONE__" in case the name cannot be read or the index is out of range, or we failed or entity doesn't have a model.
         local boneName = ragdoll:GetBoneName(ragdollBoneID)
+        if not boneName or boneName == "__INVALIDBONE__" then continue end
 
-        if ctx.boneWhitelist and not ctx.boneWhitelist[boneName] then continue end
-
-        -- Index of the given bone name, or nil if the bone doesn't exist on the Entity.
         local amBoneID = ctx.animationModel:LookupBone(boneName)
-        if not amBoneID then continue end
+        if not amBoneID then continue end -- 动画模型没有该骨骼，无法驱动，直接忽略
 
-        -- The physics object or nil if not found
         local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
-        if not ragdollPhysObj then continue end
+        if not IsValid(ragdollPhysObj) then continue end
+
+        -- 判断是否跳过：白名单存在且不含此骨骼，则跳过
+        local skip = (ctx.boneWhitelist ~= nil) and (not ctx.boneWhitelist[boneName])
 
         local data = {
             boneName = boneName,
@@ -79,15 +77,13 @@ function helper.MakeBoneMap(ctx)
             ragdollPhysObj = ragdollPhysObj,
             ragdollBoneID = ragdollBoneID,
 
-            -- ===============================
-            -- 以下由 playAnimationCoroutine 填充
-            Fall = false,    -- 是否因悬空而失效
-            HitWall = false, -- 是否因撞墙而失效
-            lastHitZ = 0,    -- 上一帧目标位置距地面高度
-            lastAddZ = 0,    -- 累计高度修正量
-            -- ===============================
-        }
+            skip = skip, -- 新增 skip 标志，初始由白名单决定
 
+            Fall = false,
+            HitWall = false,
+            lastHitZ = 0,
+            lastAddZ = 0,
+        }
         table.insert(ctx.boneMap, data)
     end
 
@@ -96,7 +92,9 @@ function helper.MakeBoneMap(ctx)
         return false
     end
 
-    log.trace("Bone map created with ", #ctx.boneMap, " bones")
+    ctx.totalBones = #ctx.boneMap -- 或者后面动态计算有效骨骼数
+    log.trace("Bone map created with ", #ctx.boneMap, " bones (",
+        ctx.boneWhitelist and "whitelist applied" or "no whitelist", ")")
     return true
 end
 
