@@ -4,7 +4,6 @@ local Constants = include("edae/config/constants.lua")
 for k, v in pairs(Constants.NETWORK_STRING) do
     util.AddNetworkString(v)
 end
-local AnimationPlayer     = include("edae/ap/animation_player.lua")
 local PlaybackCoordinator = include("edae/rm/playback_coordinator.lua")
 local LifeCycleHandler    = include("edae/life_cycle_handler.lua")
 local HealthManager       = include("edae/rm/health_manager.lua")
@@ -17,7 +16,7 @@ EnhancedDeathAnimationExtended.PlaybackReasons        = Constants.PlaybackReason
 
 EnhancedDeathAnimationExtended.Interface              = {}
 EnhancedDeathAnimationExtended.Interface.SetBoneSkip  = function(ragdoll, boneName, skip)
-    return AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
+    return PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip)
 end
 EnhancedDeathAnimationExtended.Interface.StopPlayback = function(ragdoll, reason)
     return PlaybackCoordinator:Stop(ragdoll, reason)

@@ -16,6 +16,10 @@ local AnimationPlayer     = include("edae/ap/animation_player.lua")
 local TwitchController    = include("edae/ap/twitch_controller.lua")
 local AnimationAssembler  = include("edae/as/animation_assembler.lua")
 local TwitchAssembler     = include("edae/as/twitch_assembler.lua")
+local EntityDataStore     = include("edae/eds/entity_data_store.lua")
+local store               = EntityDataStore:ForOwner(MODULE_NAME)
+
+local BONE_SKIP_KEY       = "PersistentSkipBones"
 
 local STATE_ENUM          = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -55,6 +59,11 @@ function PlaybackCoordinator:Start(ragdoll, state, damageContext, owner, isPlaye
         if not animationName or not animationOpts then
             log.warn("PlaybackCoordinator:Start AnimationAssembler failed for state '", state, "'")
             return false
+        end
+        -- 注入持久化跳过设置
+        local persistentSkipBones = skipStore:Get(ragdoll, BONE_SKIP_KEY)
+        if persistentSkipBones then
+            animationOpts.persistentSkipBones = persistentSkipBones
         end
         return AnimationPlayer:Play(ragdoll, animationName, animationOpts)
     end
@@ -112,6 +121,28 @@ function PlaybackCoordinator:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
     end
 
     return AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
+end
+
+--- 设置骨骼跳过状态（持久化，并对当前播放立即生效）
+--- @param ragdoll Entity 布娃娃实体
+--- @param boneName string 完整骨骼名
+--- @param skip boolean 是否跳过
+--- @return boolean 是否成功记录
+function PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip)
+    if not IsValid(ragdoll) then
+        log.warn("PlaybackCoordinator:SetBoneSkip invalid ragdoll")
+        return false
+    end
+
+    -- 更新持久化存储
+    local skips = skipStore:Get(ragdoll, BONE_SKIP_KEY) or {}
+    skips[boneName] = skip and true or false
+    skipStore:Set(ragdoll, BONE_SKIP_KEY, skips)
+
+    -- 立即应用到当前活动动画（如果有）
+    AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
+
+    return true
 end
 
 -- 监听底层播放器结束事件，统一转发为 OnPlaybackStopped

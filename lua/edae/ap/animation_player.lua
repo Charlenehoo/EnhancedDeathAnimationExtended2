@@ -343,6 +343,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         basePlaybackRate          = opts.basePlaybackRate or 1.0,
         preWait                   = opts.preWait,
         boneWhitelist             = opts.boneWhitelist,
+        persistentSkipBones       = opts.persistentSkipBones,
         effects                   = opts.effects and table.Copy(opts.effects) or nil,
         effectStates              = {},
 
