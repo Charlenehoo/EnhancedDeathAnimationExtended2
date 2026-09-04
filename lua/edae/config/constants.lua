@@ -102,8 +102,9 @@ Constants.ANIMATION_SELECTOR.TWITCH_INTENSITY           = 1.0
 Constants.ANIMATION_SELECTOR.WRITHE_INTENSITY           = 1.0
 
 Constants.PlayerCreatePropRagdoll                       = {}
-Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 250
-Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET      = 5
+Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET         = 98
+Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET      = 2
+Constants.PlayerCreatePropRagdoll.PER_WHEEL             = 8
 
 Constants.BLOOD                                         = {
     ENABLED = true,

@@ -26,7 +26,7 @@ end
 
 -- 第一人称死亡视角状态标志
 local enableFirstPersonDeathCam = false
-local activeOffset = ORIGIN_OFFSET
+local activeOffset = ORIGIN_OFFSET / 2
 local activeOffsetSqr = activeOffset * activeOffset
 
 if SERVER then
@@ -149,7 +149,8 @@ else -- CLIENT
         local wheel = cmd:GetMouseWheel()
         if wheel == 0 then return end
 
-        activeOffset = math.Clamp(activeOffset - wheel * 5, ANTI_CLIP_OFFSET, ORIGIN_OFFSET)
+        activeOffset = math.Clamp(activeOffset - wheel * Constants.PlayerCreatePropRagdoll.PER_WHEEL, ANTI_CLIP_OFFSET,
+            ORIGIN_OFFSET)
         activeOffsetSqr = activeOffset * activeOffset
 
         -- 滚轮缩到最小时进入第一人称模式
@@ -181,7 +182,7 @@ else -- CLIENT
                     origin = ragdollEye,
                     angles = viewAngles,
                     fov = fov,
-                    znear = znear + ANTI_CLIP_OFFSET,
+                    znear = znear,
                     zfar = zfar,
                     drawviewer = false,
                 }
