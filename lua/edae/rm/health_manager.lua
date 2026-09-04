@@ -1,5 +1,6 @@
 -- lua/edae/rm/health_manager.lua
 -- 布娃娃血量管理模块：负责血量的存取、扣减和死亡判断
+-- 支持外部处理器接管（全局或单实体），提供可插拔的血量系统
 
 local MODULE_NAME = "RagdollHealthManager"
 
@@ -13,21 +14,46 @@ local log                  = include("edae/log/init.lua")
 local EntityDataStore      = include("edae/eds/entity_data_store.lua")
 
 local store                = EntityDataStore:ForOwner(MODULE_NAME)
+local overrideStore        = EntityDataStore:ForOwner(MODULE_NAME .. "_Override")
 
 local HEALTH_KEY           = Constants.RagdollManager.HEALTH_KEY
 local MAX_HEALTH           = Constants.RagdollManager.MAX_HEALTH
 
 local RagdollHealthManager = {}
 
+-- 全局血量处理器（对所有布娃娃生效）
+local globalOverride       = nil
+
+-- 处理器接口要求：
+-- {
+--     Get = function(ragdoll) ... end,
+--     Set = function(ragdoll, health) ... end,
+--     Damage = function(ragdoll, amount) ... end, -- 返回是否死亡
+--     IsDead = function(ragdoll) ... end,
+--     Reset = function(ragdoll) ... end,
+-- }
+
 --- 获取布娃娃当前血量
 --- @param ragdoll Entity
---- @return number health 如果未设置则返回默认最大血量
+--- @return number|nil health
 function RagdollHealthManager:Get(ragdoll)
     if not IsValid(ragdoll) then
         log.warn("RagdollHealthManager:Get called with invalid ragdoll")
         return nil
     end
 
+    -- 检查实体级处理器
+    local entityHandler = overrideStore:Get(ragdoll, "Handler")
+    if entityHandler and entityHandler.Get then
+        return entityHandler.Get(ragdoll)
+    end
+
+    -- 检查全局处理器
+    if globalOverride and globalOverride.Get then
+        return globalOverride.Get(ragdoll)
+    end
+
+    -- 默认实现
     local health = store:Get(ragdoll, HEALTH_KEY)
     if health == nil then
         health = MAX_HEALTH
@@ -50,9 +76,19 @@ function RagdollHealthManager:Set(ragdoll, health)
         return false
     end
 
-    -- 可选：限制血量不超过最大值，不小于 0（是否启用由调用者决定）
-    health = math.Clamp(health, 0, MAX_HEALTH)
+    -- 检查实体级处理器
+    local entityHandler = overrideStore:Get(ragdoll, "Handler")
+    if entityHandler and entityHandler.Set then
+        return entityHandler.Set(ragdoll, health)
+    end
 
+    -- 检查全局处理器
+    if globalOverride and globalOverride.Set then
+        return globalOverride.Set(ragdoll, health)
+    end
+
+    -- 默认实现
+    health = math.Clamp(health, 0, MAX_HEALTH)
     local success = store:Set(ragdoll, HEALTH_KEY, health)
     if not success then
         log.warn("RagdollHealthManager:Set failed to set health for ", ragdoll)
@@ -78,9 +114,21 @@ function RagdollHealthManager:Damage(ragdoll, damage)
         return false
     end
 
+    -- 检查实体级处理器
+    local entityHandler = overrideStore:Get(ragdoll, "Handler")
+    if entityHandler and entityHandler.Damage then
+        return entityHandler.Damage(ragdoll, damage)
+    end
+
+    -- 检查全局处理器
+    if globalOverride and globalOverride.Damage then
+        return globalOverride.Damage(ragdoll, damage)
+    end
+
+    -- 默认实现
     local currentHealth = self:Get(ragdoll)
     local newHealth = currentHealth - damage
-    newHealth = math.max(newHealth, 0) -- 防止负值
+    newHealth = math.max(newHealth, 0)
 
     self:Set(ragdoll, newHealth)
 
@@ -96,6 +144,19 @@ function RagdollHealthManager:IsDead(ragdoll)
     if not IsValid(ragdoll) then
         return true -- 无效实体视为死亡
     end
+
+    -- 检查实体级处理器
+    local entityHandler = overrideStore:Get(ragdoll, "Handler")
+    if entityHandler and entityHandler.IsDead then
+        return entityHandler.IsDead(ragdoll)
+    end
+
+    -- 检查全局处理器
+    if globalOverride and globalOverride.IsDead then
+        return globalOverride.IsDead(ragdoll)
+    end
+
+    -- 默认实现
     return self:Get(ragdoll) <= 0
 end
 
@@ -103,7 +164,64 @@ end
 --- @param ragdoll Entity
 --- @return boolean success
 function RagdollHealthManager:Reset(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("RagdollHealthManager:Reset called with invalid ragdoll")
+        return false
+    end
+
+    -- 检查实体级处理器
+    local entityHandler = overrideStore:Get(ragdoll, "Handler")
+    if entityHandler and entityHandler.Reset then
+        return entityHandler.Reset(ragdoll)
+    end
+
+    -- 检查全局处理器
+    if globalOverride and globalOverride.Reset then
+        return globalOverride.Reset(ragdoll)
+    end
+
+    -- 默认实现
     return self:Set(ragdoll, MAX_HEALTH)
+end
+
+--- 设置全局血量处理器（对所有布娃娃生效）
+--- @param handler table|nil 处理器表，需包含 Get/Set/Damage/IsDead/Reset 方法
+function RagdollHealthManager:SetGlobalOverride(handler)
+    globalOverride = handler
+    log.trace("RagdollHealthManager: global override set to ", handler and "handler" or "nil")
+end
+
+--- 清除全局血量处理器
+function RagdollHealthManager:ClearGlobalOverride()
+    globalOverride = nil
+    log.trace("RagdollHealthManager: global override cleared")
+end
+
+--- 为特定布娃娃设置血量处理器
+--- @param ragdoll Entity
+--- @param handler table 处理器表
+--- @return boolean success
+function RagdollHealthManager:SetEntityOverride(ragdoll, handler)
+    if not IsValid(ragdoll) then
+        log.warn("RagdollHealthManager:SetEntityOverride invalid ragdoll")
+        return false
+    end
+    local success = overrideStore:Set(ragdoll, "Handler", handler)
+    log.trace("RagdollHealthManager: entity override set for ", ragdoll)
+    return success
+end
+
+--- 清除特定布娃娃的血量处理器
+--- @param ragdoll Entity
+--- @return boolean success
+function RagdollHealthManager:ClearEntityOverride(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("RagdollHealthManager:ClearEntityOverride invalid ragdoll")
+        return false
+    end
+    local success = overrideStore:Set(ragdoll, "Handler", nil)
+    log.trace("RagdollHealthManager: entity override cleared for ", ragdoll)
+    return success
 end
 
 -- 注册单例

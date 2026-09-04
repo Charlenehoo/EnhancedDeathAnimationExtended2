@@ -154,21 +154,24 @@ hook.Add(Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
         Manager:OnStateChange(ragdoll, state, fromState, initData)
     end)
 
--- 布娃娃创建
 hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
     if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
-    local delay = hook.Run(Constants.Events.PreRagdollInitialized)
-    if delay then
-        if delay < 0 then
-            return
-        elseif delay > 0 then
-            timer.Simple(delay, function()
-                Manager:OnCreate(owner, ragdoll)
-            end)
-        end
+
+    -- 构造初始化函数，外部可调用并传入自定义初始状态
+    local function initFunc(initState)
+        Manager:OnCreate(owner, ragdoll, initState)
     end
-    Manager:OnCreate(owner, ragdoll)
+
+    -- 触发预初始化事件，传递 initFunc 供外部使用
+    local result = hook.Run(Constants.Events.PreRagdollInitialized, owner, ragdoll, initFunc)
+
+    -- 外部返回 true 表示接管初始化，不再自动执行
+    if result == true then
+        return
+    end
+
+    initFunc()
 end)
 
 -- 布娃娃受到伤害
