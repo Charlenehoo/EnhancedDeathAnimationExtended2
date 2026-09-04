@@ -123,24 +123,60 @@ function PlaybackCoordinator:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
     return AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
 end
 
---- 设置骨骼跳过状态（持久化，并对当前播放立即生效）
---- @param ragdoll Entity 布娃娃实体
---- @param boneName string 完整骨骼名
---- @param skip boolean 是否跳过
---- @return boolean 是否成功记录
-function PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip)
+-- 递归获取指定骨骼及其所有子骨骼的完整名称列表
+local function getBoneAndChildrenNames(ragdoll, rootBoneName)
+    local rootBoneID = ragdoll:LookupBone(rootBoneName)
+    if not rootBoneID then return {} end
+
+    local names = {}
+    local boneCount = ragdoll:GetBoneCount()
+    for boneID = 0, boneCount - 1 do
+        local currentID = boneID
+        while currentID and currentID ~= 0 do
+            if currentID == rootBoneID then
+                local name = ragdoll:GetBoneName(boneID)
+                if name and name ~= "__INVALIDBONE__" then
+                    names[#names + 1] = name
+                end
+                break
+            end
+            currentID = ragdoll:GetBoneParent(currentID)
+        end
+    end
+    return names
+end
+
+function PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip, recursive)
     if not IsValid(ragdoll) then
         log.warn("PlaybackCoordinator:SetBoneSkip invalid ragdoll")
         return false
     end
 
+    recursive = recursive or false
+
+    -- 确定需要更新的骨骼名称列表
+    local boneNamesToUpdate
+    if recursive then
+        boneNamesToUpdate = getBoneAndChildrenNames(ragdoll, boneName)
+        if #boneNamesToUpdate == 0 then
+            log.warn("PlaybackCoordinator:SetBoneSkip no valid bones found for root: ", boneName)
+            return false
+        end
+    else
+        boneNamesToUpdate = { boneName }
+    end
+
     -- 更新持久化存储
     local skips = skipStore:Get(ragdoll, BONE_SKIP_KEY) or {}
-    skips[boneName] = skip and true or false
+    for _, name in ipairs(boneNamesToUpdate) do
+        skips[name] = skip and true or false
+    end
     skipStore:Set(ragdoll, BONE_SKIP_KEY, skips)
 
-    -- 立即应用到当前活动动画（如果有）
-    AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
+    -- 立即应用到当前活动动画（如果有），逐骨骼调用底层接口
+    for _, name in ipairs(boneNamesToUpdate) do
+        AnimationPlayer:SetBoneSkip(ragdoll, name, skip)
+    end
 
     return true
 end
