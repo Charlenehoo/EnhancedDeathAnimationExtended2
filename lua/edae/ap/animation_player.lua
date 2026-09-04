@@ -71,7 +71,7 @@ function AnimationPlayer:Stop(ragdoll, reason)
     end
 
     ctx.requestedStopReason = reason or Constants.PlaybackReasons.Cancelled
-    ctx.stopSignal = true
+    ctx.active = false
     return true
 end
 
@@ -110,7 +110,7 @@ local function playAnimationCoroutine(ctx)
             return true
         end
 
-        if ctx.stopSignal then
+        if not ctx.active then
             stopReason = ctx.requestedStopReason or Constants.PlaybackReasons.Cancelled
             return true
         end
@@ -366,7 +366,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         FallCount                 = 0,
         HitWallCount              = 0,
         coro                      = nil,
-        stopSignal                = nil,
+        active                    = true,
     }
 
     if

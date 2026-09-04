@@ -113,7 +113,7 @@ local function TwitchCoroutine(ragdoll, ctx)
             stopReason = Constants.PlaybackReasons.FailedByFall
             return true
         end
-        if ctx.stopSignal then
+        if not ctx.active then
             stopReason = ctx.requestedStopReason or Constants.PlaybackReasons.Cancelled
             return true
         end
@@ -263,8 +263,9 @@ function TwitchController:Start(ragdoll, opts)
         effectStates        = {},
         preWait             = preWait,
         boneWhitelist       = whitelist, -- 缺失此行
-        stopSignal          = false,
         requestedStopReason = nil,
+
+        active              = true,
     }
 
     store:Set(ragdoll, TWITCH_CTX_KEY, ctx)
@@ -286,7 +287,7 @@ function TwitchController:Stop(ragdoll, reason)
     end
 
     ctx.requestedStopReason = reason or Constants.PlaybackReasons.Cancelled
-    ctx.stopSignal = true
+    ctx.active = false
     return true
 end
 
