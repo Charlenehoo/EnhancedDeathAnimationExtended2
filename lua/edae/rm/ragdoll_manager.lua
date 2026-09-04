@@ -78,14 +78,17 @@ end
 function Manager:OnCreate(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
 
+    -- 获取并清除伤害上下文
+    local damageContext = DamageContextManager:Get(owner)
+    DamageContextManager:Clear(owner)
+
+    -- local shouldSkip = hook.Run(Constants.Events.PreRagdollInit, ragdoll, owner, damageContext)
+    -- if shouldSkip then return end
+
     store:Set(ragdoll, Constants.RagdollManager.OWNER_KEY, owner)
 
     -- 初始化血量
     HealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
-
-    -- 获取并清除伤害上下文（供后续模块使用，但 DropItem 会自行获取）
-    local damageContext = DamageContextManager:Get(owner)
-    DamageContextManager:Clear(owner)
 
     -- 初始化状态机：会触发 OnRagdollStateChange，从而自动启动初始播放
     LifeCycleHandler:Init(ragdoll, damageContext)
@@ -155,6 +158,16 @@ hook.Add(Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
 hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
     if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
+    local delay = hook.Run(Constants.Events.PreRagdollInitialized)
+    if delay then
+        if delay < 0 then
+            return
+        elseif delay > 0 then
+            timer.Simple(delay, function()
+                Manager:OnCreate(owner, ragdoll)
+            end)
+        end
+    end
     Manager:OnCreate(owner, ragdoll)
 end)
 

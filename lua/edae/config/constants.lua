@@ -3,11 +3,12 @@ local Constants                                         = {}
 Constants.ADDON_NAME                                    = "EnhancedDeathAnimationExtended"
 Constants.RAGDOLL_CLASS                                 = "prop_ragdoll"
 Constants.Events                                        = {
+    PreRagdollInitialized = "EDAE_PreRagdollInitialized",
+    OnRagdollInitialized = "EDAE_RagdollInitialized",
     OnRagdollStateChange = "EDAE_OnRagdollStateChange",
     OnAnimationFinished = "EDAE_OnAnimationFinished",
     OnTwitchFinished = "EDAE_OnTwitchFinished",
     OnPlaybackStopped = "EDAE_OnPlaybackStopped",
-    OnRagdollInitialized = "EDAE_RagdollInitialized",
     OnReviveRequested = "EDAE_OnReviveRequested"
 }
 
