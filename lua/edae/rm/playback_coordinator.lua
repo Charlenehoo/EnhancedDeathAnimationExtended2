@@ -61,7 +61,7 @@ function PlaybackCoordinator:Start(ragdoll, state, damageContext, owner, isPlaye
             return false
         end
         -- 注入持久化跳过设置
-        local persistentSkipBones = skipStore:Get(ragdoll, BONE_SKIP_KEY)
+        local persistentSkipBones = store:Get(ragdoll, BONE_SKIP_KEY)
         if persistentSkipBones then
             animationOpts.persistentSkipBones = persistentSkipBones
         end
@@ -167,11 +167,11 @@ function PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip, recursive)
     end
 
     -- 更新持久化存储
-    local skips = skipStore:Get(ragdoll, BONE_SKIP_KEY) or {}
+    local skips = store:Get(ragdoll, BONE_SKIP_KEY) or {}
     for _, name in ipairs(boneNamesToUpdate) do
         skips[name] = skip and true or false
     end
-    skipStore:Set(ragdoll, BONE_SKIP_KEY, skips)
+    store:Set(ragdoll, BONE_SKIP_KEY, skips)
 
     -- 立即应用到当前活动动画（如果有），逐骨骼调用底层接口
     for _, name in ipairs(boneNamesToUpdate) do
