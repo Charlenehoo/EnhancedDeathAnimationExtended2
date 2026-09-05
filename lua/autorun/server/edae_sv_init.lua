@@ -16,8 +16,8 @@ EnhancedDeathAnimationExtended.Events                 = Constants.Events
 EnhancedDeathAnimationExtended.PlaybackReasons        = Constants.PlaybackReasons
 
 EnhancedDeathAnimationExtended.Interface              = {}
-EnhancedDeathAnimationExtended.Interface.SetBoneSkip  = function(ragdoll, boneName, skip)
-    return AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
+EnhancedDeathAnimationExtended.Interface.SetBoneSkip  = function(ragdoll, boneName, skip, recursive)
+    return AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip, recursive)
 end
 EnhancedDeathAnimationExtended.Interface.StopPlayback = function(ragdoll, reason)
     return PlaybackCoordinator:Stop(ragdoll, reason)
