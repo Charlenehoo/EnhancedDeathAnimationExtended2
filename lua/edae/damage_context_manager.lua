@@ -1,3 +1,4 @@
+-- lua/edae/damage_context_manager.lua
 local MODULE_NAME = "DamageContextManager"
 
 _EnhancedDeathAnimationExtendedSingletons = _EnhancedDeathAnimationExtendedSingletons or {}
@@ -47,6 +48,11 @@ local function computeDamageFlags(ent, hitgroup, dmginfo)
 
     if dmginfo:GetDamageType() == DMG_CLUB or dmginfo:GetDamageType() == DMG_CRUSH then
         flags = bor(flags, FLAG_ENUM.CLUB)
+    end
+
+    -- ===== 新增：溺水伤害 =====
+    if dmginfo:GetDamageType() == DMG_DROWN then
+        flags = bor(flags, FLAG_ENUM.DROWN)
     end
 
     -- 默认子弹类型：当没有其他类型标志时设置
@@ -114,6 +120,7 @@ function DamageContextManager:Get(ent)
     context.isMoving    = band(flags, FLAG_ENUM.MOVING) ~= 0
     context.isClub      = band(flags, FLAG_ENUM.CLUB) ~= 0
     context.isBullet    = band(flags, FLAG_ENUM.BULLET) ~= 0
+    context.isDrown     = band(flags, FLAG_ENUM.DROWN) ~= 0 -- <-- 新增
     context.neckShot    = band(flags, FLAG_ENUM.NECK) ~= 0
     context.shotgunShot = band(flags, FLAG_ENUM.SHOTGUN) ~= 0
     context.backShot    = band(flags, FLAG_ENUM.BACK) ~= 0
@@ -137,6 +144,7 @@ function DamageContextManager:Update(ent, hitgroup, dmginfo)
 
     log.trace("Updated damage context for ", ent, ": flags=", flags,
         ", hitgroup=", hitgroup,
+        ", drown=", band(flags, FLAG_ENUM.DROWN) ~= 0,
         ", neck=", band(flags, FLAG_ENUM.NECK) ~= 0,
         ", shotgun=", band(flags, FLAG_ENUM.SHOTGUN) ~= 0,
         ", back=", band(flags, FLAG_ENUM.BACK) ~= 0,

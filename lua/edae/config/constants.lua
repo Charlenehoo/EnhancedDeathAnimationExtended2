@@ -3,6 +3,8 @@ local Constants                                         = {}
 Constants.ADDON_NAME                                    = "EnhancedDeathAnimationExtended"
 Constants.RAGDOLL_CLASS                                 = "prop_ragdoll"
 Constants.Events                                        = {
+    PostCreateRagdoll = "EDAE_PostCreateRagdoll",
+    OnMortalityEvaluated = "EDAE_OnMortalityEvaluated",
     PreRagdollInitialized = "EDAE_PreRagdollInitialized",
     OnRagdollInitialized = "EDAE_RagdollInitialized",
     OnRagdollStateChange = "EDAE_OnRagdollStateChange",
@@ -10,7 +12,7 @@ Constants.Events                                        = {
     OnTwitchFinished = "EDAE_OnTwitchFinished",
     OnPlaybackStopped = "EDAE_OnPlaybackStopped",
     OnReviveRequested = "EDAE_OnReviveRequested",
-    PostCreateRagdoll = "EDAE_PostCreateRagdoll",
+
     PostRagdollTakeDamage = "EDAE_PostRagdollTakeDamage",
 }
 
