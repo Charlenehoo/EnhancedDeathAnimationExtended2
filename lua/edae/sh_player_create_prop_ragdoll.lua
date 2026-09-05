@@ -6,6 +6,8 @@ local log = include("edae/log/init.lua")
 
 local ORIGIN_OFFSET = Constants.PlayerCreatePropRagdoll.ORIGIN_OFFSET
 local ANTI_CLIP_OFFSET = Constants.PlayerCreatePropRagdoll.ANTI_CLIP_OFFSET
+local ZOOM_PER_ROLL = Constants.PlayerCreatePropRagdoll.ZOOM_PER_ROLL
+
 
 local meta = FindMetaTable("Player")
 if not meta then
@@ -149,7 +151,7 @@ else -- CLIENT
         local wheel = cmd:GetMouseWheel()
         if wheel == 0 then return end
 
-        activeOffset = math.Clamp(activeOffset - wheel * Constants.PlayerCreatePropRagdoll.PER_WHEEL, ANTI_CLIP_OFFSET,
+        activeOffset = math.Clamp(activeOffset - wheel * ZOOM_PER_ROLL, ANTI_CLIP_OFFSET,
             ORIGIN_OFFSET)
         activeOffsetSqr = activeOffset * activeOffset
 
