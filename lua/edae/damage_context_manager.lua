@@ -51,7 +51,7 @@ local function computeDamageFlags(ent, hitgroup, dmginfo)
     end
 
     -- ===== 新增：溺水伤害 =====
-    if dmginfo:GetDamageType() == DMG_DROWN then
+    if dmginfo:GetDamageType() == DMG_DROWN or ent:WaterLevel() > 1 then
         flags = bor(flags, FLAG_ENUM.DROWN)
     end
 

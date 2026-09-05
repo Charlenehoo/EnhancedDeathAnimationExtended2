@@ -33,7 +33,7 @@ MortalityEvaluator.RULES = {
     {
         name = "drowning",
         condition = function(ctx) return ctx.isDrown end,
-        decision = STATE_ENUM.DEAD,
+        decision = STATE_ENUM.FALLING,
         probTable = { [STATE_ENUM.DEAD] = 1.0 },
     },
 }
@@ -68,8 +68,8 @@ local function handlePostCreateRagdoll(owner, ragdoll, damageContext)
 
     local decision, probTable = MortalityEvaluator:Evaluate(damageContext)
 
-    -- 发出评估完成事件
-    hook.Run(Constants.Events.OnMortalityEvaluated, ragdoll, decision, probTable, damageContext)
+    -- 补上 owner 参数
+    hook.Run(Constants.Events.OnMortalityEvaluated, ragdoll, decision, probTable, damageContext, owner)
     log.trace("MortalityEvaluator: emitted OnMortalityEvaluated for ragdoll ", ragdoll,
         " decision=", decision, " hasProbTable=", probTable ~= nil)
 end

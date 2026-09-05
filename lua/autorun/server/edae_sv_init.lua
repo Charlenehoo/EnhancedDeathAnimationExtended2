@@ -9,6 +9,7 @@ local PlaybackCoordinator = include("edae/rm/playback_coordinator.lua")
 local LifeCycleHandler    = include("edae/life_cycle_handler.lua")
 local HealthManager       = include("edae/rm/health_manager.lua")
 include("edae/damage_context_manager.lua")   -- 翻译活体伤害 → PostCreateRagdoll 事件
+include("edae/mortality_evaluator.lua")
 include("edae/ragdoll_damage_processor.lua") -- 翻译布娃娃伤害 → PostRagdollTakeDamage 事件
 
 
