@@ -75,23 +75,17 @@ end
 -- ============================================================
 
 --- 布娃娃创建时初始化
-function Manager:OnCreate(owner, ragdoll)
+function Manager:OnCreate(owner, ragdoll, initState)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
 
-    -- 获取并清除伤害上下文
     local damageContext = DamageContextManager:Get(owner)
     DamageContextManager:Clear(owner)
 
-    -- local shouldSkip = hook.Run(Constants.Events.PreRagdollInit, ragdoll, owner, damageContext)
-    -- if shouldSkip then return end
-
     store:Set(ragdoll, Constants.RagdollManager.OWNER_KEY, owner)
-
-    -- 初始化血量
     HealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
 
-    -- 初始化状态机：会触发 OnRagdollStateChange，从而自动启动初始播放
-    LifeCycleHandler:Init(ragdoll, Constants.LifeCycleHandler.STATE_ENUM.FALLING, damageContext)
+    -- initState 若未提供则默认为 nil，LifeCycleHandler:Init 会回退到 FALLING
+    LifeCycleHandler:Init(ragdoll, initState, damageContext)
 
     hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
 end
@@ -158,17 +152,21 @@ hook.Add(Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
 hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
     if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
-    local delay = hook.Run(Constants.Events.PreRagdollInitialized)
-    if delay then
-        if delay < 0 then
-            return
-        elseif delay > 0 then
-            timer.Simple(delay, function()
-                Manager:OnCreate(owner, ragdoll)
-            end)
-        end
+
+    -- 构造初始化函数，外部可调用并传入自定义初始状态
+    local function initFunc(initState)
+        Manager:OnCreate(owner, ragdoll, initState)
     end
-    Manager:OnCreate(owner, ragdoll)
+
+    -- 触发预初始化事件，传递 initFunc 供外部使用
+    local result = hook.Run(Constants.Events.PreRagdollInitialized, owner, ragdoll, initFunc)
+
+    -- 外部返回 true 表示接管初始化，不再自动执行
+    if result == true then
+        return
+    end
+
+    initFunc()
 end)
 
 -- 布娃娃受到伤害

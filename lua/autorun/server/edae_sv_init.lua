@@ -32,4 +32,9 @@ EnhancedDeathAnimationExtended.Interface.DamageHealth = function(ragdoll, damage
     return HealthManager:Damage(ragdoll, damage)
 end
 
+-- PreRagdollInitialized：在布娃娃初始化前触发，参数为 (owner, ragdoll, initFunc)
+-- 返回值：
+--   true  : 外部接管初始化，模块不再自动调用 initFunc
+--   其他  : 立即初始化
+
 hook.Run("EDAE_Loaded", EnhancedDeathAnimationExtended)
