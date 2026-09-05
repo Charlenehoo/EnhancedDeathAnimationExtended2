@@ -60,18 +60,28 @@ local function setState(ragdoll, newState)
     hook.Run(Constants.Events.OnRagdollStateChange, ragdoll, newState, oldState)
 end
 
--- 初始化 Ragdoll 状态
-function LifeCycleHandler:Init(ragdoll, initData)
+--- 初始化 Ragdoll 状态
+--- @param ragdoll Entity 布娃娃实体
+--- @param initState string|nil 初始状态，默认为 STATE_ENUM.FALLING
+--- @param initData table|nil 初始化数据（如伤害上下文），传递给状态变化事件
+function LifeCycleHandler:Init(ragdoll, initState, initData)
     if not IsValid(ragdoll) then
         log.warn("LifeCycleHandler:Init invalid ragdoll")
         return
     end
 
-    store:Set(ragdoll, STATE_KEY, STATE_ENUM.FALLING)
-    log.trace("LifeCycleHandler: initialized ragdoll ", ragdoll, " with state 'falling'")
+    -- 默认初始状态为 FALLING，若传入非法值则回退
+    initState = initState or STATE_ENUM.FALLING
+    if not table.HasValue(STATE_ENUM, initState) then
+        log.warn("LifeCycleHandler:Init invalid initState '", tostring(initState), "', falling back to 'falling'")
+        initState = STATE_ENUM.FALLING
+    end
+
+    store:Set(ragdoll, STATE_KEY, initState)
+    log.trace("LifeCycleHandler: initialized ragdoll ", ragdoll, " with state '", initState, "'")
 
     -- 触发状态变化事件，携带初始化数据（供门面使用）
-    hook.Run(Constants.Events.OnRagdollStateChange, ragdoll, STATE_ENUM.FALLING, nil, initData)
+    hook.Run(Constants.Events.OnRagdollStateChange, ragdoll, initState, nil, initData)
 end
 
 -- 获取当前状态（供外部查询）

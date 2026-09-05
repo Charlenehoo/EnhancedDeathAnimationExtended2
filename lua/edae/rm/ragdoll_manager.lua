@@ -91,7 +91,7 @@ function Manager:OnCreate(owner, ragdoll)
     HealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
 
     -- 初始化状态机：会触发 OnRagdollStateChange，从而自动启动初始播放
-    LifeCycleHandler:Init(ragdoll, damageContext)
+    LifeCycleHandler:Init(ragdoll, Constants.LifeCycleHandler.STATE_ENUM.FALLING, damageContext)
 
     hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
 end
