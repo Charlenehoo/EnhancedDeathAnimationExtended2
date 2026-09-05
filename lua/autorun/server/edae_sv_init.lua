@@ -16,6 +16,7 @@ EnhancedDeathAnimationExtended                        = EnhancedDeathAnimationEx
 
 EnhancedDeathAnimationExtended.Events                 = Constants.Events
 EnhancedDeathAnimationExtended.PlaybackReasons        = Constants.PlaybackReasons
+EnhancedDeathAnimationExtended.STATE_ENUM             = Constants.LifeCycleHandler.STATE_ENUM
 
 EnhancedDeathAnimationExtended.Interface              = {}
 EnhancedDeathAnimationExtended.Interface.SetBoneSkip  = function(ragdoll, boneName, skip, recursive)

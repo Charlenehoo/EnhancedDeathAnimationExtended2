@@ -36,7 +36,7 @@ if SERVER then
                 if kmRagdollAlreadyFired[ragdoll] then
                     kmRagdollAlreadyFired[ragdoll] = nil
                     if initFunc then
-                        initFunc(GetKillMoveInitialState())
+                        initFunc(GetKillMoveInitialState(), nil)
                     end
                 else
                     pendingInits[ragdoll] = {
@@ -57,7 +57,7 @@ if SERVER then
                 local info = pendingInits[ragdoll]
                 pendingInits[ragdoll] = nil
                 if info.initFunc then
-                    info.initFunc(GetKillMoveInitialState())
+                    info.initFunc(GetKillMoveInitialState(), nil)
                 end
             else
                 kmRagdollAlreadyFired[ragdoll] = true

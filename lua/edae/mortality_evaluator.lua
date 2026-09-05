@@ -33,7 +33,7 @@ MortalityEvaluator.RULES = {
     {
         name = "drowning",
         condition = function(ctx) return ctx.isDrown end,
-        decision = "dead",
+        decision = STATE_ENUM.DEAD,
         probTable = { [STATE_ENUM.DEAD] = 1.0 },
     },
 }
@@ -43,7 +43,7 @@ MortalityEvaluator.RULES = {
 -- ============================================================
 function MortalityEvaluator:Evaluate(damageContext)
     if not damageContext then
-        return "dead", nil
+        return STATE_ENUM.DEAD, nil
     end
 
     for _, rule in ipairs(self.RULES) do
@@ -54,7 +54,7 @@ function MortalityEvaluator:Evaluate(damageContext)
     end
 
     -- 默认：播放死亡动画，使用默认概率（由 LCH 处理）
-    return "falling", nil
+    return STATE_ENUM.FALLING, nil
 end
 
 -- ============================================================
