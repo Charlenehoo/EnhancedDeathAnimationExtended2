@@ -9,7 +9,9 @@ Constants.Events                                        = {
     OnAnimationFinished = "EDAE_OnAnimationFinished",
     OnTwitchFinished = "EDAE_OnTwitchFinished",
     OnPlaybackStopped = "EDAE_OnPlaybackStopped",
-    OnReviveRequested = "EDAE_OnReviveRequested"
+    OnReviveRequested = "EDAE_OnReviveRequested",
+    PostCreateRagdoll = "EDAE_PostCreateRagdoll",
+    PostRagdollTakeDamage = "EDAE_PostRagdollTakeDamage",
 }
 
 Constants.PlaybackReasons                               = {
@@ -65,9 +67,6 @@ Constants.DamageContextManager.FLAG_ENUM                = {
     CLUB = 128,
     BULLET = 256,
 }
-Constants.DamageContextManager.FLAG_KEY                 = "Flag"
-Constants.DamageContextManager.HIT_GROUP_KEY            = "HitGroup"
-Constants.DamageContextManager.DMG_INFO_KEY             = "DmgInfo"
 
 Constants.ANIMATION_PLAYER                              = {}
 Constants.ANIMATION_PLAYER.CONEXT_KEY                   = "Context"

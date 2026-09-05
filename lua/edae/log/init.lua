@@ -7,7 +7,7 @@ end
 
 
 local log = include("log.lua")
-log.level = "debug"
+log.level = "trace"
 
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = log

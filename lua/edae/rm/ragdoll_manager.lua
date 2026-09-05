@@ -1,12 +1,11 @@
 -- lua/edae/rm/ragdoll_manager.lua
 -- 布娃娃管理器（门面）：负责协调布娃娃生命周期中的各个模块
 -- 职责：
---   1. 监听原始游戏事件（创建、伤害、网络消息），翻译为停止原因并调用 PlaybackCoordinator:Stop
+--   1. 监听自定义事件（PostCreateRagdoll），初始化布娃娃
 --   2. 监听状态变化事件（OnRagdollStateChange），只启动新播放，不停止旧播放
 --   3. 对外提供自救请求/取消接口
 --   4. 复活逻辑委托给 ReviveManager
--- 注意：DropItem 和 FlexPlayer 功能已迁移至独立扩展模块（di 和 fp），
---       它们通过自注册事件钩子工作，不再由此模块直接调用。
+-- 注意：所有原生游戏事件（伤害、创建）已由专门模块翻译为领域事件，本模块只依赖领域事件。
 
 local MODULE_NAME = "RagdollManager"
 
@@ -15,24 +14,23 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants            = include("edae/config/constants.lua")
-local log                  = include("edae/log/init.lua")
-local EntityDataStore      = include("edae/eds/entity_data_store.lua")
-local DamageContextManager = include("edae/damage_context_manager.lua")
-local LifeCycleHandler     = include("edae/life_cycle_handler.lua")
-local HealthManager        = include("edae/rm/health_manager.lua")
-local RagdollPoseHelper    = include("edae/rm/pose_helper.lua")
-local PlaybackCoordinator  = include("edae/rm/playback_coordinator.lua")
-local VoiceManager         = include("edae/rm/voice_manager.lua")
-local ReviveManager        = include("edae/rm/revive_manager.lua")
+local Constants           = include("edae/config/constants.lua")
+local log                 = include("edae/log/init.lua")
+local EntityDataStore     = include("edae/eds/entity_data_store.lua")
+local LifeCycleHandler    = include("edae/life_cycle_handler.lua")
+local HealthManager       = include("edae/rm/health_manager.lua")
+local RagdollPoseHelper   = include("edae/rm/pose_helper.lua")
+local PlaybackCoordinator = include("edae/rm/playback_coordinator.lua")
+local VoiceManager        = include("edae/rm/voice_manager.lua")
+local ReviveManager       = include("edae/rm/revive_manager.lua")
 
-local store                = EntityDataStore:ForOwner(MODULE_NAME)
+local store               = EntityDataStore:ForOwner(MODULE_NAME)
 
-local STATE_ENUM           = Constants.LifeCycleHandler.STATE_ENUM
-local PlaybackReasons      = Constants.PlaybackReasons
-local Events               = Constants.Events
+local STATE_ENUM          = Constants.LifeCycleHandler.STATE_ENUM
+local PlaybackReasons     = Constants.PlaybackReasons
+local Events              = Constants.Events
 
-local Manager              = {}
+local Manager             = {}
 
 -- ============================================================
 -- 对外委托接口
@@ -74,12 +72,9 @@ end
 -- 事件处理方法
 -- ============================================================
 
---- 布娃娃创建时初始化
-function Manager:OnCreate(owner, ragdoll, initState)
+--- 布娃娃创建时初始化（由 PostCreateRagdoll 事件调用）
+function Manager:OnCreate(owner, ragdoll, initState, damageContext)
     if not IsValid(owner) or not IsValid(ragdoll) then return end
-
-    local damageContext = DamageContextManager:Get(owner)
-    DamageContextManager:Clear(owner)
 
     store:Set(ragdoll, Constants.RagdollManager.OWNER_KEY, owner)
     HealthManager:Set(ragdoll, Constants.RagdollManager.MAX_HEALTH)
@@ -90,20 +85,27 @@ function Manager:OnCreate(owner, ragdoll, initState)
     hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
 end
 
---- 布娃娃受到伤害
-function Manager:OnTakeDamage(ragdoll, dmginfo)
-    if not IsValid(ragdoll) or not dmginfo then return end
+--- 布娃娃受到伤害（由 PostRagdollTakeDamage 事件调用）
+--- @param ragdoll Entity 布娃娃实体
+--- @param eventData table 由 RagdollDamageProcessor 翻译后的事件数据（不含 ragdoll 和 dmginfo）
+function Manager:OnTakeDamage(ragdoll, eventData)
+    if not IsValid(ragdoll) then return end
 
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
     -- 爬行状态受击播放音效
     if currentState == STATE_ENUM.CRAWLING and IsValid(owner) then
-        VoiceManager:PlayDamageSound(owner)
+        VoiceManager:PlayDamageSound(owner, eventData)
     end
 
-    local damage = dmginfo:GetDamage()
+    local damage = eventData.finalDamage or 0
     local died = HealthManager:Damage(ragdoll, damage)
+
+    -- 示例：根据命中骨骼禁用动画（可调整触发条件）
+    if eventData.hitBone and damage > 30 then
+        PlaybackCoordinator:SetBoneSkip(ragdoll, eventData.hitBone, true, false)
+    end
 
     if died then
         PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.InterruptedByHealthDepleted)
@@ -141,6 +143,21 @@ end
 -- 事件订阅
 -- ============================================================
 
+-- 布娃娃创建（PostCreateRagdoll 事件）
+hook.Add(Events.PostCreateRagdoll, MODULE_NAME .. "_OnPostCreateRagdoll", function(owner, ragdoll, damageContext)
+    if not IsValid(owner) or not IsValid(ragdoll) then return end
+
+    local function initFunc(initState)
+        Manager:OnCreate(owner, ragdoll, initState, damageContext)
+    end
+
+    -- 触发预初始化事件，允许外部接管
+    local result = hook.Run(Events.PreRagdollInitialized, owner, ragdoll, initFunc)
+    if result == true then return end
+
+    initFunc()
+end)
+
 -- 状态变化
 hook.Add(Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
     function(ragdoll, state, fromState, initData)
@@ -148,32 +165,10 @@ hook.Add(Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
         Manager:OnStateChange(ragdoll, state, fromState, initData)
     end)
 
--- 布娃娃创建
-hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
-    if not IsValid(owner) or not IsValid(ragdoll) then return end
-    if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
-
-    -- 构造初始化函数，外部可调用并传入自定义初始状态
-    local function initFunc(initState)
-        Manager:OnCreate(owner, ragdoll, initState)
-    end
-
-    -- 触发预初始化事件，传递 initFunc 供外部使用
-    local result = hook.Run(Constants.Events.PreRagdollInitialized, owner, ragdoll, initFunc)
-
-    -- 外部返回 true 表示接管初始化，不再自动执行
-    if result == true then
-        return
-    end
-
-    initFunc()
-end)
-
--- 布娃娃受到伤害
-hook.Add("PostEntityTakeDamage", MODULE_NAME .. "_PostEntityTakeDamage", function(ent, dmginfo, wasDamageTaken)
-    if not wasDamageTaken then return end
-    if not IsValid(ent) or not ent:IsRagdoll() or ent:GetClass() ~= Constants.RAGDOLL_CLASS then return end
-    Manager:OnTakeDamage(ent, dmginfo)
+-- 布娃娃受到伤害（由 RagdollDamageProcessor 触发的自定义事件）
+hook.Add(Events.PostRagdollTakeDamage, MODULE_NAME .. "_OnPostRagdollTakeDamage", function(ragdoll, eventData)
+    if not IsValid(ragdoll) or not eventData then return end
+    Manager:OnTakeDamage(ragdoll, eventData)
 end)
 
 -- 复活请求已由 ReviveManager 监听处理，此处不再重复注册

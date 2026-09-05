@@ -11,11 +11,13 @@ local EntityDataStore      = include("edae/eds/entity_data_store.lua")
 
 local store                = EntityDataStore:ForOwner(MODULE_NAME)
 
--- 从 Constants 中获取键名和标志枚举
-local FLAG_KEY             = Constants.DamageContextManager.FLAG_KEY
+-- 标志位枚举（共享）
 local FLAG_ENUM            = Constants.DamageContextManager.FLAG_ENUM
-local HIT_GROUP_KEY        = Constants.DamageContextManager.HIT_GROUP_KEY
-local DMG_INFO_KEY         = Constants.DamageContextManager.DMG_INFO_KEY
+
+-- 存储键（模块私有）
+local FLAG_KEY             = "Flag"
+local HIT_GROUP_KEY        = "HitGroup"
+local DMG_INFO_KEY         = "DmgInfo"
 
 local DamageContextManager = {}
 
@@ -157,6 +159,19 @@ hook.Add("ScalePlayerDamage", Constants.ADDON_NAME .. MODULE_NAME .. "ScalePlaye
     function(ply, hitgroup, dmginfo)
         handleScaleDamage(ply, hitgroup, dmginfo)
     end)
+
+-- 新增：监听布娃娃创建，广播上下文事件
+hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
+    if not IsValid(owner) or not IsValid(ragdoll) then return end
+    if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
+
+    -- 获取并清除上下文（如果存在）
+    local context = DamageContextManager:Get(owner)
+    DamageContextManager:Clear(owner) -- 清除，避免残留
+
+    -- 广播自定义事件（Fire-and-Forget）
+    hook.Run(Constants.Events.PostCreateRagdoll, owner, ragdoll, context)
+end)
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = DamageContextManager
 return DamageContextManager
