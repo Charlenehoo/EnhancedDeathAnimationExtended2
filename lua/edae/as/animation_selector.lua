@@ -43,7 +43,7 @@ end
 --- @param pelvisShot boolean
 --- @return string|nil 动画名
 local function selectDeathAnimation(isBurn, isBlast, isMoving, isClub, hitGroup, neckShot, shotgunShot, backShot,
-                                    pelvisShot)
+                                    pelvisShot, isDrown)
     local category = nil
 
     if isBurn then
@@ -54,6 +54,8 @@ local function selectDeathAnimation(isBurn, isBlast, isMoving, isClub, hitGroup,
         category = animationCategories.damage.moving
     elseif isClub then
         category = animationCategories.damage.club
+    elseif isDrown then
+        category = animationCategories.damage.drown
     else
         hitGroup = hitGroup or HITGROUP_GENERIC
 
@@ -186,7 +188,8 @@ function AnimationSelector:SelectAnimation(state, info)
             info.neckShot,
             info.shotgunShot,
             info.backShot,
-            info.pelvisShot
+            info.pelvisShot,
+            info.isDrown
         )
     elseif state == STATE_ENUM.CRAWLING then
         return selectCrawlAnimation(info.isFacingUp, info.useFemale)
@@ -201,7 +204,7 @@ function AnimationSelector:SelectAnimation(state, info)
             log.trace("AnimationSelector: state is 'dead', no animation will be played")
         elseif state == STATE_ENUM.TWITCHING then
             log.warn(
-            "AnimationSelector: state is 'twitching', but twitch is not handled here; use TwitchAssembler instead")
+                "AnimationSelector: state is 'twitching', but twitch is not handled here; use TwitchAssembler instead")
         else
             log.warn("AnimationSelector: unknown state '", tostring(state), "'")
         end

@@ -78,6 +78,10 @@ local animationCategories = {
             "club4",
         },
 
+        drown = {
+            "Choked_Barnacle",
+        },
+
         -- 头部中弹
         head = {
             "16head",

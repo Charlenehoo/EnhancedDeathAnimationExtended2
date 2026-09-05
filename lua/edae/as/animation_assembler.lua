@@ -20,6 +20,7 @@ local HealthManager         = include("edae/rm/health_manager.lua")
 local RagdollPoseHelper     = include("edae/rm/pose_helper.lua")
 local helper                = include("edae/helper.lua")
 local femaleModels          = include("edae/config/female_models.lua") -- 女性模型名单
+local animationModelMap     = include("edae/config/animation_model_map.lua")
 
 local STATE_ENUM            = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -112,6 +113,12 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner, isPla
         return nil, nil
     end
 
+    -- ========== 新增：根据动画名查找模型名 ==========
+    local modelName = animationModelMap.ANIMATION_TO_MODEL[animationName]
+    if not modelName then
+        modelName = animationModelMap.DEFAULT_MODEL
+    end
+
     -- 选择骨骼白名单
     local boneWhitelist = BoneWhitelistSelector:Select(
         state,
@@ -161,6 +168,7 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner, isPla
         initialHealth             = HealthManager:Get(ragdoll),
         enableHealthBasedSlowdown = (state == STATE_ENUM.WRITHING),
         basePlaybackRate          = basePlaybackRate,
+        animationModelName        = modelName,
     }
 
     log.trace("AnimationAssembler: assembled animation '", animationName, "' for state '", state, "'")
