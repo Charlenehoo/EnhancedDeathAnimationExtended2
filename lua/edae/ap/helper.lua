@@ -87,6 +87,16 @@ function helper.MakeBoneMap(ctx)
         table.insert(ctx.boneMap, data)
     end
 
+    -- 在循环结束后，应用显式持久化跳过设置
+    if ctx.persistentSkipBones then
+        for _, bone in ipairs(ctx.boneMap) do
+            local skipValue = ctx.persistentSkipBones[bone.boneName]
+            if skipValue ~= nil then
+                bone.skip = skipValue
+            end
+        end
+    end
+
     if #ctx.boneMap == 0 then
         log.warn("Cannot make bone map")
         return false
