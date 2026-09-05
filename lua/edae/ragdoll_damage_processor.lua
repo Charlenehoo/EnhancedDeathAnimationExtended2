@@ -111,6 +111,7 @@ function Processor:Process(ragdoll, dmginfo)
 
     -- 构建事件数据表（不含 ragdoll 和 dmginfo）
     local eventData = {
+        dmginfo        = dmginfo,
         originalDamage = originalDamage,
         finalDamage    = finalDamage,
         hitBone        = boneHit.boneName,
