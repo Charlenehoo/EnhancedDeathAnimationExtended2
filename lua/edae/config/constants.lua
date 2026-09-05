@@ -68,6 +68,7 @@ Constants.DamageContextManager.FLAG_ENUM                = {
     MOVING = 64,
     CLUB = 128,
     BULLET = 256,
+    DROWN = 512,
 }
 
 Constants.ANIMATION_PLAYER                              = {}
