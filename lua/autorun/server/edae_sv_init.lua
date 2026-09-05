@@ -10,7 +10,7 @@ local LifeCycleHandler    = include("edae/life_cycle_handler.lua")
 local HealthManager       = include("edae/rm/health_manager.lua")
 
 
-local EnhancedDeathAnimationExtended                  = {}
+EnhancedDeathAnimationExtended                        = EnhancedDeathAnimationExtended or {}
 
 EnhancedDeathAnimationExtended.Events                 = Constants.Events
 EnhancedDeathAnimationExtended.PlaybackReasons        = Constants.PlaybackReasons
@@ -37,4 +37,4 @@ end
 --   true  : 外部接管初始化，模块不再自动调用 initFunc
 --   其他  : 立即初始化
 
-hook.Run("EDAE_Loaded", EnhancedDeathAnimationExtended)
+hook.Run("EDAE_Loaded")

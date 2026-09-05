@@ -1,0 +1,60 @@
+hook.Add("EDAE_Loaded", "EDAE_COMPAT", function()
+    local function ApplyPatch()
+        -- 依赖检查
+        if not gore_mod_gib_PhysBone or not gore_mod_decap_ragdoll or not gore_mod_gib_ragdolll then
+            error("[NGM2-EDAE Compat] Noob Gore Mod 2 functions not found!")
+        end
+        if not EnhancedDeathAnimationExtended or not EnhancedDeathAnimationExtended.Interface then
+            error("[NGM2-EDAE Compat] EDAE interface not found!")
+        end
+
+        local EDAE = EnhancedDeathAnimationExtended.Interface
+
+        -- 保存原始函数
+        local orig_gib_phys = gore_mod_gib_PhysBone
+        local orig_decap = gore_mod_decap_ragdoll
+        local orig_gib_all = gore_mod_gib_ragdolll
+
+        -- 包裹 gore_mod_gib_PhysBone
+        function gore_mod_gib_PhysBone(ragdoll, bone_name, dmg_data)
+            if IsValid(ragdoll) and bone_name then
+                -- 跳过该骨骼及其所有子骨骼的 EDAE 控制
+                EDAE.SetBoneSkip(ragdoll, bone_name, true, true)
+            end
+            return orig_gib_phys(ragdoll, bone_name, dmg_data)
+        end
+
+        -- 包裹 gore_mod_decap_ragdoll
+        function gore_mod_decap_ragdoll(ragdoll, bone_name, dmg_data)
+            if IsValid(ragdoll) and bone_name then
+                -- 切片同样会移除原布娃娃上的骨骼链，需要跳过
+                EDAE.SetBoneSkip(ragdoll, bone_name, true, true)
+            end
+            return orig_decap(ragdoll, bone_name, dmg_data)
+        end
+
+        -- 包裹 gore_mod_gib_ragdolll（完全爆炸）
+        function gore_mod_gib_ragdolll(ragdoll, force, Particle)
+            if IsValid(ragdoll) then
+                -- 停止当前 EDAE 播放
+                EDAE.StopPlayback(ragdoll, "gore_exploded")
+                -- 标记该布娃娃已被爆炸，若 EDAE 尚未初始化则阻止初始化
+                ragdoll.goremod_is_gibbed = true
+            end
+            return orig_gib_all(ragdoll, force, Particle)
+        end
+
+        return true
+    end
+
+    -- 监听 EDAE 预初始化事件：如果布娃娃已被 NGM2 标记为爆炸，则阻止 EDAE 初始化
+    hook.Add("EDAE_PreRagdollInitialized", "NGM2_Block_EDA_Init", function(owner, ragdoll, initFunc)
+        if IsValid(ragdoll) and ragdoll.goremod_is_gibbed then
+            return true -- 返回 true 表示外部接管初始化，EDAE 将不会调用 initFunc
+        end
+    end)
+
+    hook.Add("InitPostEntity", "NGM2_EDAE_ApplyPatch", function()
+        ApplyPatch()
+    end)
+end)
