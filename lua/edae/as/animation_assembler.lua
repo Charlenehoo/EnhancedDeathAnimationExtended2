@@ -99,6 +99,7 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner, isPla
             animInfo.shotgunShot = damageContext.shotgunShot
             animInfo.backShot = damageContext.backShot
             animInfo.pelvisShot = damageContext.pelvisShot
+            animInfo.isDrown = damageContext.isDrown
         end
     elseif state == STATE_ENUM.CRAWLING then
         animInfo.isFacingUp = isFacingUp
@@ -114,7 +115,7 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner, isPla
     end
 
     -- ========== 新增：根据动画名查找模型名 ==========
-    local modelName = animationModelMap.ANIMATION_TO_MODEL[animationName]
+    local modelName = animationModelMap.ANIM_TO_MODEL[animationName] -- 修正字段名
     if not modelName then
         modelName = animationModelMap.DEFAULT_MODEL
     end
