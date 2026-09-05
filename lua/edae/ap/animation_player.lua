@@ -238,7 +238,14 @@ local function playAnimationCoroutine(ctx)
 
                 -- 4. 地面检测
                 local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
-                local groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
+                local groundPos
+                if ragdoll:WaterLevel() > 1 then
+                    -- 在水中：直接使用 refer 作为“虚拟地面”，防止因无地面导致动画中断
+                    groundPos = refer
+                else
+                    groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
+                end
+
                 if not groundPos then
                     bone.Fall = true
                     ctx.FallCount = ctx.FallCount + 1
@@ -264,7 +271,7 @@ local function playAnimationCoroutine(ctx)
                 local tr = util.TraceLine({
                     start = ragdollPhysObj:GetPos(),
                     endpos = bone_pos,
-                    mask = MASK_ALL,
+                    mask = MASK_SOLID,
                     filter = { ragdoll, animationModel }
                 })
 

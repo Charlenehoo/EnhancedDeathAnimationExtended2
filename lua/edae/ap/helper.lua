@@ -127,7 +127,7 @@ function helper.CreateAnimationModel(ctx)
     animationModel:SetModel(animationModelName)
     animationModel:Spawn()
 
-    if animationModel:GetModel() ~= animationModelName then
+    if not util.IsValidModel(animationModelName) then
         log.warn("Invalid animationModelName: ", tostring(animationModelName))
         return false
     end
