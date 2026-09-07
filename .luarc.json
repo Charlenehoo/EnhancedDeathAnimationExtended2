@@ -17,5 +17,8 @@
   "workspace.library": [
     "C:/Users/CharleneHoo/Dev/Gmod-reference/2026-05-29_06-23-16.lua/"
   ],
-  "workspace.checkThirdParty": false
+  "workspace.checkThirdParty": false,
+    "diagnostics.disable": [
+        "param-type-mismatch"
+    ]
 }

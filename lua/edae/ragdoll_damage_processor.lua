@@ -89,7 +89,7 @@ end
 --- 处理一次布娃娃伤害，生成结构化事件数据（不包含 ragdoll 和 dmginfo）
 --- @param ragdoll Entity 布娃娃实体
 --- @param dmginfo CTakeDamageInfo 伤害信息（可能被修改）
---- @return table|nil 事件数据表，若忽略则返回 nil
+--- @return table|nil
 function Processor:Process(ragdoll, dmginfo)
     if not IsValid(ragdoll) or not dmginfo then return nil end
 
@@ -127,8 +127,11 @@ function Processor:Process(ragdoll, dmginfo)
     return eventData
 end
 
--- 监听原生钩子，翻译并广播自定义事件
-hook.Add("PostEntityTakeDamage", MODULE_NAME .. "_PostEntityTakeDamage", function(ent, dmginfo, wasDamageTaken)
+---comment
+---@param ent Entity
+---@param dmginfo CTakeDamageInfo
+---@param wasDamageTaken boolean
+local function handlePostEntityTakeDamage(ent, dmginfo, wasDamageTaken)
     if not wasDamageTaken then return end
     if not IsValid(ent) or not ent:IsRagdoll() or ent:GetClass() ~= Constants.RAGDOLL_CLASS then return end
 
@@ -136,7 +139,12 @@ hook.Add("PostEntityTakeDamage", MODULE_NAME .. "_PostEntityTakeDamage", functio
     if not eventData then return end
 
     hook.Run(Constants.Events.PostRagdollTakeDamage, ent, eventData)
-end)
+end
+
+hook.Add("PostEntityTakeDamage", Constants.ADDON_NAME .. MODULE_NAME .. "PostEntityTakeDamage",
+    function(ent, dmginfo, wasDamageTaken)
+        handlePostEntityTakeDamage(ent, dmginfo, wasDamageTaken)
+    end)
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = Processor
 return Processor

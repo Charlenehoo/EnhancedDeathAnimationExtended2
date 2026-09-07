@@ -115,26 +115,26 @@ function Manager:OnCreate(owner, ragdoll, damageContext, initState, probTable)
     hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
 end
 
---- 布娃娃受到伤害（由 PostRagdollTakeDamage 事件调用）
---- @param ragdoll Entity 布娃娃实体
---- @param eventData table 由 RagdollDamageProcessor 翻译后的事件数据（不含 ragdoll 和 dmginfo）
-function Manager:OnTakeDamage(ragdoll, eventData)
+--- @param ragdoll Entity Ragdoll
+--- @param data table | nil
+function Manager:OnTakeDamage(ragdoll, data)
     if not IsValid(ragdoll) then return end
+    if not data then return end
 
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
     -- 爬行状态受击播放音效
     if currentState == STATE_ENUM.CRAWLING and IsValid(owner) then
-        VoiceManager:PlayDamageSound(owner, eventData)
+        VoiceManager:PlayDamageSound(owner, data)
     end
 
-    local damage = eventData.finalDamage or 0
+    local damage = data.finalDamage or 0
     local died = HealthManager:Damage(ragdoll, damage)
 
     -- 根据命中骨骼禁用动画（示例）
-    if eventData.hitBone and damage > 30 then
-        PlaybackCoordinator:SetBoneSkip(ragdoll, eventData.hitBone, true, false)
+    if data.hitBone and damage > 30 then
+        PlaybackCoordinator:SetBoneSkip(ragdoll, data.hitBone, true, false)
     end
 
     if died then
@@ -173,79 +173,81 @@ end
 -- 事件订阅
 -- ============================================================
 
--- 1. 监听 MortalityEvaluator 的评估结果
-hook.Add(Events.PostCreateRagdoll, MODULE_NAME .. "_OnMortalityEvaluated",
+---comment
+---@param owner Entity
+---@param ragdoll Entity
+---@param damageContext table | nil
+---@param decision string
+---@param probTable table | nil
+local function handlePostCreateRagdoll(owner, ragdoll, damageContext, decision, probTable)
+    if not IsValid(owner) then
+        log.warn("RagdollManager: handlePostCreateRagdoll - owner is invalid, aborting")
+        return
+    end
+    if not IsValid(ragdoll) then
+        log.warn("RagdollManager: handlePostCreateRagdoll - ragdoll is invalid, aborting")
+        return
+    end
+    log.trace("RagdollManager: handlePostCreateRagdoll - both ragdoll and owner are valid")
+
+    --- 定义初始化函数（供外部接管时调用）
+    ---@param overrideState string | nil
+    ---@param overrideProbTable table | nil
+    local function initFunc(overrideState, overrideProbTable)
+        log.trace("RagdollManager: initFunc called with overrideState=", tostring(overrideState),
+            ", overrideProbTable=", tostring(overrideProbTable))
+        Manager:OnCreate(owner, ragdoll, damageContext, overrideState or decision, overrideProbTable or probTable)
+    end
+
+    log.trace("RagdollManager: firing PreRagdollInitialized hook...")
+    local result = hook.Run(
+        Events.PreRagdollInitialized,
+        owner,
+        ragdoll,
+        damageContext,
+        decision,
+        probTable,
+        initFunc
+    )
+    log.trace("RagdollManager: PreRagdollInitialized hook returned: ", tostring(result))
+
+    if result == true then
+        log.trace("RagdollManager: initialization taken over by external handler, skipping default init")
+        return
+    end
+
+    -- 否则按 ME 的建议初始化
+    local initState = STATE_ENUM.FALLING -- 安全回退
+    log.trace("RagdollManager: default init, decision from ME = ", tostring(decision))
+
+    -- 验证 decision 是否是有效的 STATE_ENUM
+    if decision and table.HasValue(STATE_ENUM, decision) then
+        initState = decision
+        log.trace("RagdollManager: using valid decision '", decision, "' as initState")
+    else
+        log.warn("RagdollManager: invalid decision '" .. tostring(decision) .. "', using FALLING")
+    end
+    log.trace("RagdollManager: calling initFunc with initState=", initState, " and probTable=",
+        probTable and "provided" or "nil")
+
+    Manager:OnCreate(owner, ragdoll, damageContext, initState, probTable)
+end
+
+hook.Add(Events.PostCreateRagdoll, Constants.ADDON_NAME .. MODULE_NAME .. "PostCreateRagdoll",
     function(owner, ragdoll, damageContext, decision, probTable)
-        if not IsValid(ragdoll) then
-            log.warn("RagdollManager: OnMortalityEvaluated - ragdoll is invalid, aborting")
-            return
-        end
-        if not IsValid(owner) then
-            log.warn("RagdollManager: OnMortalityEvaluated - owner is invalid, aborting")
-            return
-        end
-        log.trace("RagdollManager: OnMortalityEvaluated - both ragdoll and owner are valid")
-
-        -- 定义初始化函数（供外部接管时调用）
-        local function initFunc(overrideState, overrideProbTable)
-            log.trace("RagdollManager: initFunc called with overrideState=", tostring(overrideState),
-                ", overrideProbTable=", tostring(overrideProbTable))
-            Manager:OnCreate(owner, ragdoll, damageContext, overrideState or decision, overrideProbTable or probTable)
-        end
-
-        -- 触发预初始化事件，允许外部接管（如 BSMod）
-        log.trace("RagdollManager: firing PreRagdollInitialized hook...")
-        local result = hook.Run(
-            Events.PreRagdollInitialized,
-            owner,
-            ragdoll,
-            initFunc,
-            decision,
-            probTable,
-            damageContext
-        )
-        log.trace("RagdollManager: PreRagdollInitialized hook returned: ", tostring(result))
-
-        -- 如果外部返回 true，说明已接管，不再执行默认初始化
-        if result == true then
-            log.trace("RagdollManager: initialization taken over by external handler, skipping default init")
-            return
-        end
-
-        -- 否则按 ME 的建议初始化
-        local initState = STATE_ENUM.FALLING -- 安全回退
-        log.trace("RagdollManager: default init, decision from ME = ", tostring(decision))
-
-        -- 验证 decision 是否是有效的 STATE_ENUM
-        if decision and table.HasValue(STATE_ENUM, decision) then
-            initState = decision
-            log.trace("RagdollManager: using valid decision '", decision, "' as initState")
-        else
-            log.warn("RagdollManager: invalid decision '" .. tostring(decision) .. "', using FALLING")
-        end
-
-        log.trace("RagdollManager: calling initFunc with initState=", initState, " and probTable=",
-            probTable and "provided" or "nil")
-
-        Manager:OnCreate(owner, ragdoll, damageContext, decision, probTable)
-        initFunc(initState, probTable)
+        handlePostCreateRagdoll(owner, ragdoll, damageContext, decision, probTable)
     end)
 
--- 2. 状态变化
-hook.Add(Events.OnRagdollStateChange, MODULE_NAME .. "_OnRagdollStateChange",
+hook.Add(Events.OnRagdollStateChange, Constants.ADDON_NAME .. MODULE_NAME .. "OnRagdollStateChange",
     function(ragdoll, state, fromState, initData)
         if not IsValid(ragdoll) then return end
         Manager:OnStateChange(ragdoll, state, fromState, initData)
     end)
 
--- 3. 布娃娃受到伤害（由 RagdollDamageProcessor 触发的自定义事件）
-hook.Add(Events.PostRagdollTakeDamage, MODULE_NAME .. "_OnPostRagdollTakeDamage", function(ragdoll, eventData)
-    if not IsValid(ragdoll) or not eventData then return end
-    Manager:OnTakeDamage(ragdoll, eventData)
-end)
+hook.Add(Events.PostRagdollTakeDamage, Constants.ADDON_NAME .. MODULE_NAME .. "PostRagdollTakeDamage",
+    function(ragdoll, data)
+        Manager:OnTakeDamage(ragdoll, data)
+    end)
 
--- 4. 复活请求已由 ReviveManager 监听处理，此处不再重复注册
-
--- 注册单例
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = Manager
 return Manager
