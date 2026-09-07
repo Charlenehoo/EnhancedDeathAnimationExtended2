@@ -54,8 +54,6 @@ local function selectDeathAnimation(isBurn, isBlast, isMoving, isClub, hitGroup,
         category = animationCategories.damage.moving
     elseif isClub then
         category = animationCategories.damage.club
-    elseif isDrown then
-        category = animationCategories.damage.drown
     else
         hitGroup = hitGroup or HITGROUP_GENERIC
 
