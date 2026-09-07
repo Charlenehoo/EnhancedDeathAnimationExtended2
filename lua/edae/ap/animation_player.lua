@@ -330,7 +330,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         persistentSkipBones       = opts.persistentSkipBones,
         effects                   = opts.effects and table.Copy(opts.effects) or nil,
         effectStates              = {},
-        groundStrategy            = opts.groundStrategyor or GroundStrategyBuilder.DefaultStrategy,
+        groundStrategy            = opts.groundStrategy or GroundStrategyBuilder.DefaultStrategy,
 
         rotateTargetYaw           = nil,
         rotateTargetPos           = nil,
