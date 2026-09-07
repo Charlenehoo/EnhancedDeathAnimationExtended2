@@ -238,32 +238,15 @@ local function playAnimationCoroutine(ctx)
                     continue
                 end
 
-                -- 4. 地面检测 5. 检测高度突变（悬空）
-                local continueProcessing, bone_pos = ctx.groundStrategy(ctx, bone, amBonePos, amBoneAngle)
-                if not continueProcessing then
-                    continue
-                end
-
-                -- 6. 计算目标位置并检测墙壁
-                local tr = util.TraceLine({
-                    start = ragdollPhysObj:GetPos(),
-                    endpos = bone_pos,
-                    mask = MASK_SOLID,
-                    filter = { ragdoll, animationModel }
-                })
-
-                if tr.Hit then
-                    if not bone.HitWall then
-                        bone.HitWall = true
-                        ctx.HitWallCount = ctx.HitWallCount + 1
-                        log.trace("Bone ", boneName, " hit wall, marking as HitWall")
-                    end
+                -- 4-6. 调用骨骼处理策略（地面检测、高度修正、墙壁检测）
+                local shouldContinue, targetPos = ctx.groundStrategy(ctx, bone, amBonePos, amBoneAngle)
+                if not shouldContinue then
                     continue
                 end
 
                 -- 7. 正常驱动骨骼
                 local shadowParams = ctx.shadowParamsTemplate
-                shadowParams.pos = bone_pos
+                shadowParams.pos = targetPos
                 shadowParams.angle = amBoneAngle
                 ragdollPhysObj:Wake()
                 ragdollPhysObj:ComputeShadowControl(shadowParams)

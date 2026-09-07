@@ -1,11 +1,11 @@
 -- lua/edae/as/ground_strategy_builder.lua
--- 地面处理策略构建器：根据状态返回不同的地面检测与位置修正策略
+-- 骨骼处理策略构建器：封装地面检测、高度修正、墙壁检测等完整流程
 -- 策略函数签名：
---   function(ctx, bone, amBonePos, amBoneAngle) return continueProcessing, bone_pos end
---   ctx：播放上下文（包含 ragdoll、animationModel、常量等）
---   bone：当前处理的骨骼数据表
---   amBonePos/amBoneAngle：动画模型上对应骨骼的位置和角度
---   返回 continueProcessing（false 表示跳过该骨骼）和 bone_pos（用于后续墙壁检测和驱动）
+--   function(ctx, bone, amBonePos, amBoneAngle) return shouldContinue, targetPos end
+--   ctx：播放上下文
+--   bone：骨骼数据
+--   amBonePos/amBoneAngle：动画模型骨骼位置和角度
+--   返回 shouldContinue（false 表示跳过该骨骼）和 targetPos（驱动骨骼的目标位置）
 
 local MODULE_NAME = "GroundStrategyBuilder"
 
@@ -19,7 +19,7 @@ local log                   = include("edae/log/init.lua")
 
 local GroundStrategyBuilder = {}
 
--- 默认地面检测函数（从原 AnimationPlayer 提取，不含 WaterLevel 判断）
+-- 向下追踪地面
 local function traceGroundBelow(startPos, filterEntities)
     local trace = util.TraceLine({
         start = startPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET,
@@ -33,24 +33,20 @@ local function traceGroundBelow(startPos, filterEntities)
     return nil
 end
 
---- 默认地面处理策略：检测真实地面，进行高度修正和坠落判断
+--- 默认骨骼处理策略：地面检测 + 高度修正 + 墙壁检测
 --- @param ctx table 播放上下文
 --- @param bone table 骨骼数据
 --- @param amBonePos Vector 动画模型骨骼位置
---- @param amBoneAngle Angle 动画模型骨骼角度（本策略未使用，保留接口一致性）
---- @return boolean continueProcessing
---- @return Vector|nil bone_pos
+--- @param amBoneAngle Angle 动画模型骨骼角度
+--- @return boolean shouldContinue 是否继续驱动该骨骼
+--- @return Vector|nil targetPos 目标位置（shouldContinue 为 true 时有效）
 local function defaultStrategy(ctx, bone, amBonePos, amBoneAngle)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
 
-    -- 计算参考点（与动画模型相同高度）
+    -- 1. 地面检测
     local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
-
-    -- 获取地面位置（普通地面检测，不包含 WaterLevel）
     local groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
-
-    -- 无地面则标记 Fall 并跳过
     if not groundPos then
         bone.Fall = true
         ctx.FallCount = ctx.FallCount + 1
@@ -58,13 +54,13 @@ local function defaultStrategy(ctx, bone, amBonePos, amBoneAngle)
         return false, nil
     end
 
-    -- 高度修正计算
+    -- 2. 高度修正
     local hitDist = refer.z - groundPos.z
     local diff = hitDist - bone.lastHitZ
     bone.lastAddZ = diff + bone.lastAddZ
     bone.lastHitZ = hitDist
 
-    -- 检测高度突变（悬空）
+    -- 3. 高度突变检测
     if diff >= Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD then
         bone.Fall = true
         ctx.FallCount = ctx.FallCount + 1
@@ -72,31 +68,49 @@ local function defaultStrategy(ctx, bone, amBonePos, amBoneAngle)
         return false, nil
     end
 
-    -- 计算目标位置（应用累积高度偏移）
+    -- 4. 计算目标位置
     local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
+
+    -- 5. 墙壁检测
+    local tr = util.TraceLine({
+        start = bone.ragdollPhysObj:GetPos(),
+        endpos = bone_pos,
+        mask = MASK_ALL,
+        filter = { ragdoll, animationModel }
+    })
+
+    if tr.Hit then
+        if not bone.HitWall then
+            bone.HitWall = true
+            ctx.HitWallCount = ctx.HitWallCount + 1
+            log.trace("Bone ", bone.boneName, " hit wall, marking as HitWall")
+        end
+        return false, nil
+    end
+
+    -- 检测通过，返回目标位置
     return true, bone_pos
 end
 
---- 溺水状态策略：忽略地面检测和高度修正，直接使用动画模型位置
+--- 溺水状态策略：完全忽略环境检测，直接使用动画模型位置
 --- @param ctx table 播放上下文
 --- @param bone table 骨骼数据
 --- @param amBonePos Vector 动画模型骨骼位置
---- @param amBoneAngle Angle 动画模型骨骼角度（本策略未使用）
---- @return boolean continueProcessing
---- @return Vector bone_pos
+--- @param amBoneAngle Angle 动画模型骨骼角度
+--- @return boolean shouldContinue
+--- @return Vector targetPos
 local function drowningStrategy(ctx, bone, amBonePos, amBoneAngle)
-    -- 始终继续处理，返回动画模型位置
+    -- 不做任何检测，也不修改 Fall/HitWall 计数
     return true, amBonePos
 end
 
---- 根据状态获取地面处理策略
---- @param state string 当前状态（使用 Constants.LifeCycleHandler.STATE_ENUM）
+--- 根据状态获取骨骼处理策略
+--- @param state string 当前状态
 --- @return function 策略函数
 function GroundStrategyBuilder:Build(state)
     if state == Constants.LifeCycleHandler.STATE_ENUM.DROWNING then
         return drowningStrategy
     end
-    -- 默认策略
     return defaultStrategy
 end
 
