@@ -40,7 +40,7 @@ end
 --- @param amBoneAngle Angle 动画模型骨骼角度
 --- @return boolean shouldContinue 是否继续驱动该骨骼
 --- @return Vector|nil targetPos 目标位置（shouldContinue 为 true 时有效）
-local function defaultStrategy(ctx, bone, amBonePos, amBoneAngle)
+local function defaultBoneStrategy(ctx, bone, amBonePos, amBoneAngle)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
 
@@ -92,26 +92,39 @@ local function defaultStrategy(ctx, bone, amBonePos, amBoneAngle)
     return true, bone_pos
 end
 
---- 溺水状态策略：完全忽略环境检测，直接使用动画模型位置
---- @param ctx table 播放上下文
---- @param bone table 骨骼数据
---- @param amBonePos Vector 动画模型骨骼位置
---- @param amBoneAngle Angle 动画模型骨骼角度
---- @return boolean shouldContinue
---- @return Vector targetPos
-local function drowningStrategy(ctx, bone, amBonePos, amBoneAngle)
-    -- 不做任何检测，也不修改 Fall/HitWall 计数
+-- 默认重定位策略：向下追踪地面，找不到则使用 ragdoll 位置
+local function defaultRepositionStrategy(ctx)
+    local ragdoll = ctx.ragdoll
+    local animationModel = ctx.animationModel
+    local ragdollPos = ragdoll:GetPos()
+    local groundPos = traceGroundBelow(ragdollPos, { ragdoll, animationModel })
+    return groundPos or ragdollPos
+end
+
+-- 溺水骨骼策略：直接返回动画模型位置
+local function drowningBoneStrategy(ctx, bone, amBonePos, amBoneAngle)
     return true, amBonePos
 end
 
---- 根据状态获取骨骼处理策略
---- @param state string 当前状态
---- @return function 策略函数
+-- 溺水重定位策略：直接返回 ragdoll 位置
+local function drowningRepositionStrategy(ctx)
+    return ctx.ragdoll:GetPos()
+end
+
+--- 构建策略集合
+--- @param state string
+--- @return table { boneStrategy = function, repositionStrategy = function }
 function GroundStrategyBuilder:Build(state)
     if state == Constants.LifeCycleHandler.STATE_ENUM.DROWNING then
-        return drowningStrategy
+        return {
+            boneStrategy = drowningBoneStrategy,
+            repositionStrategy = drowningRepositionStrategy,
+        }
     end
-    return defaultStrategy
+    return {
+        boneStrategy = defaultBoneStrategy,
+        repositionStrategy = defaultRepositionStrategy,
+    }
 end
 
 -- 暴露默认策略，供 AnimationPlayer 在没有注入策略时使用

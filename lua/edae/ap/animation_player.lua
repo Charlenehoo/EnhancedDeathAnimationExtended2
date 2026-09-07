@@ -261,9 +261,8 @@ local function playAnimationCoroutine(ctx)
         end
 
         -- 正常完成一次循环，重新定位动画模型
-        local ragdollPos = ragdoll:GetPos()
-        local groundPos = traceGroundBelow(ragdollPos, { ragdoll, animationModel }) or ragdollPos
-        animationModel:SetPos(groundPos)
+        local newGroundPos = ctx.repositionStrategy(ctx)
+        animationModel:SetPos(newGroundPos)
         animationModel:Fire("SetAnimation", ctx.animationName, 0)
         Scheduler:Wait(0.15)
     end
@@ -313,7 +312,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         persistentSkipBones       = opts.persistentSkipBones,
         effects                   = opts.effects and table.Copy(opts.effects) or nil,
         effectStates              = {},
-        groundStrategy            = opts.groundStrategy or GroundStrategyBuilder.DefaultStrategy,
+        boneStrategy              = opts.boneStrategy or GroundStrategyBuilder.DefaultBoneStrategy,
+        repositionStrategy        = opts.repositionStrategy or GroundStrategyBuilder.DefaultRepositionStrategy,
 
         rotateTargetYaw           = nil,
         rotateTargetPos           = nil,

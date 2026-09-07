@@ -155,6 +155,8 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
         basePlaybackRate = math.Clamp(idealRate, 0.4, 1.5)
     end
 
+    local strategy = GroundStrategyBuilder:Build(state)
+
     -- 组装 opts
     local opts = {
         totalLoops                = totalLoops,
@@ -168,7 +170,8 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
         enableHealthBasedSlowdown = (state == STATE_ENUM.WRITHING),
         basePlaybackRate          = basePlaybackRate,
         animationModelName        = modelName,
-        groundStrategy            = GroundStrategyBuilder:Build(state),
+        boneStrategy              = strategy.boneStrategy,
+        repositionStrategy        = strategy.repositionStrategy,
     }
 
     log.trace("AnimationAssembler: assembled animation '", animationName, "' for state '", state, "'")
