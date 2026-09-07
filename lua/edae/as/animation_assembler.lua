@@ -21,6 +21,7 @@ local RagdollPoseHelper     = include("edae/rm/pose_helper.lua")
 local helper                = include("edae/helper.lua")
 local femaleModels          = include("edae/config/female_models.lua") -- 女性模型名单
 local animationModelMap     = include("edae/config/animation_model_map.lua")
+local GroundStrategyBuilder = include("edae/as/ground_strategy_builder.lua")
 
 local STATE_ENUM            = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -167,6 +168,7 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
         enableHealthBasedSlowdown = (state == STATE_ENUM.WRITHING),
         basePlaybackRate          = basePlaybackRate,
         animationModelName        = modelName,
+        groundStrategy            = GroundStrategyBuilder:Build(state),
     }
 
     log.trace("AnimationAssembler: assembled animation '", animationName, "' for state '", state, "'")

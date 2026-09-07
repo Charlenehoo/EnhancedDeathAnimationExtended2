@@ -236,33 +236,9 @@ local function playAnimationCoroutine(ctx)
                     continue
                 end
 
-                -- 4. 地面检测
-                local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
-                local groundPos
-                if ragdoll:WaterLevel() > 1 then
-                    -- 在水中：直接使用 refer 作为“虚拟地面”，防止因无地面导致动画中断
-                    groundPos = refer
-                else
-                    groundPos = traceGroundBelow(refer, { ragdoll, animationModel })
-                end
-
-                if not groundPos then
-                    bone.Fall = true
-                    ctx.FallCount = ctx.FallCount + 1
-                    log.trace("Bone ", boneName, " no ground found, marking as Fall")
-                    continue
-                end
-
-                local hitDist = refer.z - groundPos.z
-                local diff = hitDist - bone.lastHitZ
-                bone.lastAddZ = diff + bone.lastAddZ
-                bone.lastHitZ = hitDist
-
-                -- 5. 检测高度突变（悬空）
-                if diff >= Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD then
-                    bone.Fall = true
-                    ctx.FallCount = ctx.FallCount + 1
-                    log.trace("Bone ", boneName, " fall detected (diff=", diff, "), marking as Fall")
+                -- 4. 地面检测 5. 检测高度突变（悬空）
+                local continueProcessing, bone_pos = ctx.groundStrategy(ctx, bone, amBonePos, amBoneAngle)
+                if not continueProcessing then
                     continue
                 end
 
@@ -353,6 +329,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         persistentSkipBones       = opts.persistentSkipBones,
         effects                   = opts.effects and table.Copy(opts.effects) or nil,
         effectStates              = {},
+        groundStrategy            = opts.groundStrategy,
 
         rotateTargetYaw           = nil,
         rotateTargetPos           = nil,
