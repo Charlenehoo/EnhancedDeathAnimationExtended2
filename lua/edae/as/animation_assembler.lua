@@ -21,6 +21,7 @@ local helper                = include("edae/helper.lua")
 local femaleModels          = include("edae/config/female_models.lua") -- 女性模型名单
 local animationModelMap     = include("edae/config/animation_model_map.lua")
 local GroundStrategyBuilder = include("edae/as/ground_strategy_builder.lua")
+local RagdollPoseHelper     = include("edae/rm/pose_helper.lua")
 
 local STATE_ENUM            = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -65,9 +66,7 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
     local useFemale = isFemaleModel(ragdoll)
 
     -- 计算姿态信息
-    local isFacingUp = RagdollPoseHelper:IsFacingUp(ragdoll) -- 注意：此处使用了 RagdollPoseHelper，但文件中未 require，需要补上
-    -- 修复：文件顶部应包含 local RagdollPoseHelper = include("edae/rm/pose_helper.lua")
-    -- 或者直接使用 GroundStrategyBuilder 的初始定位策略，它内部使用了 RagdollPoseHelper，但姿态判断仍需要
+    local isFacingUp = RagdollPoseHelper:IsFacingUp(ragdoll)
 
     -- 选择动画名称
     local animInfo = {}
