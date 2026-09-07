@@ -29,22 +29,30 @@ local PlaybackReasons    = Constants.PlaybackReasons
 
 local LifeCycleHandler   = {}
 
--- 获取当前状态
+--- 获取当前状态
+--- @param ragdoll Entity
+--- @return string
 local function getState(ragdoll)
     return store:Get(ragdoll, STATE_KEY) or STATE_ENUM.FALLING
 end
 
--- 保存前一状态
+--- 保存前一状态
+--- @param ragdoll Entity
+--- @param oldState string
 local function savePreviousState(ragdoll, oldState)
     store:Set(ragdoll, PREVIOUS_STATE_KEY, oldState)
 end
 
--- 获取前一状态
+--- 获取前一状态
+--- @param ragdoll Entity
+--- @return string|nil
 local function getPreviousState(ragdoll)
     return store:Get(ragdoll, PREVIOUS_STATE_KEY)
 end
 
--- 内部设置状态，并触发事件
+--- 内部设置状态，并触发事件
+--- @param ragdoll Entity
+--- @param newState string
 local function setState(ragdoll, newState)
     local oldState = getState(ragdoll)
     if oldState == newState then
@@ -92,7 +100,9 @@ function LifeCycleHandler:GetPreviousState(ragdoll)
     return getPreviousState(ragdoll)
 end
 
--- 处理播放停止事件，根据原因和当前状态转移
+--- 处理播放停止事件，根据原因和当前状态转移
+--- @param ragdoll Entity
+--- @param reason string 停止原因
 function LifeCycleHandler:HandleEvent(ragdoll, reason)
     if not IsValid(ragdoll) then return end
 
