@@ -98,7 +98,7 @@ end
 --- 爬行动画选择（CRAWLING 状态）
 --- @param isFacingUp boolean
 --- @param useFemale boolean
---- @return string 动画名
+--- @return string | nil 动画名
 local function selectCrawlAnimation(isFacingUp, useFemale)
     if isFacingUp then
         if useFemale then
@@ -119,7 +119,7 @@ end
 
 --- 挣扎动画选择（WRITHING 状态）
 --- @param isFacingUp boolean
---- @return string 动画名
+--- @return string | nil 动画名
 local function selectWritheAnimation(isFacingUp)
     if isFacingUp then
         return animationCategories.writhe.face_up[1]
@@ -130,7 +130,7 @@ end
 
 --- 自救动画选择（SELF_REVIVING 状态）
 --- @param isFacingUp boolean
---- @return string 动画名
+--- @return string | nil 动画名
 local function selectSelfReviveAnimation(isFacingUp)
     if isFacingUp then
         return randomFromList(animationCategories.self_revive.face_up)
@@ -141,7 +141,7 @@ end
 
 --- 起身动画选择（GETTING_UP 状态）
 --- @param isFacingUp boolean
---- @return string 动画名
+--- @return string | nil 动画名
 local function selectGettingUpAnimation(isFacingUp)
     if isFacingUp then
         return randomFromList(animationCategories.getting_up.face_up)
