@@ -111,7 +111,7 @@ function Manager:OnCreate(owner, ragdoll, damageContext, initState, probTable)
     log.trace("Manager:OnCreate - LifeCycleHandler:Init completed")
 
     if initState ~= STATE_ENUM.DEAD then
-        PlaybackCoordinator:Start(ragdoll, initState, damageContext, owner)
+        PlaybackCoordinator:Start(owner, ragdoll, initState, damageContext)
     end
 
     -- 触发布娃娃初始化完成事件
@@ -170,10 +170,8 @@ function Manager:OnStateChange(ragdoll, state, fromState)
         return -- 死亡不播放
     end
 
-
-
     -- 启动新播放
-    PlaybackCoordinator:Start(ragdoll, state, nil, owner)
+    PlaybackCoordinator:Start(owner, ragdoll, state, nil)
 end
 
 -- ============================================================

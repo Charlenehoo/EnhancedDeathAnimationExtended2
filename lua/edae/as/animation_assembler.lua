@@ -45,9 +45,9 @@ end
 --- @param state string 当前状态（使用 Constants.LifeCycleHandler.STATE_ENUM）
 --- @param damageContext table|nil 伤害上下文（仅 FALLING 状态需要）
 --- @param owner Entity|nil 布娃娃所有者（用于 FALLING 的 yaw 计算和语音效果）
---- @param isPlayerCameraMode boolean|nil 是否玩家相机模式（仅 CRAWLING 使用，默认 false）
 --- @return animationName string|nil, opts table|nil 动画名和播放选项，失败返回 nil
-function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner, isPlayerCameraMode)
+--- @return opts table
+function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
     if not IsValid(ragdoll) then
         log.warn("AnimationAssembler: invalid ragdoll")
         return nil, nil
@@ -57,8 +57,6 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner, isPla
         log.warn("AnimationAssembler: state '", state, "' is not handled by animation assembler")
         return nil, nil
     end
-
-    isPlayerCameraMode = isPlayerCameraMode or false
 
     -- 从 Constants 读取配置，不再作为 option
     local naturalLevel = Constants.ANIMATION_SELECTOR.NATURAL_LEVEL
@@ -125,7 +123,6 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner, isPla
         state,
         animationName,
         naturalLevel,
-        isPlayerCameraMode,
         useRandomCrawlWhitelist
     )
 
