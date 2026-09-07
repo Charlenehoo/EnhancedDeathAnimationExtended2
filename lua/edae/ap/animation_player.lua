@@ -10,12 +10,14 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants       = include("edae/config/constants.lua")
-local log             = include("edae/log/init.lua")
-local Scheduler       = include("edae/coroutine_scheduler.lua")
-local helper          = include("edae/ap/helper.lua")
-local EntityDataStore = include("edae/eds/entity_data_store.lua")
-local HealthManager   = include("edae/rm/health_manager.lua")
+local Constants             = include("edae/config/constants.lua")
+local log                   = include("edae/log/init.lua")
+local Scheduler             = include("edae/coroutine_scheduler.lua")
+local helper                = include("edae/ap/helper.lua")
+local EntityDataStore       = include("edae/eds/entity_data_store.lua")
+local HealthManager         = include("edae/rm/health_manager.lua")
+local GroundStrategyBuilder = include("edae/as/ground_strategy_builder.lua")
+
 
 local store           = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -243,7 +245,6 @@ local function playAnimationCoroutine(ctx)
                 end
 
                 -- 6. 计算目标位置并检测墙壁
-                local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
                 local tr = util.TraceLine({
                     start = ragdollPhysObj:GetPos(),
                     endpos = bone_pos,
@@ -329,7 +330,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         persistentSkipBones       = opts.persistentSkipBones,
         effects                   = opts.effects and table.Copy(opts.effects) or nil,
         effectStates              = {},
-        groundStrategy            = opts.groundStrategy,
+        groundStrategy            = opts.groundStrategyor or GroundStrategyBuilder.DefaultStrategy,
 
         rotateTargetYaw           = nil,
         rotateTargetPos           = nil,

@@ -121,7 +121,7 @@ function Manager:OnCreate(owner, ragdoll, damageContext, initState, probTable)
 
     -- 初始化生命周期状态（initState 可能为 nil，LifeCycleHandler 会回退到 FALLING）
     log.trace("Manager:OnCreate - calling LifeCycleHandler:Init with initState=", tostring(initState))
-    LifeCycleHandler:Init(ragdoll, initState, damageContext)
+    LifeCycleHandler:Init(ragdoll, initState)
     log.trace("Manager:OnCreate - LifeCycleHandler:Init completed")
 
     if initState ~= STATE_ENUM.DEAD then
