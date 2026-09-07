@@ -25,13 +25,17 @@ local DAMAGE_MODIFIERS     = {
     -- [DMG_BULLET] = 0.8,
 }
 
--- 判断是否应忽略该伤害
+--- 判断是否应忽略该伤害
+--- @param dmginfo CTakeDamageInfo
+--- @return boolean
 local function ShouldIgnore(dmginfo)
     local dmgType = dmginfo:GetDamageType()
     return IGNORED_DAMAGE_TYPES[dmgType] == true
 end
 
--- 计算最终伤害（应用修正系数）
+--- 计算最终伤害（应用修正系数）
+--- @param dmginfo CTakeDamageInfo
+--- @return number
 local function GetFinalDamage(dmginfo)
     local damage = dmginfo:GetDamage()
     for dmgType, multiplier in pairs(DAMAGE_MODIFIERS) do
@@ -42,7 +46,10 @@ local function GetFinalDamage(dmginfo)
     return damage
 end
 
--- 获取距离伤害位置最近的物理骨骼
+--- 获取距离伤害位置最近的物理骨骼
+--- @param ragdoll Entity
+--- @param damagePos Vector
+--- @return table 包含骨骼名、ID、物理ID、命中位置
 local function GetClosestBone(ragdoll, damagePos)
     if not damagePos or damagePos == vector_origin then
         local pelvis = ragdoll:LookupBone("ValveBiped.Bip01_Pelvis")
@@ -79,7 +86,9 @@ local function GetClosestBone(ragdoll, damagePos)
     return closest
 end
 
--- 可选：根据骨骼名称映射到 HITGROUP_*（当前返回 nil）
+--- 可选：根据骨骼名称映射到 HITGROUP_*
+--- @param boneName string
+--- @return number|nil
 local function MapBoneToHitGroup(boneName)
     -- 可在此扩展，例如：
     -- if boneName == "ValveBiped.Bip01_Head1" then return HITGROUP_HEAD end
@@ -127,10 +136,10 @@ function Processor:Process(ragdoll, dmginfo)
     return eventData
 end
 
----comment
----@param ent Entity
----@param dmginfo CTakeDamageInfo
----@param wasDamageTaken boolean
+--- 处理实体受伤后事件，翻译并广播领域事件
+--- @param ent Entity
+--- @param dmginfo CTakeDamageInfo
+--- @param wasDamageTaken boolean
 local function handlePostEntityTakeDamage(ent, dmginfo, wasDamageTaken)
     if not wasDamageTaken then return end
     if not IsValid(ent) or not ent:IsRagdoll() or ent:GetClass() ~= Constants.RAGDOLL_CLASS then return end

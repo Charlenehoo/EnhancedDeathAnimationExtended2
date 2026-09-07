@@ -36,14 +36,24 @@ local Manager             = {}
 -- 对外委托接口
 -- ============================================================
 
+--- 获取布娃娃血量
+--- @param ragdoll Entity
+--- @return number
 function Manager:GetHealth(ragdoll)
     return HealthManager:Get(ragdoll)
 end
 
+--- 设置布娃娃血量
+--- @param ragdoll Entity
+--- @param health number
+--- @return boolean
 function Manager:SetHealth(ragdoll, health)
     return HealthManager:Set(ragdoll, health)
 end
 
+--- 判断布娃娃是否面朝上
+--- @param ragdoll Entity
+--- @return boolean
 function Manager:IsFacingUp(ragdoll)
     return RagdollPoseHelper:IsFacingUp(ragdoll)
 end
@@ -52,6 +62,8 @@ end
 -- 自救/取消自救接口（由 PlayerProxy 调用）
 -- ============================================================
 
+--- 请求开始自救
+--- @param ply Player
 function Manager:RequestSelfRevive(ply)
     if not IsValid(ply) or ply:Alive() then return end
     local ragdoll = ply:GetRagdollEntity()
@@ -60,6 +72,8 @@ function Manager:RequestSelfRevive(ply)
     PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.InterruptedBySelfRevive)
 end
 
+--- 取消自救
+--- @param ply Player
 function Manager:CancelSelfRevive(ply)
     if not IsValid(ply) or ply:Alive() then return end
     local ragdoll = ply:GetRagdollEntity()
@@ -146,11 +160,10 @@ function Manager:OnTakeDamage(ragdoll, data)
     end
 end
 
----comment
----@param ragdoll Entity
----@param state string
----@param fromState string
----@param initData any
+--- 状态变化响应：只启动新播放，不停止旧播放
+--- @param ragdoll Entity
+--- @param state string
+--- @param fromState string|nil
 function Manager:OnStateChange(ragdoll, state, fromState)
     if not IsValid(ragdoll) then return end
 

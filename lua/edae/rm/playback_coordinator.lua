@@ -25,10 +25,9 @@ local STATE_ENUM          = Constants.LifeCycleHandler.STATE_ENUM
 local PlaybackCoordinator = {}
 
 --- 启动播放
---- 根据状态自动判断使用动画还是抽搐，并调用相应组装器生成参数，最后启动底层播放器
---- @param owner Entity|nil 布娃娃所有者（用于效果器、yaw 等）
+--- @param owner Entity|nil 布娃娃所有者
 --- @param ragdoll Entity 布娃娃实体
---- @param state string 当前状态（使用 STATE_ENUM）
+--- @param state string 当前状态
 --- @param damageContext table|nil 伤害上下文（仅 FALLING 需要）
 --- @return boolean 是否成功启动
 function PlaybackCoordinator:Start(owner, ragdoll, state, damageContext)
@@ -120,7 +119,10 @@ function PlaybackCoordinator:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
     return AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
 end
 
--- 递归获取指定骨骼及其所有子骨骼的完整名称列表
+--- 递归获取指定骨骼及其所有子骨骼的完整名称列表
+--- @param ragdoll Entity
+--- @param rootBoneName string
+--- @return table 骨骼名数组
 local function getBoneAndChildrenNames(ragdoll, rootBoneName)
     local rootBoneID = ragdoll:LookupBone(rootBoneName)
     if not rootBoneID then return {} end
