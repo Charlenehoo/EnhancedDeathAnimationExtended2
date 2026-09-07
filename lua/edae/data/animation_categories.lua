@@ -336,8 +336,23 @@ local animationCategories = {
     -- 挣扎动画（WRITHING 状态）
     -- ============================================================
     writhe = {
-        face_up = { "writhing1" },
-        face_down = { "writhing2" },
+        face_up = {
+            "writhing1",
+            "Dying1",
+            "Dying2",
+            "Dying3",
+            "Dying4",
+            "Dying5",
+            "Dying6",
+        },
+        face_down = { "writhing2",
+            "Dying1",
+            "Dying2",
+            "Dying3",
+            "Dying4",
+            "Dying5",
+            "Dying6",
+        },
     },
 
     drown = {
