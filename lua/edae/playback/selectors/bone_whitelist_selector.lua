@@ -30,7 +30,7 @@ end
 --- @param animationName string|nil 动画名称（仅爬行状态需要，用于判断面朝上/下）
 --- @param naturalLevel number|nil 死亡动画控制等级：1=full, 2=moderate, 3=minimal（仅 FALLING 使用，默认 1）
 --- @param useRandomCrawlWhitelist boolean|nil 是否随机选择爬行面朝下白名单变体（默认 false，使用第一个）
---- @return table 白名单表，键为完整骨骼名，值为 true（或 nil 表示排除）
+--- @return table | nil 白名单表，键为完整骨骼名，值为 true（或 nil 表示排除）
 function BoneWhitelistSelector:Select(state, animationName, naturalLevel, useRandomCrawlWhitelist)
     -- 默认值处理
     naturalLevel = naturalLevel or 1
@@ -84,8 +84,8 @@ function BoneWhitelistSelector:Select(state, animationName, naturalLevel, useRan
         -- 自救和起身动画使用标准控制集
         return boneWhitelists.normal
     else
-        -- 未知状态，返回空表
-        return {}
+        -- 未知状态
+        return nil
     end
 end
 
