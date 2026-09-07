@@ -1,0 +1,3 @@
+edae/data/*
+.scanignore
+scan.py

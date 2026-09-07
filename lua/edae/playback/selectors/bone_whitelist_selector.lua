@@ -12,11 +12,18 @@ end
 
 local Constants             = include("edae/core/constants.lua")
 local boneWhitelists        = include("edae/data/bone_whitelists.lua")
-local helper                = include("edae/helper.lua")
 
 local STATE_ENUM            = Constants.LifeCycleHandler.STATE_ENUM
 
 local BoneWhitelistSelector = {}
+
+---comment
+---@param t table
+---@return table | nil
+local function randomFromDenseTable(t)
+    if not t or #t == 0 then return nil end
+    return t[math.random(#t)]
+end
 
 --- 选择骨骼白名单
 --- @param state string 当前状态（使用 Constants.LifeCycleHandler.STATE_ENUM 中的值）
@@ -50,7 +57,7 @@ function BoneWhitelistSelector:Select(state, animationName, naturalLevel, useRan
             -- 面朝下，使用 group_a 变体
             local variants = boneWhitelists.crawl.face_down.group_a
             if useRandomCrawlWhitelist then
-                return helper.RandomFromDenseTable(variants)
+                return randomFromDenseTable(variants)
             else
                 return variants[1]
             end
@@ -58,7 +65,7 @@ function BoneWhitelistSelector:Select(state, animationName, naturalLevel, useRan
             -- 面朝下，使用 group_b 变体
             local variants = boneWhitelists.crawl.face_down.group_b
             if useRandomCrawlWhitelist then
-                return helper.RandomFromDenseTable(variants)
+                return randomFromDenseTable(variants)
             else
                 return variants[1]
             end
