@@ -30,6 +30,38 @@ M.MODEL_TO_ANIMS = {
         "plazaidle2",
     },
 
+    -- -- 在 MODEL_TO_ANIMS 中添加
+    -- ["models/AREAnims/model_anim.mdl"] = {
+    --     "Balance",
+    --     "Burning",
+    --     "Cower",
+    --     "Crawling",
+    --     "DeathPose1",
+    --     "DeathPose2",
+    --     "DeathPose3",
+    --     "DeathPose4",
+    --     "Decerebrate",
+    --     "Drowning",
+    --     "Dying1",
+    --     "Dying2",
+    --     "Dying3",
+    --     "Dying4",
+    --     "Dying5",
+    --     "Dying6",
+    --     "Falling",
+    --     "Falling2",
+    --     "HeadshotCurl",
+    --     "HeadshotLeft",
+    --     "HeadshotRight",
+    --     "LEFT_Tumbling",
+    --     "NewHeadshot",
+    --     "ragdo  ll",
+    --     "Seizure",
+    --     "StumbleV2",
+    --     "StuntWall",
+    --     "Tumbling",
+    -- },
+
     -- EDAE 默认自定义模型（包含大量 CS/COD 死亡动画）
     ["models/brutal_deaths/model_anim_modify.mdl"] = {
         -- 这里无需显式列出，作为默认回退
