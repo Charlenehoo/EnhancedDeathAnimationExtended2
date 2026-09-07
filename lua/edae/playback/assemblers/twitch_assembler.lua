@@ -1,4 +1,4 @@
--- lua/edae/rm/assemblers/twitch_assembler.lua
+-- lua/edae/playback/assemblers/twitch_assembler.lua
 -- 抽搐参数组装器：负责组装物理抽搐播放所需的全部参数
 -- 包括骨骼白名单、预等待、效果器、强度、速度模式等
 -- 所有配置值均从 Constants 显式读取，避免底层模块依赖全局默认值

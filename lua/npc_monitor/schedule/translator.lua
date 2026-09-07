@@ -1,4 +1,4 @@
--- npc_monitor/schedule/translator.lua
+-- lua/npc_monitor/schedule/translator.lua
 -- 订阅 TranslateSchedule 事件，执行调度控制逻辑
 -- 顺序：防重入识别 -> 失败保护 -> 正常决策
 

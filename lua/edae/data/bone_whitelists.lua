@@ -1,4 +1,4 @@
--- lua/edae/as/bone_whitelists.lua
+-- lua/edae/data/bone_whitelists.lua
 -- 骨骼白名单数据：按语义化结构组织，供动画/抽搐组装器使用
 -- 所有白名单的值均为 true 或数字（数字用于肢解分组）
 

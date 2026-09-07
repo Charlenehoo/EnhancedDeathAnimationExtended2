@@ -1,4 +1,4 @@
--- lua/edae/as/effect_builder.lua
+-- lua/edae/playback/builders/effect_builder.lua
 -- 效果器构建模块：根据状态和所有者构建表现效果器数组（血迹、语音、血量衰减）
 -- 该模块不直接操作状态机，血量衰减导致死亡时只发出专门事件，由门面处理后续停止逻辑
 

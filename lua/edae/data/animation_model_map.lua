@@ -1,4 +1,4 @@
--- lua/edae/config/animation_model_map.lua
+-- lua/edae/data/animation_model_map.lua
 local M = {}
 
 -- ================================================

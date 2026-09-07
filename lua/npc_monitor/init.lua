@@ -1,4 +1,4 @@
--- npc_monitor/init.lua
+-- lua/npc_monitor/init.lua
 -- 库统一入口：负责加载需要主动启动的模块
 
 NPCMonitor = NPCMonitor or {}

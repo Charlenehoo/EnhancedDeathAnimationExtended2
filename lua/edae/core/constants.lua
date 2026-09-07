@@ -1,4 +1,4 @@
--- lua\edae\config\constants.lua
+-- lua/edae/core/constants.lua
 local Constants                                         = {}
 Constants.ADDON_NAME                                    = "EnhancedDeathAnimationExtended"
 Constants.RAGDOLL_CLASS                                 = "prop_ragdoll"

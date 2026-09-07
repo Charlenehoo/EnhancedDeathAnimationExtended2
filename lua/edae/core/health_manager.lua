@@ -1,4 +1,4 @@
--- lua/edae/rm/health_manager.lua
+-- lua/edae/core/health_manager.lua
 -- 布娃娃血量管理模块：负责血量的存取、扣减和死亡判断
 
 local MODULE_NAME = "RagdollHealthManager"

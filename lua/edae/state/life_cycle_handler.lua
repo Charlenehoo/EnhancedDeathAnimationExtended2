@@ -1,4 +1,4 @@
--- lua/edae/life_cycle_handler.lua
+-- lua/edae/state/life_cycle_handler.lua
 -- 生命周期状态机：管理 Ragdoll 的状态转移
 -- 纯逻辑模块，只监听 OnPlaybackStopped 事件，根据原因和当前状态查表转移
 -- 不直接操作播放器、血量或任何外部资源；不对外暴露 SetState

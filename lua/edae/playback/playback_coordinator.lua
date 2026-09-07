@@ -1,4 +1,4 @@
--- lua/edae/rm/playback_coordinator.lua
+-- lua/edae/playback/playback_coordinator.lua
 -- 统一播放协调器：封装动画播放和物理抽搐的差异，对上层提供一致的 Start/Stop/Rotate 接口
 -- 负责将底层结束事件统一转发为 OnPlaybackStopped 事件
 -- 旋转方法透传给 AnimationPlayer，用于玩家在爬行/挣扎等状态下控制布娃娃朝向

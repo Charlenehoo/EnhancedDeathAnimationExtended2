@@ -1,4 +1,4 @@
--- lua/weapons/gmod_tool/stools/ragdoll_sequencer_artagdoll.lua
+-- lua/weapons/gmod_tool/stools/ragdoll_animator.lua
 -- 工具：顺序播放 Artagdoll 注册表中的所有动画（仅 models/AREAnims/model_anim.mdl）
 
 TOOL.Name = "#tool.ragdoll_sequencer_artagdoll.name"

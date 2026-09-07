@@ -1,4 +1,4 @@
--- npc_monitor/enhance/emit_sound_vox.lua
+-- lua/npc_monitor/enhance/emit_sound_vox.lua
 local CONSTANTS     = include("npc_monitor/config/constants.lua")
 local helpers       = include("npc_monitor/helpers.lua")
 local addUniqueHook = helpers.addUniqueHook

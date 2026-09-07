@@ -1,4 +1,4 @@
--- npc_monitor/schedule/selector.lua
+-- lua/npc_monitor/schedule/selector.lua
 -- 根据 NPC 类型选择合适的 schedule
 
 local CONSTANTS = include("npc_monitor/config/constants.lua")

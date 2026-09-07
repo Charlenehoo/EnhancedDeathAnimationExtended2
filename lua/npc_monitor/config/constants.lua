@@ -1,4 +1,4 @@
--- npc_monitor/config/constants.lua
+-- lua/npc_monitor/config/constants.lua
 -- 全局常量配置
 
 local M                 = {}

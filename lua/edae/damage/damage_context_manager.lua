@@ -1,4 +1,4 @@
--- lua/edae/damage_context_manager.lua
+-- lua/edae/damage/damage_context_manager.lua
 local MODULE_NAME = "DamageContextManager"
 
 _EnhancedDeathAnimationExtendedSingletons = _EnhancedDeathAnimationExtendedSingletons or {}

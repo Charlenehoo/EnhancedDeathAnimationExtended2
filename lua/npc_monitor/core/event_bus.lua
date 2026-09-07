@@ -1,4 +1,4 @@
--- npc_monitor/core/event_bus.lua
+-- lua/npc_monitor/core/event_bus.lua
 -- 核心事件总线：维护活跃 NPC/Dummy 集合，轮询状态变化并发布事件
 
 

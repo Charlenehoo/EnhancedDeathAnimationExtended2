@@ -1,4 +1,4 @@
--- lua/edae/ragdoll_damage_processor.lua
+-- lua/edae/damage/ragdoll_damage_processor.lua
 -- 伤害翻译器：监听布娃娃受伤事件，进行过滤/修正，提取命中信息，广播 PostRagdollTakeDamage 事件
 -- 本模块只负责翻译和广播，不直接操作血量或状态机
 

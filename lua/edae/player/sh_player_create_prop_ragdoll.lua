@@ -1,4 +1,4 @@
--- lua/edae/sh_player_create_prop_ragdoll.lua
+-- lua/edae/player/sh_player_create_prop_ragdoll.lua
 local MODULE_NAME = "PlayerCreatePropRagdoll"
 
 local Constants = include("edae/core/constants.lua")

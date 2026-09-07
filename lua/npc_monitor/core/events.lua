@@ -1,4 +1,4 @@
--- core/events.lua
+-- lua/npc_monitor/core/events.lua
 
 local M             = {}
 

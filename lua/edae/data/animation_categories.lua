@@ -1,4 +1,4 @@
--- lua/edae/as/animation_categories.lua
+-- lua/edae/data/animation_categories.lua
 -- 动画分类表：按语义化结构组织动画，供 AnimationSelector 使用
 -- 结构设计：
 --   damage: 按伤害类型/部位分类，用于死亡动画选择

@@ -1,4 +1,4 @@
--- lua/edae/as/ground_strategy_builder.lua
+-- lua/edae/playback/builders/ground_strategy_builder.lua
 -- 骨骼处理策略构建器：封装地面检测、高度修正、墙壁检测、重定位及初始定位等完整流程
 -- 策略函数签名：
 --   boneStrategy(ctx, bone, amBonePos, amBoneAngle) -> shouldContinue, targetPos

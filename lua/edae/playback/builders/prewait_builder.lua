@@ -1,4 +1,4 @@
--- lua/edae/as/prewait_builder.lua
+-- lua/edae/playback/builders/prewait_builder.lua
 -- 预等待构建器：为需要等待布娃娃静止的播放状态生成等待函数数组
 -- 属于动画组装（assembly）子系统，被 AnimationAssembler 或 TwitchAssembler 调用
 -- 所有参数由调用方显式传入并展平，本模块不读取任何常量或默认值

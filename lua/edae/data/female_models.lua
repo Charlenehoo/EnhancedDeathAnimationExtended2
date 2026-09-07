@@ -1,4 +1,4 @@
--- lua/edae/config/is_female.lua
+-- lua/edae/data/female_models.lua
 -- 女性模型名单：用于判断是否使用女性动画变体
 -- 此表由 AnimationAssembler 使用，通过 include 获取
 

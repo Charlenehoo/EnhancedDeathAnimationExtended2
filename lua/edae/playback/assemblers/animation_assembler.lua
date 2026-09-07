@@ -1,4 +1,4 @@
--- lua/edae/rm/assemblers/animation_assembler.lua
+-- lua/edae/playback/assemblers/animation_assembler.lua
 -- 动画参数组装器：负责组装骨骼动画播放所需的全部参数
 -- 包括动画名称、循环次数、骨骼白名单、预等待、姿态、效果器等
 -- 所有配置值均从 Constants 显式读取，避免底层模块依赖全局默认值

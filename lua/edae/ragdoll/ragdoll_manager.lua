@@ -1,4 +1,4 @@
--- lua/edae/rm/ragdoll_manager.lua
+-- lua/edae/ragdoll/ragdoll_manager.lua
 -- 布娃娃管理器（门面）：负责协调布娃娃生命周期中的各个模块
 -- 职责：
 --   1. 监听自定义事件（OnMortalityEvaluated），评估后初始化布娃娃

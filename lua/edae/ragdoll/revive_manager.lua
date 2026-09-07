@@ -1,4 +1,4 @@
--- lua/edae/rm/revive_manager.lua
+-- lua/edae/ragdoll/revive_manager.lua
 -- 复活管理器：负责监听复活请求事件，执行实际的玩家复活逻辑
 -- 从 EntityDataStore 中获取布娃娃的所有者，移除布娃娃并重生玩家
 

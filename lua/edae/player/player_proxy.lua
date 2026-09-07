@@ -1,4 +1,4 @@
--- lua/edae/player_proxy.lua
+-- lua/edae/player/player_proxy.lua
 -- 玩家代理：捕获玩家输入（A/D 旋转、E 键自救），通过服务器端转发给播放协调器或门面
 -- 服务器端：
 --   - 旋转请求直接调用 PlaybackCoordinator:RotateBy

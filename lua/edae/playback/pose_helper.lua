@@ -1,4 +1,4 @@
--- lua/edae/rm/pose_helper.lua
+-- lua/edae/playback/pose_helper.lua
 -- 布娃娃姿态辅助模块：提供与布娃娃朝向和姿态相关的查询函数
 -- 包括判断是否面朝上、以及根据不同动画状态计算正确的偏航角
 

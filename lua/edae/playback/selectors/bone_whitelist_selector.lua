@@ -1,4 +1,4 @@
--- lua/edae/as/bone_whitelist_selector.lua
+-- lua/edae/playback/selectors/bone_whitelist_selector.lua
 -- 骨骼白名单选择器：根据状态、动画名称及选项返回一个白名单表
 -- 该模块只负责白名单的选择，不涉及其他组装参数
 -- 所有参数均由调用方显式传入，不依赖全局常量

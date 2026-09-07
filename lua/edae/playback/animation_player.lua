@@ -1,4 +1,4 @@
--- lua/edae/ap/animation_player.lua
+-- lua/edae/playback/animation_player.lua
 -- 动画播放器：负责创建动画模型，驱动布娃娃骨骼跟随动画
 -- 底层只提供 Stop(ragdoll, reason) 接口，语义化别名（如 Cancel）由上层 Coordinator 提供
 -- 停止后先清理上下文，再发出 OnAnimationFinished 事件

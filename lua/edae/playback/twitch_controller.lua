@@ -1,4 +1,4 @@
--- lua/edae/tc/twitch_controller.lua
+-- lua/edae/playback/twitch_controller.lua
 -- 物理抽搐控制器：通过向布娃娃骨骼施加随机力来模拟抽搐
 -- 底层只提供 Stop(ragdoll, reason) 接口，语义化别名由上层 Coordinator 提供
 -- 停止后先清理上下文，再发出 OnTwitchFinished 事件

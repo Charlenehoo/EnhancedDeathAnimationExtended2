@@ -1,4 +1,4 @@
--- lua/edae/as/animation_selector.lua
+-- lua/edae/playback/selectors/animation_selector.lua
 -- 动画选择器：根据状态和必要信息返回一个动画名字符串
 -- 该模块只负责动画名称的选择，不涉及骨骼白名单、效果器等组装参数
 -- 参数透明：主函数接收 state 和 info 表，info 中仅包含除 state 外的其他必要参数

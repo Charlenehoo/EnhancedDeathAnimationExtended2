@@ -1,4 +1,4 @@
--- lua/edae/rm/voice_manager.lua
+-- lua/edae/ragdoll/voice_manager.lua
 local MODULE_NAME = "VoiceManager"
 _EnhancedDeathAnimationExtendedSingletons = _EnhancedDeathAnimationExtendedSingletons or {}
 if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then

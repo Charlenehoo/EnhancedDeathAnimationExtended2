@@ -1,4 +1,4 @@
--- lua/edae/mortality_evaluator.lua
+-- lua/edae/state/mortality_evaluator.lua
 
 local MODULE_NAME = "MortalityEvaluator"
 
