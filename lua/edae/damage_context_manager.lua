@@ -28,6 +28,7 @@ local band, bor            = bit.band, bit.bor
 ---@param ent Entity
 ---@param hitgroup number
 ---@param dmginfo CTakeDamageInfo
+---@return number flags
 local function computeDamageFlags(ent, hitgroup, dmginfo)
     local flags = 0
 
@@ -58,7 +59,7 @@ local function computeDamageFlags(ent, hitgroup, dmginfo)
     end
 
     -- 默认子弹类型：当没有其他类型标志时设置
-    local typeFlags = bor(FLAG_ENUM.BURN, FLAG_ENUM.BLAST, FLAG_ENUM.MOVING, FLAG_ENUM.CLUB)
+    local typeFlags = bor(FLAG_ENUM.BURN, FLAG_ENUM.BLAST, FLAG_ENUM.MOVING, FLAG_ENUM.CLUB, FLAG_ENUM.DROWN)
     if band(flags, typeFlags) == 0 then
         flags = bor(flags, FLAG_ENUM.BULLET)
     end
@@ -100,6 +101,7 @@ local function computeDamageFlags(ent, hitgroup, dmginfo)
 end
 
 ---@param ent Entity
+---@return table | nil context if any else nil
 function DamageContextManager:Get(ent)
     if not IsValid(ent) then
         log.warn("DamageContextManager:Get called with invalid entity")
@@ -188,7 +190,7 @@ hook.Add("ScalePlayerDamage", Constants.ADDON_NAME .. MODULE_NAME .. "ScalePlaye
         handleScaleDamage(ply, hitgroup, dmginfo)
     end)
 
-hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
+hook.Add("CreateEntityRagdoll", Constants.ADDON_NAME .. MODULE_NAME .. "CreateEntityRagdoll", function(owner, ragdoll)
     handleCreateRagdoll(owner, ragdoll)
 end)
 
