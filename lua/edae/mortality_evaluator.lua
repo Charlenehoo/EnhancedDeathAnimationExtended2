@@ -1,8 +1,4 @@
 -- lua/edae/mortality_evaluator.lua
--- 死亡后果评估器（Mortality Evaluator, ME）
--- 职责：监听原始布娃娃创建事件，根据伤害上下文评估“死亡后果”，
---       产出决策（是否播放死亡动画）和状态概率表，供后续模块（RM, LCH）使用。
--- 链式位置：EDAE_PostCreateRagdoll → EDAE_OnMortalityEvaluated → EDAE_PreRagdollInitialized
 
 local MODULE_NAME = "MortalityEvaluator"
 
@@ -38,9 +34,10 @@ MortalityEvaluator.RULES = {
     },
 }
 
--- ============================================================
--- 核心评估函数：根据伤害上下文返回决策和概率表
--- ============================================================
+---comment
+---@param damageContext table
+---@return string
+---@return table | nil
 function MortalityEvaluator:Evaluate(damageContext)
     if not damageContext then
         return STATE_ENUM.DEAD, nil
