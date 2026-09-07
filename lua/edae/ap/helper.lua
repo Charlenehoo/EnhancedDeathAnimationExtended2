@@ -125,6 +125,7 @@ function helper.CreateAnimationModel(ctx)
 
     local animationModelName = ctx.animationModelName
     animationModel:SetModel(animationModelName)
+    animationModel:SetNoDraw(true)
     animationModel:Spawn()
 
     if not util.IsValidModel(animationModelName) then

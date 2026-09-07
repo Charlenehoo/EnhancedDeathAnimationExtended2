@@ -113,11 +113,51 @@ local function drowningBoneStrategy(ctx, bone, amBonePos, amBoneAngle)
     return true, amBonePos
 end
 
---- 溺水重定位策略：直接返回 ragdoll 位置
+--- 溺水重定位策略：将动画模型骨盆与布娃娃骨盆对齐
 --- @param ctx table 播放上下文
---- @return Vector newGroundPos
+--- @return Vector newGroundPos 动画模型应设置的新原点
 local function drowningRepositionStrategy(ctx)
-    return ctx.ragdoll:GetPos()
+    local ragdoll = ctx.ragdoll
+    local animationModel = ctx.animationModel
+
+    if not IsValid(ragdoll) or not IsValid(animationModel) then
+        return ragdoll:GetPos()
+    end
+
+    -- 从缓存 boneMap 中查找骨盆骨骼
+    local pelvisBoneName = "ValveBiped.Bip01_Pelvis"
+    local pelvisEntry = nil
+    if ctx.boneMap then
+        for _, bone in ipairs(ctx.boneMap) do
+            if bone.boneName == pelvisBoneName then
+                pelvisEntry = bone
+                break
+            end
+        end
+    end
+
+    local ragdollPelvisPos, animPelvisPos
+
+    if pelvisEntry then
+        -- 使用缓存中的骨骼 ID
+        ragdollPelvisPos = ragdoll:GetBonePosition(pelvisEntry.ragdollBoneID)
+        animPelvisPos = animationModel:GetBonePosition(pelvisEntry.amBoneID)
+    else
+        -- 回退到原始查找
+        local ragdollPelvisID = ragdoll:LookupBone(pelvisBoneName)
+        local animPelvisID = animationModel:LookupBone(pelvisBoneName)
+        if ragdollPelvisID and animPelvisID then
+            ragdollPelvisPos = ragdoll:GetBonePosition(ragdollPelvisID)
+            animPelvisPos = animationModel:GetBonePosition(animPelvisID)
+        end
+    end
+
+    if not ragdollPelvisPos or not animPelvisPos then
+        return ragdoll:GetPos()
+    end
+
+    local delta = ragdollPelvisPos - animPelvisPos
+    return animationModel:GetPos() + delta
 end
 
 --- 默认初始定位策略：FALLING/DROWNING 使用所有者位置，其他状态使用布娃娃自身位置
