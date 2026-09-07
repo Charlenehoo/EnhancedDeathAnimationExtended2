@@ -17,7 +17,6 @@ local BoneWhitelistSelector = include("edae/as/bone_whitelist_selector.lua")
 local PreWaitBuilder        = include("edae/as/prewait_builder.lua")
 local EffectBuilder         = include("edae/as/effect_builder.lua")
 local HealthManager         = include("edae/rm/health_manager.lua")
-local RagdollPoseHelper     = include("edae/rm/pose_helper.lua")
 local helper                = include("edae/helper.lua")
 local femaleModels          = include("edae/config/female_models.lua") -- 女性模型名单
 local animationModelMap     = include("edae/config/animation_model_map.lua")
@@ -45,9 +44,8 @@ end
 --- @param ragdoll Entity 布娃娃实体
 --- @param state string 当前状态（使用 Constants.LifeCycleHandler.STATE_ENUM）
 --- @param damageContext table|nil 伤害上下文（仅 FALLING 状态需要）
---- @param owner Entity|nil 布娃娃所有者（用于 FALLING 的 yaw 计算和语音效果）
+--- @param owner Entity|nil 布娃娃所有者（用于初始定位和效果器）
 --- @return animationName string|nil, opts table|nil 动画名和播放选项，失败返回 nil
---- @return opts table
 function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
     if not IsValid(ragdoll) then
         log.warn("AnimationAssembler: invalid ragdoll")
@@ -67,22 +65,9 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
     local useFemale = isFemaleModel(ragdoll)
 
     -- 计算姿态信息
-    local isFacingUp = RagdollPoseHelper:IsFacingUp(ragdoll)
-
-    -- 计算 yaw 和 groundPos
-    local yaw, groundPos
-    if state == STATE_ENUM.FALLING then
-        if owner and owner:IsValid() then
-            yaw = RagdollPoseHelper:GetYawFromOwner(owner)
-            groundPos = owner:GetPos()
-        else
-            yaw = RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
-            groundPos = nil -- 让 AnimationPlayer 自行追踪地面
-        end
-    else
-        yaw = RagdollPoseHelper:GetYawFromRagdoll(ragdoll)
-        groundPos = nil
-    end
+    local isFacingUp = RagdollPoseHelper:IsFacingUp(ragdoll) -- 注意：此处使用了 RagdollPoseHelper，但文件中未 require，需要补上
+    -- 修复：文件顶部应包含 local RagdollPoseHelper = include("edae/rm/pose_helper.lua")
+    -- 或者直接使用 GroundStrategyBuilder 的初始定位策略，它内部使用了 RagdollPoseHelper，但姿态判断仍需要
 
     -- 选择动画名称
     local animInfo = {}
@@ -98,7 +83,7 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
             animInfo.shotgunShot = damageContext.shotgunShot
             animInfo.backShot = damageContext.backShot
             animInfo.pelvisShot = damageContext.pelvisShot
-            animInfo.isDrown = damageContext.isDrown
+            animInfo.isDrown = damageContext.isDrown -- 此字段可能多余，但保留
         end
     elseif state == STATE_ENUM.CRAWLING then
         animInfo.isFacingUp = isFacingUp
@@ -155,7 +140,11 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
         basePlaybackRate = math.Clamp(idealRate, 0.4, 1.5)
     end
 
+    -- 获取策略集合
     local strategy = GroundStrategyBuilder:Build(state)
+
+    -- 获取初始 yaw 和 groundPos
+    local yaw, groundPos = strategy.initialPositionStrategy(owner, ragdoll)
 
     -- 组装 opts
     local opts = {

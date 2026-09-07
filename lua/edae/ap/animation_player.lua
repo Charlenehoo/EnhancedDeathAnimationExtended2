@@ -18,30 +18,14 @@ local EntityDataStore       = include("edae/eds/entity_data_store.lua")
 local HealthManager         = include("edae/rm/health_manager.lua")
 local GroundStrategyBuilder = include("edae/as/ground_strategy_builder.lua")
 
+local store                 = EntityDataStore:ForOwner(MODULE_NAME)
 
-local store           = EntityDataStore:ForOwner(MODULE_NAME)
-
-local AnimationPlayer = {}
-
--- 从给定位置向下追踪地面，返回命中位置或 nil
-local function traceGroundBelow(startPos, filterEntities)
-    local trace = util.TraceLine({
-        start = startPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET,
-        endpos = startPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET,
-        mask = MASK_SOLID,
-        filter = filterEntities
-    })
-    if trace.Hit then
-        return trace.HitPos
-    end
-    return nil
-end
+local AnimationPlayer       = {}
 
 local function alignAnimationModel(ctx)
     local animationModel = ctx.animationModel
     animationModel:SetAngles(Angle(0, ctx.yaw, 0))
-    local groundPos = ctx.groundPos
-    animationModel:SetPos(groundPos)
+    animationModel:SetPos(ctx.groundPos)
     return true
 end
 
@@ -239,7 +223,7 @@ local function playAnimationCoroutine(ctx)
                 end
 
                 -- 4-6. 调用骨骼处理策略（地面检测、高度修正、墙壁检测）
-                local shouldContinue, targetPos = ctx.groundStrategy(ctx, bone, amBonePos, amBoneAngle)
+                local shouldContinue, targetPos = ctx.boneStrategy(ctx, bone, amBonePos, amBoneAngle)
                 if not shouldContinue then
                     continue
                 end
@@ -290,13 +274,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
 
     opts = opts or {}
 
-    local groundPos
-    if opts.groundPos then
-        groundPos = opts.groundPos
-    else
-        local ragdollPos = ragdoll:GetPos()
-        groundPos = traceGroundBelow(ragdollPos, { ragdoll }) or ragdollPos
-    end
+    -- 如果未提供 groundPos，则直接使用布娃娃位置（不应发生，因为 Assembler 总会传入）
+    local groundPos = opts.groundPos or ragdoll:GetPos()
 
     local ctx = {
         ragdoll                   = ragdoll,

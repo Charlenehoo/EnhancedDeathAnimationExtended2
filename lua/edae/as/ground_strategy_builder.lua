@@ -1,11 +1,9 @@
 -- lua/edae/as/ground_strategy_builder.lua
--- 骨骼处理策略构建器：封装地面检测、高度修正、墙壁检测等完整流程
+-- 骨骼处理策略构建器：封装地面检测、高度修正、墙壁检测、重定位及初始定位等完整流程
 -- 策略函数签名：
---   function(ctx, bone, amBonePos, amBoneAngle) return shouldContinue, targetPos end
---   ctx：播放上下文
---   bone：骨骼数据
---   amBonePos/amBoneAngle：动画模型骨骼位置和角度
---   返回 shouldContinue（false 表示跳过该骨骼）和 targetPos（驱动骨骼的目标位置）
+--   boneStrategy(ctx, bone, amBonePos, amBoneAngle) -> shouldContinue, targetPos
+--   repositionStrategy(ctx) -> newGroundPos
+--   initialPositionStrategy(owner, ragdoll) -> yaw, groundPos
 
 local MODULE_NAME = "GroundStrategyBuilder"
 
@@ -16,6 +14,7 @@ end
 
 local Constants             = include("edae/config/constants.lua")
 local log                   = include("edae/log/init.lua")
+local RagdollPoseHelper     = include("edae/rm/pose_helper.lua")
 
 local GroundStrategyBuilder = {}
 
@@ -92,7 +91,9 @@ local function defaultBoneStrategy(ctx, bone, amBonePos, amBoneAngle)
     return true, bone_pos
 end
 
--- 默认重定位策略：向下追踪地面，找不到则使用 ragdoll 位置
+--- 默认重定位策略：向下追踪地面，找不到则使用 ragdoll 位置
+--- @param ctx table 播放上下文
+--- @return Vector newGroundPos
 local function defaultRepositionStrategy(ctx)
     local ragdoll = ctx.ragdoll
     local animationModel = ctx.animationModel
@@ -101,34 +102,67 @@ local function defaultRepositionStrategy(ctx)
     return groundPos or ragdollPos
 end
 
--- 溺水骨骼策略：直接返回动画模型位置
+--- 溺水骨骼策略：直接返回动画模型位置，忽略所有环境检测
+--- @param ctx table 播放上下文
+--- @param bone table 骨骼数据
+--- @param amBonePos Vector 动画模型骨骼位置
+--- @param amBoneAngle Angle 动画模型骨骼角度
+--- @return boolean shouldContinue
+--- @return Vector targetPos
 local function drowningBoneStrategy(ctx, bone, amBonePos, amBoneAngle)
     return true, amBonePos
 end
 
--- 溺水重定位策略：直接返回 ragdoll 位置
+--- 溺水重定位策略：直接返回 ragdoll 位置
+--- @param ctx table 播放上下文
+--- @return Vector newGroundPos
 local function drowningRepositionStrategy(ctx)
     return ctx.ragdoll:GetPos()
 end
 
---- 构建策略集合
---- @param state string
---- @return table { boneStrategy = function, repositionStrategy = function }
-function GroundStrategyBuilder:Build(state)
-    if state == Constants.LifeCycleHandler.STATE_ENUM.DROWNING then
-        return {
-            boneStrategy = drowningBoneStrategy,
-            repositionStrategy = drowningRepositionStrategy,
-        }
+--- 默认初始定位策略：FALLING/DROWNING 使用所有者位置，其他状态使用布娃娃自身位置
+--- @param state string 当前状态
+--- @param owner Entity|nil 布娃娃所有者
+--- @param ragdoll Entity 布娃娃实体
+--- @return number yaw
+--- @return Vector groundPos
+local function defaultInitialPositionStrategy(state, owner, ragdoll)
+    if state == Constants.LifeCycleHandler.STATE_ENUM.FALLING or
+        state == Constants.LifeCycleHandler.STATE_ENUM.DROWNING then
+        if IsValid(owner) then
+            return RagdollPoseHelper:GetYawFromOwner(owner), owner:GetPos()
+        else
+            return RagdollPoseHelper:GetYawFromRagdoll(ragdoll), ragdoll:GetPos()
+        end
+    else
+        return RagdollPoseHelper:GetYawFromRagdoll(ragdoll), ragdoll:GetPos()
     end
+end
+
+--- 构建策略集合
+--- @param state string 当前状态（使用 Constants.LifeCycleHandler.STATE_ENUM）
+--- @return table { boneStrategy = function, repositionStrategy = function, initialPositionStrategy = function }
+function GroundStrategyBuilder:Build(state)
+    local boneStrategy = defaultBoneStrategy
+    local repositionStrategy = defaultRepositionStrategy
+
+    if state == Constants.LifeCycleHandler.STATE_ENUM.DROWNING then
+        boneStrategy = drowningBoneStrategy
+        repositionStrategy = drowningRepositionStrategy
+    end
+
     return {
-        boneStrategy = defaultBoneStrategy,
-        repositionStrategy = defaultRepositionStrategy,
+        boneStrategy = boneStrategy,
+        repositionStrategy = repositionStrategy,
+        initialPositionStrategy = function(owner, ragdoll)
+            return defaultInitialPositionStrategy(state, owner, ragdoll)
+        end,
     }
 end
 
 -- 暴露默认策略，供 AnimationPlayer 在没有注入策略时使用
-GroundStrategyBuilder.DefaultStrategy = defaultStrategy
+GroundStrategyBuilder.DefaultBoneStrategy = defaultBoneStrategy
+GroundStrategyBuilder.DefaultRepositionStrategy = defaultRepositionStrategy
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = GroundStrategyBuilder
 return GroundStrategyBuilder
