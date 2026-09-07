@@ -63,14 +63,12 @@ end
 --- 初始化 Ragdoll 状态
 --- @param ragdoll Entity 布娃娃实体
 --- @param initState string|nil 初始状态，默认为 STATE_ENUM.FALLING
---- @param initData table|nil 初始化数据（如伤害上下文），传递给状态变化事件
-function LifeCycleHandler:Init(ragdoll, initState, initData)
+function LifeCycleHandler:Init(ragdoll, initState)
     if not IsValid(ragdoll) then
         log.warn("LifeCycleHandler:Init invalid ragdoll")
         return
     end
 
-    -- 默认初始状态为 FALLING，若传入非法值则回退
     initState = initState or STATE_ENUM.FALLING
     if not table.HasValue(STATE_ENUM, initState) then
         log.warn("LifeCycleHandler:Init invalid initState '", tostring(initState), "', falling back to 'falling'")
@@ -79,9 +77,7 @@ function LifeCycleHandler:Init(ragdoll, initState, initData)
 
     store:Set(ragdoll, STATE_KEY, initState)
     log.trace("LifeCycleHandler: initialized ragdoll ", ragdoll, " with state '", initState, "'")
-
-    -- 触发状态变化事件，携带初始化数据（供门面使用）
-    hook.Run(Constants.Events.OnRagdollStateChange, ragdoll, initState, nil, initData)
+    -- 不触发 OnRagdollStateChange 事件，由 RagdollManager 在创建后直接启动初始播放
 end
 
 -- 获取当前状态（供外部查询）

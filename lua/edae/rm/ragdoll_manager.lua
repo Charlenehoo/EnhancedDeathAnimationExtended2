@@ -110,6 +110,10 @@ function Manager:OnCreate(owner, ragdoll, damageContext, initState, probTable)
     LifeCycleHandler:Init(ragdoll, initState, damageContext)
     log.trace("Manager:OnCreate - LifeCycleHandler:Init completed")
 
+    if initState ~= STATE_ENUM.DEAD then
+        PlaybackCoordinator:Start(ragdoll, initState, damageContext, owner)
+    end
+
     -- 触发布娃娃初始化完成事件
     log.trace("Manager:OnCreate - firing OnRagdollInitialized event")
     hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
@@ -142,8 +146,12 @@ function Manager:OnTakeDamage(ragdoll, data)
     end
 end
 
---- 状态变化响应：只启动新播放，不停止旧播放
-function Manager:OnStateChange(ragdoll, state, fromState, initData)
+---comment
+---@param ragdoll Entity
+---@param state string
+---@param fromState string
+---@param initData any
+function Manager:OnStateChange(ragdoll, state, fromState)
     if not IsValid(ragdoll) then return end
 
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
@@ -162,11 +170,10 @@ function Manager:OnStateChange(ragdoll, state, fromState, initData)
         return -- 死亡不播放
     end
 
-    -- 玩家相机模式：默认 false，可根据实际需求从上层传入
-    local isPlayerCameraMode = false
+
 
     -- 启动新播放
-    PlaybackCoordinator:Start(ragdoll, state, initData, owner, isPlayerCameraMode)
+    PlaybackCoordinator:Start(ragdoll, state, nil, owner)
 end
 
 -- ============================================================
@@ -239,9 +246,8 @@ hook.Add(Events.PostCreateRagdoll, Constants.ADDON_NAME .. MODULE_NAME .. "PostC
     end)
 
 hook.Add(Events.OnRagdollStateChange, Constants.ADDON_NAME .. MODULE_NAME .. "OnRagdollStateChange",
-    function(ragdoll, state, fromState, initData)
-        if not IsValid(ragdoll) then return end
-        Manager:OnStateChange(ragdoll, state, fromState, initData)
+    function(ragdoll, state, fromState)
+        Manager:OnStateChange(ragdoll, state, fromState)
     end)
 
 hook.Add(Events.PostRagdollTakeDamage, Constants.ADDON_NAME .. MODULE_NAME .. "PostRagdollTakeDamage",

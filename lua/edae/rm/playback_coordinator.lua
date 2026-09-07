@@ -30,9 +30,8 @@ local PlaybackCoordinator = {}
 --- @param state string 当前状态（使用 STATE_ENUM）
 --- @param damageContext table|nil 伤害上下文（仅 FALLING 需要）
 --- @param owner Entity|nil 布娃娃所有者（用于效果器、yaw 等）
---- @param isPlayerCameraMode boolean|nil 是否玩家相机模式（默认 false）
 --- @return boolean 是否成功启动
-function PlaybackCoordinator:Start(ragdoll, state, damageContext, owner, isPlayerCameraMode)
+function PlaybackCoordinator:Start(ragdoll, state, damageContext, owner)
     if not IsValid(ragdoll) then
         log.warn("PlaybackCoordinator:Start invalid ragdoll")
         return false
@@ -53,8 +52,7 @@ function PlaybackCoordinator:Start(ragdoll, state, damageContext, owner, isPlaye
         return TwitchController:Start(ragdoll, twitchOpts)
     else
         -- 骨骼动画：使用 AnimationAssembler
-        local animationName, animationOpts = AnimationAssembler:Assemble(ragdoll, state, damageContext, owner,
-            isPlayerCameraMode)
+        local animationName, animationOpts = AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
         if not animationName or not animationOpts then
             log.warn("PlaybackCoordinator:Start AnimationAssembler failed for state '", state, "'")
             return false
