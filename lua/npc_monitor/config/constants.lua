@@ -79,12 +79,14 @@ M.RAGDOLL_DUMMY         = {
 
     -- 根据不同 ragdoll 状态设置的执行者搜索半径（单位），nil 表示不搜索
     STATE_TO_SEARCH_RADIUS        = {
-        writhing  = 160,
-        twitching = 200,
-        falling   = 250,
-        crawling  = 315,
-        reviving  = M.NPC_MAX_LOOK_DISTANCE, -- 复活状态，使用最大视距
-        dead      = nil,                     -- 死亡状态，不搜索
+        writhing      = 160,
+        twitching     = 200,
+        falling       = 250,
+        crawling      = 315,
+        dead          = nil, -- 死亡状态，不搜索
+        self_reviving = M.NPC_MAX_LOOK_DISTANCE,
+        getting_up    = M.NPC_MAX_LOOK_DISTANCE,
+        drowning      = M.NPC_MAX_LOOK_DISTANCE,
     },
 
     -- --------------------------
