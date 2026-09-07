@@ -78,14 +78,7 @@ end
 --- @param initState string|nil 建议的初始状态（"falling" 或 "dead"）
 --- @param damageContext table|nil 伤害上下文
 --- @param probTable table|nil 状态概率表
-function Manager:OnCreate(owner, ragdoll, initState, damageContext, probTable)
-    log.trace("=== Manager:OnCreate called ===")
-    log.trace("  owner      = ", tostring(owner), " (", IsValid(owner) and "valid" or "INVALID", ")")
-    log.trace("  ragdoll    = ", tostring(ragdoll), " (", IsValid(ragdoll) and "valid" or "INVALID", ")")
-    log.trace("  initState  = ", tostring(initState))
-    log.trace("  damageContext = ", damageContext and "table" or "nil")
-    log.trace("  probTable  = ", probTable and "table" or "nil")
-
+function Manager:OnCreate(owner, ragdoll, damageContext, initState, probTable)
     if not IsValid(owner) then
         log.warn("Manager:OnCreate - owner is invalid, aborting")
         return
@@ -120,7 +113,6 @@ function Manager:OnCreate(owner, ragdoll, initState, damageContext, probTable)
     -- 触发布娃娃初始化完成事件
     log.trace("Manager:OnCreate - firing OnRagdollInitialized event")
     hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
-    log.trace("=== Manager:OnCreate finished ===")
 end
 
 --- 布娃娃受到伤害（由 PostRagdollTakeDamage 事件调用）
@@ -182,15 +174,8 @@ end
 -- ============================================================
 
 -- 1. 监听 MortalityEvaluator 的评估结果
-hook.Add(Events.OnMortalityEvaluated, MODULE_NAME .. "_OnMortalityEvaluated",
-    function(ragdoll, decision, probTable, damageContext, owner)
-        log.trace("=== OnMortalityEvaluated hook triggered ===")
-        log.trace("  ragdoll    = ", tostring(ragdoll), " (", IsValid(ragdoll) and "valid" or "INVALID", ")")
-        log.trace("  decision   = ", tostring(decision))
-        log.trace("  probTable  = ", probTable and "table" or "nil")
-        log.trace("  damageContext = ", damageContext and "table" or "nil")
-        log.trace("  owner      = ", tostring(owner), " (", IsValid(owner) and "valid" or "INVALID", ")")
-
+hook.Add(Events.PostCreateRagdoll, MODULE_NAME .. "_OnMortalityEvaluated",
+    function(owner, ragdoll, damageContext, decision, probTable)
         if not IsValid(ragdoll) then
             log.warn("RagdollManager: OnMortalityEvaluated - ragdoll is invalid, aborting")
             return
@@ -205,7 +190,7 @@ hook.Add(Events.OnMortalityEvaluated, MODULE_NAME .. "_OnMortalityEvaluated",
         local function initFunc(overrideState, overrideProbTable)
             log.trace("RagdollManager: initFunc called with overrideState=", tostring(overrideState),
                 ", overrideProbTable=", tostring(overrideProbTable))
-            Manager:OnCreate(owner, ragdoll, overrideState or decision, damageContext, overrideProbTable or probTable)
+            Manager:OnCreate(owner, ragdoll, damageContext, overrideState or decision, overrideProbTable or probTable)
         end
 
         -- 触发预初始化事件，允许外部接管（如 BSMod）
@@ -241,8 +226,9 @@ hook.Add(Events.OnMortalityEvaluated, MODULE_NAME .. "_OnMortalityEvaluated",
 
         log.trace("RagdollManager: calling initFunc with initState=", initState, " and probTable=",
             probTable and "provided" or "nil")
+
+        Manager:OnCreate(owner, ragdoll, damageContext, decision, probTable)
         initFunc(initState, probTable)
-        log.trace("=== OnMortalityEvaluated hook finished ===")
     end)
 
 -- 2. 状态变化

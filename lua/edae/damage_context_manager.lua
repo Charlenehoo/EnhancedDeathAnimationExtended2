@@ -9,6 +9,7 @@ end
 local Constants            = include("edae/config/constants.lua")
 local log                  = include("edae/log/init.lua")
 local EntityDataStore      = include("edae/eds/entity_data_store.lua")
+local MortalityEvaluator   = include("edae/mortality_evaluator.lua")
 
 local store                = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -22,10 +23,11 @@ local DMG_INFO_KEY         = "DmgInfo"
 
 local DamageContextManager = {}
 
--- 位操作辅助
 local band, bor            = bit.band, bit.bor
 
--- 计算伤害标志位（所有标志非互斥，尽可能同时设置）
+---@param ent Entity
+---@param hitgroup number
+---@param dmginfo CTakeDamageInfo
 local function computeDamageFlags(ent, hitgroup, dmginfo)
     local flags = 0
 
@@ -97,7 +99,7 @@ local function computeDamageFlags(ent, hitgroup, dmginfo)
     return flags
 end
 
---- 获取实体的伤害上下文（返回包含 flags 和原始信息的表）
+---@param ent Entity
 function DamageContextManager:Get(ent)
     if not IsValid(ent) then
         log.warn("DamageContextManager:Get called with invalid entity")
@@ -129,7 +131,7 @@ function DamageContextManager:Get(ent)
     return context
 end
 
---- 更新实体的伤害上下文
+---@param ent Entity
 function DamageContextManager:Update(ent, hitgroup, dmginfo)
     if not IsValid(ent) or not dmginfo then
         log.warn("DamageContextManager:Update invalid arguments")
@@ -151,12 +153,30 @@ function DamageContextManager:Update(ent, hitgroup, dmginfo)
         ", pelvis=", band(flags, FLAG_ENUM.PELVIS) ~= 0)
 end
 
+---@param ent Entity
 function DamageContextManager:Clear(ent)
     store:Clear(ent)
 end
 
+---@param ent Entity
+---@param hitgroup number
+---@param dmginfo CTakeDamageInfo
 local function handleScaleDamage(ent, hitgroup, dmginfo)
     DamageContextManager:Update(ent, hitgroup, dmginfo)
+end
+
+---@param owner Entity
+---@param ragdoll Entity
+local function handleCreateRagdoll(owner, ragdoll)
+    if not IsValid(owner) or not IsValid(ragdoll) then return end
+    if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
+
+    local context = DamageContextManager:Get(owner)
+    DamageContextManager:Clear(owner)
+
+    local decision, probTable = MortalityEvaluator:Evaluate(context)
+
+    hook.Run(Constants.Events.PostCreateRagdoll, owner, ragdoll, context, decision, probTable)
 end
 
 hook.Add("ScaleNPCDamage", Constants.ADDON_NAME .. MODULE_NAME .. "ScaleNPCDamage", function(npc, hitgroup, dmginfo)
@@ -168,17 +188,8 @@ hook.Add("ScalePlayerDamage", Constants.ADDON_NAME .. MODULE_NAME .. "ScalePlaye
         handleScaleDamage(ply, hitgroup, dmginfo)
     end)
 
--- 新增：监听布娃娃创建，广播上下文事件
 hook.Add("CreateEntityRagdoll", MODULE_NAME .. "_CreateEntityRagdoll", function(owner, ragdoll)
-    if not IsValid(owner) or not IsValid(ragdoll) then return end
-    if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
-
-    -- 获取并清除上下文（如果存在）
-    local context = DamageContextManager:Get(owner)
-    DamageContextManager:Clear(owner) -- 清除，避免残留
-
-    -- 广播自定义事件（Fire-and-Forget）
-    hook.Run(Constants.Events.PostCreateRagdoll, owner, ragdoll, context)
+    handleCreateRagdoll(owner, ragdoll)
 end)
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = DamageContextManager

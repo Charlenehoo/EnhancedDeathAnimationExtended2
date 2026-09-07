@@ -57,37 +57,5 @@ function MortalityEvaluator:Evaluate(damageContext)
     return STATE_ENUM.FALLING, nil
 end
 
--- ============================================================
--- 钩子处理：监听 PostCreateRagdoll，评估并发出 OnMortalityEvaluated
--- ============================================================
-local function handlePostCreateRagdoll(owner, ragdoll, damageContext)
-    if not IsValid(ragdoll) then
-        log.warn("MortalityEvaluator: invalid ragdoll in PostCreateRagdoll")
-        return
-    end
-
-    local decision, probTable = MortalityEvaluator:Evaluate(damageContext)
-
-    -- 补上 owner 参数
-    hook.Run(Constants.Events.OnMortalityEvaluated, ragdoll, decision, probTable, damageContext, owner)
-    log.trace("MortalityEvaluator: emitted OnMortalityEvaluated for ragdoll ", ragdoll,
-        " decision=", decision, " hasProbTable=", probTable ~= nil)
-end
-
--- ============================================================
--- 初始化：注册钩子
--- ============================================================
-function MortalityEvaluator:Initialize()
-    -- 移除可能残留的旧钩子（防止热重载重复注册）
-    hook.Remove(Constants.Events.PostCreateRagdoll, MODULE_NAME .. "_PostCreateRagdoll")
-    hook.Add(Constants.Events.PostCreateRagdoll, MODULE_NAME .. "_PostCreateRagdoll", handlePostCreateRagdoll)
-    log.trace("MortalityEvaluator initialized, listening to ", Constants.Events.PostCreateRagdoll)
-end
-
--- ============================================================
--- 自动初始化（当模块被 include 时）
--- ============================================================
-MortalityEvaluator:Initialize()
-
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = MortalityEvaluator
 return MortalityEvaluator

@@ -4,7 +4,6 @@ Constants.ADDON_NAME                                    = "EnhancedDeathAnimatio
 Constants.RAGDOLL_CLASS                                 = "prop_ragdoll"
 Constants.Events                                        = {
     PostCreateRagdoll = "EDAE_PostCreateRagdoll",
-    OnMortalityEvaluated = "EDAE_OnMortalityEvaluated",
     PreRagdollInitialized = "EDAE_PreRagdollInitialized",
     OnRagdollInitialized = "EDAE_RagdollInitialized",
     OnRagdollStateChange = "EDAE_OnRagdollStateChange",
