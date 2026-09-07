@@ -6,9 +6,9 @@ TOOL.Category = "Fun"
 
 -- 加载依赖
 local Registry = include("edae/config/animation_registry.lua")
-local AnimationPlayer = include("edae/ap/animation_player.lua")
-local Constants = include("edae/config/constants.lua")
-local GroundStrategyBuilder = include("edae/as/ground_strategy_builder.lua")
+local AnimationPlayer = include("edae/playback/animation_player.lua")
+local Constants = include("edae/core/constants.lua")
+local GroundStrategyBuilder = include("edae/playback/builders/ground_strategy_builder.lua")
 
 local ARTAGDOLL_MODEL = "models/AREAnims/model_anim.mdl"
 

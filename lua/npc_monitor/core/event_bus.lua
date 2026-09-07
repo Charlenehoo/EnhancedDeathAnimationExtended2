@@ -3,7 +3,7 @@
 
 
 local CONSTANTS         = include("npc_monitor/config/constants.lua")
-local EDAEConstants     = include("edae/config/constants.lua")
+local EDAEConstants     = include("edae/core/constants.lua")
 local Events            = include("npc_monitor/core/events.lua")
 local helpers           = include("npc_monitor/helpers.lua")
 local addUniqueHook     = helpers.addUniqueHook

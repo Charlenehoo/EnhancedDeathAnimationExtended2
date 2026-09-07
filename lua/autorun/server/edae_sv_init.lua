@@ -1,15 +1,15 @@
-include("edae/rm/ragdoll_manager.lua")
+include("edae/ragdoll/ragdoll_manager.lua")
 
-local Constants = include("edae/config/constants.lua")
+local Constants = include("edae/core/constants.lua")
 for k, v in pairs(Constants.NETWORK_STRING) do
     util.AddNetworkString(v)
 end
-local AnimationPlayer     = include("edae/ap/animation_player.lua")
-local PlaybackCoordinator = include("edae/rm/playback_coordinator.lua")
-local LifeCycleHandler    = include("edae/life_cycle_handler.lua")
-local HealthManager       = include("edae/rm/health_manager.lua")
-include("edae/damage_context_manager.lua")   -- 翻译活体伤害 → PostCreateRagdoll 事件
-include("edae/ragdoll_damage_processor.lua") -- 翻译布娃娃伤害 → PostRagdollTakeDamage 事件
+local AnimationPlayer     = include("edae/playback/animation_player.lua")
+local PlaybackCoordinator = include("edae/playback/playback_coordinator.lua")
+local LifeCycleHandler    = include("edae/state/life_cycle_handler.lua")
+local HealthManager       = include("edae/core/health_manager.lua")
+include("edae/damage/damage_context_manager.lua")   -- 翻译活体伤害 → PostCreateRagdoll 事件
+include("edae/damage/ragdoll_damage_processor.lua") -- 翻译布娃娃伤害 → PostRagdollTakeDamage 事件
 
 EnhancedDeathAnimationExtended                        = EnhancedDeathAnimationExtended or {}
 

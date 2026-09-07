@@ -1,2 +1,2 @@
-include("edae/sh_player_create_prop_ragdoll.lua")
-include("edae/player_proxy.lua")
+include("edae/player/sh_player_create_prop_ragdoll.lua")
+include("edae/player/player_proxy.lua")

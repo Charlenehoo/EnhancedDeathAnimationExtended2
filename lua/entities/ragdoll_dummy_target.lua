@@ -7,14 +7,14 @@ if CLIENT then return end
 
 -- 加载配置与辅助模块
 local CONSTANTS                     = include("npc_monitor/config/constants.lua")
-local log                           = include("edae/log/init.lua")
+local log                           = include("edae/core/log/init.lua")
 local helpers                       = include("npc_monitor/helpers.lua")
 local findNearestEntity             = helpers.findNearestEntity
 local findRandomEntity              = helpers.findRandomEntity
 local getEyePos                     = helpers.getEyePos
 
 -- EDAE 生命周期处理器（用于获取 ragdoll 状态）
-local LifeCycleHandler              = include("edae/life_cycle_handler.lua")
+local LifeCycleHandler              = include("edae/state/life_cycle_handler.lua")
 
 local BONE_FALLBACK_ORDER           = include("npc_monitor/config/bones.lua")
 
