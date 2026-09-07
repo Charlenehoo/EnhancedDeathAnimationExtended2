@@ -152,6 +152,12 @@ local function selectGettingUpAnimation(isFacingUp)
     end
 end
 
+--- 溺水动画选择（DROWNING 状态）
+--- @return string 动画名
+local function selectDrowningAnimation()
+    return randomFromList(animationCategories.drowning) or "Choked_Barnacle"
+end
+
 -- ============================================================
 -- 主选择函数（供 AnimationAssembler 调用）
 -- ============================================================
@@ -195,6 +201,8 @@ function AnimationSelector:SelectAnimation(state, info)
         return selectCrawlAnimation(info.isFacingUp, info.useFemale)
     elseif state == STATE_ENUM.WRITHING then
         return selectWritheAnimation(info.isFacingUp)
+    elseif state == STATE_ENUM.DROWNING then
+        return selectDrowningAnimation()
     elseif state == STATE_ENUM.SELF_REVIVING then
         return selectSelfReviveAnimation(info.isFacingUp)
     elseif state == STATE_ENUM.GETTING_UP then

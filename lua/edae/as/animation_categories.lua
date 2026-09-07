@@ -78,10 +78,6 @@ local animationCategories = {
             "club4",
         },
 
-        drown = {
-            "Choked_Barnacle",
-        },
-
         -- 头部中弹
         head = {
             "16head",
@@ -342,6 +338,10 @@ local animationCategories = {
     writhe = {
         face_up = { "writhing1" },
         face_down = { "writhing2" },
+    },
+
+    drown = {
+        "Choked_Barnacle",
     },
 
     -- ============================================================

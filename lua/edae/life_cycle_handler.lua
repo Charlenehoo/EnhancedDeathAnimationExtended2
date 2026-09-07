@@ -155,6 +155,8 @@ function LifeCycleHandler:HandleEvent(ragdoll, reason)
         elseif reason == PlaybackReasons.CompletedNormally then
             newState = currentState -- 抽搐自然结束保持
         end
+    elseif currentState == STATE_ENUM.DROWNING then
+        newState = STATE_ENUM.DEAD
     elseif currentState == STATE_ENUM.SELF_REVIVING then
         if reason == PlaybackReasons.CompletedNormally then
             newState = STATE_ENUM.GETTING_UP

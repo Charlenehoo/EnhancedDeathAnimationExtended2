@@ -143,8 +143,9 @@ function Manager:OnTakeDamage(ragdoll, data)
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
     -- 爬行状态受击播放音效
-    if currentState == STATE_ENUM.CRAWLING and IsValid(owner) then
-        VoiceManager:PlayDamageSound(owner, data)
+    if (currentState == STATE_ENUM.CRAWLING or currentState == STATE_ENUM.DROWNING) and
+        IsValid(owner) then
+        VoiceManager:PlayDamageSound(owner)
     end
 
     local damage = data.finalDamage or 0

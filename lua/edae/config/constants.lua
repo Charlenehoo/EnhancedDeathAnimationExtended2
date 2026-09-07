@@ -51,6 +51,7 @@ Constants.LifeCycleHandler.STATE_ENUM                   = {
     DEAD          = "dead",
     SELF_REVIVING = "self_reviving",
     GETTING_UP    = "getting_up",
+    DROWNING      = "drowning",
 }
 Constants.LifeCycleHandler.CRAWL_CHANCE                 = 0.4
 Constants.LifeCycleHandler.WRITHE_CHANCE                = 0.3
@@ -146,6 +147,10 @@ Constants.DRAIN                                         = {
     [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = {
         interval = 1.5,
         amount   = 10,
+    },
+    [Constants.LifeCycleHandler.STATE_ENUM.DROWNING] = {
+        interval = 1.5,
+        amount   = 12.5,
     },
 }
 

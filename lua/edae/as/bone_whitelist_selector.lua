@@ -71,6 +71,8 @@ function BoneWhitelistSelector:Select(state, animationName, naturalLevel, useRan
     elseif state == STATE_ENUM.TWITCHING then
         -- 抽搐使用专用白名单
         return boneWhitelists.twitch
+    elseif state == STATE_ENUM.DROWNING then
+        return boneWhitelists.writhe
     elseif state == STATE_ENUM.SELF_REVIVING or state == STATE_ENUM.GETTING_UP then
         -- 自救和起身动画使用标准控制集
         return boneWhitelists.normal

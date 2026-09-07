@@ -189,8 +189,8 @@ function EffectBuilder:Build(ragdoll, state, owner)
 
     local effects = {}
 
-    -- 血量衰减（爬行、挣扎、抽搐）
-    if state == STATE_ENUM.CRAWLING or state == STATE_ENUM.WRITHING or state == STATE_ENUM.TWITCHING then
+    -- 血量衰减
+    if state == STATE_ENUM.CRAWLING or state == STATE_ENUM.WRITHING or state == STATE_ENUM.TWITCHING or state == STATE_ENUM.DROWNING then
         table.insert(effects, BuildHealthDrainEffect(state))
     end
 
