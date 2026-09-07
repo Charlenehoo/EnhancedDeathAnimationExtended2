@@ -1,3 +1,4 @@
 edae/data/*
+edae/compat/*
 .scanignore
 scan.py
