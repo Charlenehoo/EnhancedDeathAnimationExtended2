@@ -168,6 +168,28 @@ local function BuildHealthDrainEffect(state)
     }
 end
 
+local function BuildWritheTurnEffect()
+    return {
+        name = "writhe_turn",
+        predicate = function(ctx, effState)
+            -- 每个动画循环触发一次
+            if not effState.lastLoop then
+                effState.lastLoop = -1
+            end
+            if ctx.loopCount ~= effState.lastLoop then
+                effState.lastLoop = ctx.loopCount
+                return true
+            end
+            return false
+        end,
+        action = function(ctx, effState)
+            local currentYaw = ctx.animationModel:GetAngles().yaw
+            local delta = math.Rand(-30, 30) -- 随机旋转 -30 到 30 度
+            ctx.rotateTargetYaw = currentYaw + delta
+        end
+    }
+end
+
 -- ============================================================
 -- 主构建函数
 -- ============================================================
@@ -208,6 +230,10 @@ function EffectBuilder:Build(ragdoll, state, owner)
                 table.insert(effects, ve)
             end
         end
+    end
+
+    if state == Constants.LifeCycleHandler.STATE_ENUM.WRITHING then
+        table.insert(effects, BuildWritheTurnEffect())
     end
 
     if #effects == 0 then
