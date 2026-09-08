@@ -225,12 +225,28 @@ local function playAnimationCoroutine(ctx)
                     log.warn("Cannot get bone position for ", boneName, ", marking as Fall")
                     bone.Fall = true
                     ctx.FallCount = ctx.FallCount + 1
+                    if ctx.boneControlOwnerID then
+                        BoneControlManager:ReleaseBones(
+                            ctx.ragdoll,
+                            ctx.boneControlOwnerID,
+                            { [boneName] = true }
+                        )
+                    end
                     continue
                 end
 
                 -- 4-6. 调用骨骼处理策略（地面检测、高度修正、墙壁检测）
                 local shouldContinue, targetPos = ctx.boneStrategy(ctx, bone, amBonePos, amBoneAngle)
                 if not shouldContinue then
+                    if bone.Fall then
+                        if ctx.boneControlOwnerID then
+                            BoneControlManager:ReleaseBones(
+                                ctx.ragdoll,
+                                ctx.boneControlOwnerID,
+                                { [boneName] = true }
+                            )
+                        end
+                    end
                     continue
                 end
 
