@@ -22,6 +22,7 @@ local femaleModels          = include("edae/data/female_models.lua") -- 女性�
 local animationModelMap     = include("edae/data/animation_model_map.lua")
 local GroundStrategyBuilder = include("edae/playback/builders/ground_strategy_builder.lua")
 local RagdollPoseHelper     = include("edae/playback/pose_helper.lua")
+local shadowParams          = include("edae/data/shadow_params.lua")
 
 local STATE_ENUM            = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -139,6 +140,19 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
         basePlaybackRate = math.Clamp(idealRate, 0.4, 1.5)
     end
 
+    local shadowParamsTemplate
+    if state == STATE_ENUM.WRITHING then
+        if basePlaybackRate <= 0.55 then
+            shadowParamsTemplate = shadowParams.Writhe.Slow
+        elseif basePlaybackRate < 0.85 then
+            shadowParamsTemplate = shadowParams.Writhe.Fierce
+        else
+            shadowParamsTemplate = shadowParams.Writhe.Normal
+        end
+    else
+        shadowParamsTemplate = shadowParams.Default
+    end
+
     -- 获取策略集合
     local strategy = GroundStrategyBuilder:Build(state)
 
@@ -160,6 +174,7 @@ function AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
         animationModelName        = modelName,
         boneStrategy              = strategy.boneStrategy,
         repositionStrategy        = strategy.repositionStrategy,
+        shadowParamsTemplate      = shadowParamsTemplate, -- 新增
     }
 
     log.trace("AnimationAssembler: assembled animation '", animationName, "' for state '", state, "'")

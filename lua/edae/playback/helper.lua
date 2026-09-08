@@ -1,5 +1,5 @@
-local Constants = include("edae/core/constants.lua")
 local log = include("edae/core/log/init.lua")
+local shadowParams = include("edae/data/shadow_params.lua") -- 文件顶部添加
 
 local helper = {}
 
@@ -37,7 +37,7 @@ function helper.EnableMotion(ctx, enable)
 end
 
 function helper.FillShadowParamsTemplate(ctx)
-    local shadowParams = table.Copy(Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE)
+    local shadowParams = table.Copy(shadowParams.Default)
     if ctx.shadowParamsTemplate then
         for k, v in pairs(ctx.shadowParamsTemplate) do
             shadowParams[k] = v

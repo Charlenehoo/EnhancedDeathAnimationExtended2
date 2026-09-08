@@ -79,18 +79,6 @@ Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD        = 20
 Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET       = Vector(0, 0, 10)
 Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET     = Vector(0, 0, -100)
 Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS          = 1
-Constants.ANIMATION_PLAYER_SHADOW_PARAMS_TEMPLATE       = {
-    teleportdistance = 0,
-    secondstoarrive = 0.01,
-    delta = nil,
-    dampfactor = nil,
-    maxangular = 400,
-    maxangulardamp = 200,
-    maxspeed = 400,
-    maxspeeddamp = 300,
-    pos = vector_origin,
-    angle = angle_zero,
-}
 
 Constants.ANIMATION_SELECTOR                            = {}
 Constants.ANIMATION_SELECTOR.PRE_WAIT_TIME              = 0.6
