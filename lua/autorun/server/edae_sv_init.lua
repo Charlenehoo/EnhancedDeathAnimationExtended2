@@ -8,30 +8,68 @@ local AnimationPlayer     = include("edae/playback/animation_player.lua")
 local PlaybackCoordinator = include("edae/playback/playback_coordinator.lua")
 local LifeCycleHandler    = include("edae/state/life_cycle_handler.lua")
 local HealthManager       = include("edae/core/health_manager.lua")
+local BoneControlManager  = include("edae/core/bone_control_manager.lua")
+
 include("edae/damage/damage_context_manager.lua")   -- 翻译活体伤害 → PostCreateRagdoll 事件
 include("edae/damage/ragdoll_damage_processor.lua") -- 翻译布娃娃伤害 → PostRagdollTakeDamage 事件
 
-EnhancedDeathAnimationExtended                        = EnhancedDeathAnimationExtended or {}
+EnhancedDeathAnimationExtended                                  = EnhancedDeathAnimationExtended or {}
 
-EnhancedDeathAnimationExtended.Events                 = Constants.Events
-EnhancedDeathAnimationExtended.PlaybackReasons        = Constants.PlaybackReasons
-EnhancedDeathAnimationExtended.STATE_ENUM             = Constants.LifeCycleHandler.STATE_ENUM
+EnhancedDeathAnimationExtended.Events                           = Constants.Events
+EnhancedDeathAnimationExtended.PlaybackReasons                  = Constants.PlaybackReasons
+EnhancedDeathAnimationExtended.STATE_ENUM                       = Constants.LifeCycleHandler.STATE_ENUM
 
-EnhancedDeathAnimationExtended.Interface              = {}
-EnhancedDeathAnimationExtended.Interface.SetBoneSkip  = function(ragdoll, boneName, skip, recursive)
-    return AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip, recursive)
+EnhancedDeathAnimationExtended.Interface                        = {}
+EnhancedDeathAnimationExtended.Interface.RequestBoneControl     = function(ragdoll, ownerID, bones, priority,
+                                                                           isActiveFunc, onGranted, onLost, onDeny)
+    return BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isActiveFunc, onGranted, onLost, onDeny)
 end
-EnhancedDeathAnimationExtended.Interface.StopPlayback = function(ragdoll, reason)
+
+EnhancedDeathAnimationExtended.Interface.ReleaseBoneControl     = function(ragdoll, ownerID, bones)
+    BoneControlManager:ReleaseBones(ragdoll, ownerID, bones)
+end
+
+EnhancedDeathAnimationExtended.Interface.ReleaseAllBoneControls = function(ragdoll, ownerID)
+    BoneControlManager:ReleaseAllBones(ragdoll, ownerID)
+end
+
+EnhancedDeathAnimationExtended.Interface.GetBoneOwner           = function(ragdoll, boneName)
+    return BoneControlManager:GetOwner(ragdoll, boneName)
+end
+EnhancedDeathAnimationExtended.Interface.StopPlayback           = function(ragdoll, reason)
     return PlaybackCoordinator:Stop(ragdoll, reason)
 end
-EnhancedDeathAnimationExtended.Interface.GetState     = function(ragdoll)
+EnhancedDeathAnimationExtended.Interface.GetState               = function(ragdoll)
     return LifeCycleHandler:GetState(ragdoll)
 end
-EnhancedDeathAnimationExtended.Interface.GetHealth    = function(ragdoll)
+EnhancedDeathAnimationExtended.Interface.GetHealth              = function(ragdoll)
     return HealthManager:Get(ragdoll)
 end
-EnhancedDeathAnimationExtended.Interface.DamageHealth = function(ragdoll, damage)
+EnhancedDeathAnimationExtended.Interface.DamageHealth           = function(ragdoll, damage)
     return HealthManager:Damage(ragdoll, damage)
+end
+
+-- 获取指定骨骼及其所有子骨骼的名称列表
+EnhancedDeathAnimationExtended.Interface.GetBoneChain           = function(ragdoll, rootBoneName)
+    local rootBoneID = ragdoll:LookupBone(rootBoneName)
+    if not rootBoneID then return {} end
+
+    local names = {}
+    local boneCount = ragdoll:GetBoneCount()
+    for boneID = 0, boneCount - 1 do
+        local currentID = boneID
+        while currentID and currentID ~= 0 do
+            if currentID == rootBoneID then
+                local name = ragdoll:GetBoneName(boneID)
+                if name and name ~= "__INVALIDBONE__" then
+                    names[#names + 1] = name
+                end
+                break
+            end
+            currentID = ragdoll:GetBoneParent(currentID)
+        end
+    end
+    return names
 end
 
 -- PreRagdollInitialized：在布娃娃初始化前触发，参数为 (owner, ragdoll, initFunc)

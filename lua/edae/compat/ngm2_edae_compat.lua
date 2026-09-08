@@ -1,6 +1,6 @@
 -- Noob Gore Mod 2 与 Enhanced Death Animation Extended 兼容补丁
 -- 功能：
---   1. 当 NGM2 肢解骨骼时，通过 EDAE.SetBoneSkip 跳过该骨骼及其子骨骼的动画控制
+--   1. 当 NGM2 肢解骨骼时，通过 BoneControlManager 申请该骨骼及其子骨骼的控制权，使基础动画失去这些骨骼（自动 skip）
 --   2. 当 NGM2 完全炸碎布娃娃时，停止 EDAE 播放并阻止其初始化
 --   3. 若布娃娃在 EDAE 初始化前已被标记为爆炸，则阻止 EDAE 初始化
 
@@ -21,11 +21,37 @@ if SERVER then
         local orig_decap = gore_mod_decap_ragdoll
         local orig_gib_all = gore_mod_gib_ragdolll
 
+        -- 辅助函数：申请骨骼链控制权（最高优先级，永久有效）
+        local function ClaimBoneChain(ragdoll, rootBoneName)
+            if not IsValid(ragdoll) or not rootBoneName then return end
+
+            -- 获取骨骼及其所有子骨骼
+            local boneNames = EDAE.GetBoneChain(ragdoll, rootBoneName)
+            if #boneNames == 0 then return end
+
+            -- 转换为 table<string, boolean>
+            local bones = {}
+            for _, name in ipairs(boneNames) do
+                bones[name] = true
+            end
+
+            -- 申请控制权
+            EDAE.RequestBoneControl(
+                ragdoll,
+                "NGM2_Dismember_" .. ragdoll:EntIndex(), -- ownerID
+                bones,
+                200,                                     -- 最高优先级
+                function() return true end,              -- isActiveFunc：一直有效
+                nil,                                     -- onGranted：无需额外操作
+                nil,                                     -- onLost：几乎不会发生
+                nil                                      -- onDeny：初次失败也可忽略
+            )
+        end
+
         -- 包裹 gore_mod_gib_PhysBone
         function gore_mod_gib_PhysBone(ragdoll, bone_name, dmg_data)
             if IsValid(ragdoll) and bone_name then
-                -- 跳过该骨骼及其所有子骨骼的 EDAE 控制
-                EDAE.SetBoneSkip(ragdoll, bone_name, true, true)
+                ClaimBoneChain(ragdoll, bone_name)
             end
             return orig_gib_phys(ragdoll, bone_name, dmg_data)
         end
@@ -33,8 +59,7 @@ if SERVER then
         -- 包裹 gore_mod_decap_ragdoll
         function gore_mod_decap_ragdoll(ragdoll, bone_name, dmg_data)
             if IsValid(ragdoll) and bone_name then
-                -- 切片同样会移除原布娃娃上的骨骼链，需要跳过
-                EDAE.SetBoneSkip(ragdoll, bone_name, true, true)
+                ClaimBoneChain(ragdoll, bone_name)
             end
             return orig_decap(ragdoll, bone_name, dmg_data)
         end
