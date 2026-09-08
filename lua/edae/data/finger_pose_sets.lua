@@ -1,0 +1,81 @@
+-- lua/edae/data/finger_pose_sets.lua
+-- 手指抓握姿势集合（语义化命名）
+-- 供 HoldWoundLayer 等叠加层使用
+
+return {
+    -- 紧握（手指大幅弯曲，模拟用力捂住伤口）
+    tight_fist = {
+        ["ValveBiped.Bip01_L_Hand"] = {
+            ["ValveBiped.Bip01_L_Finger0"]  = Angle(-23.600, -4.700, 0.000),
+            ["ValveBiped.Bip01_L_Finger01"] = Angle(-0.900, 44.300, 0.000),
+            ["ValveBiped.Bip01_L_Finger02"] = Angle(-10.400, 25.500, 0.000),
+            ["ValveBiped.Bip01_L_Finger1"]  = Angle(16.040, -40.570, 0.000),
+            ["ValveBiped.Bip01_L_Finger11"] = Angle(0.000, -27.400, 0.000),
+            ["ValveBiped.Bip01_L_Finger12"] = Angle(0.000, -33.000, 0.000),
+            ["ValveBiped.Bip01_L_Finger2"]  = Angle(14.150, -36.790, 0.000),
+            ["ValveBiped.Bip01_L_Finger21"] = Angle(0.000, -27.400, 0.000),
+            ["ValveBiped.Bip01_L_Finger22"] = Angle(0.000, -33.000, 0.000),
+            ["ValveBiped.Bip01_L_Finger3"]  = Angle(14.150, -34.910, 0.000),
+            ["ValveBiped.Bip01_L_Finger31"] = Angle(0.000, -25.500, 0.000),
+            ["ValveBiped.Bip01_L_Finger32"] = Angle(0.000, -38.700, 0.000),
+            ["ValveBiped.Bip01_L_Finger4"]  = Angle(12.260, -38.680, 0.000),
+            ["ValveBiped.Bip01_L_Finger41"] = Angle(0.000, -23.600, 0.000),
+            ["ValveBiped.Bip01_L_Finger42"] = Angle(0.000, -38.700, 0.000),
+        },
+        ["ValveBiped.Bip01_R_Hand"] = {
+            ["ValveBiped.Bip01_R_Finger0"]  = Angle(36.790, 12.260, 0.000),
+            ["ValveBiped.Bip01_R_Finger01"] = Angle(-31.130, 16.040, 0.000),
+            ["ValveBiped.Bip01_R_Finger02"] = Angle(-10.400, 25.500, 0.000),
+            ["ValveBiped.Bip01_R_Finger1"]  = Angle(6.600, -40.570, 0.000),
+            ["ValveBiped.Bip01_R_Finger11"] = Angle(0.000, -27.400, 0.000),
+            ["ValveBiped.Bip01_R_Finger12"] = Angle(0.000, -33.000, 0.000),
+            ["ValveBiped.Bip01_R_Finger2"]  = Angle(4.720, -40.570, 0.000),
+            ["ValveBiped.Bip01_R_Finger21"] = Angle(0.000, -27.400, 0.000),
+            ["ValveBiped.Bip01_R_Finger22"] = Angle(0.000, -33.000, 0.000),
+            ["ValveBiped.Bip01_R_Finger3"]  = Angle(6.600, -38.680, 0.000),
+            ["ValveBiped.Bip01_R_Finger31"] = Angle(0.000, -25.500, 0.000),
+            ["ValveBiped.Bip01_R_Finger32"] = Angle(0.000, -38.700, 0.000),
+            ["ValveBiped.Bip01_R_Finger4"]  = Angle(6.600, -36.790, 0.000),
+            ["ValveBiped.Bip01_R_Finger41"] = Angle(0.000, -23.600, 0.000),
+            ["ValveBiped.Bip01_R_Finger42"] = Angle(0.000, -38.700, 0.000),
+        },
+    },
+
+    -- 轻握（手指自然弯曲，更放松的抓握）
+    loose_fist = {
+        ["ValveBiped.Bip01_L_Hand"] = {
+            ["ValveBiped.Bip01_L_Finger0"]  = Angle(0.000, 0.000, 0.000),
+            ["ValveBiped.Bip01_L_Finger01"] = Angle(0.366, 41.820, 0.204),
+            ["ValveBiped.Bip01_L_Finger02"] = Angle(0.563, 44.186, -0.167),
+            ["ValveBiped.Bip01_L_Finger1"]  = Angle(2.002, -56.435, 18.016),
+            ["ValveBiped.Bip01_L_Finger11"] = Angle(0.207, -67.303, 0.057),
+            ["ValveBiped.Bip01_L_Finger12"] = Angle(0.133, -66.516, 0.035),
+            ["ValveBiped.Bip01_L_Finger2"]  = Angle(3.469, -40.546, 4.661),
+            ["ValveBiped.Bip01_L_Finger21"] = Angle(0.316, -84.901, 0.000),
+            ["ValveBiped.Bip01_L_Finger22"] = Angle(0.177, -52.199, 0.000),
+            ["ValveBiped.Bip01_L_Finger3"]  = Angle(7.065, -53.046, -8.230),
+            ["ValveBiped.Bip01_L_Finger31"] = Angle(0.240, -75.155, 0.050),
+            ["ValveBiped.Bip01_L_Finger32"] = Angle(0.413, -65.529, 0.050),
+            ["ValveBiped.Bip01_L_Finger4"]  = Angle(8.238, -70.503, -13.327),
+            ["ValveBiped.Bip01_L_Finger41"] = Angle(0.549, -63.302, 0.053),
+            ["ValveBiped.Bip01_L_Finger42"] = Angle(0.282, -64.261, 0.027),
+        },
+        ["ValveBiped.Bip01_R_Hand"] = {
+            ["ValveBiped.Bip01_R_Finger0"]  = Angle(0.000, 0.000, 0.000),
+            ["ValveBiped.Bip01_R_Finger01"] = Angle(1.729, 47.928, 0.000),
+            ["ValveBiped.Bip01_R_Finger02"] = Angle(-0.388, 61.625, -0.391),
+            ["ValveBiped.Bip01_R_Finger1"]  = Angle(-11.437, -69.335, -16.572),
+            ["ValveBiped.Bip01_R_Finger11"] = Angle(-0.138, -89.421, 0.352),
+            ["ValveBiped.Bip01_R_Finger12"] = Angle(-0.123, -73.864, 0.208),
+            ["ValveBiped.Bip01_R_Finger2"]  = Angle(-9.269, -64.760, -4.070),
+            ["ValveBiped.Bip01_R_Finger21"] = Angle(-0.444, -99.767, 0.105),
+            ["ValveBiped.Bip01_R_Finger22"] = Angle(-0.255, -65.185, 0.000),
+            ["ValveBiped.Bip01_R_Finger3"]  = Angle(-7.147, -76.611, 10.206),
+            ["ValveBiped.Bip01_R_Finger31"] = Angle(-0.335, -81.937, 0.000),
+            ["ValveBiped.Bip01_R_Finger32"] = Angle(-0.553, -73.317, 0.000),
+            ["ValveBiped.Bip01_R_Finger4"]  = Angle(-9.238, -79.969, 20.841),
+            ["ValveBiped.Bip01_R_Finger41"] = Angle(-0.258, -92.991, 0.633),
+            ["ValveBiped.Bip01_R_Finger42"] = Angle(-0.292, -47.839, 0.195),
+        },
+    },
+}
