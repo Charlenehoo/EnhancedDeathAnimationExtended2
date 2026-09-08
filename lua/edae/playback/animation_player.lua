@@ -409,5 +409,26 @@ function AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
     return false
 end
 
+--- 查询指定骨骼是否被跳过动画控制
+--- @param ragdoll Entity 布娃娃实体
+--- @param boneName string 完整骨骼名（如 "ValveBiped.Bip01_Head1"）
+--- @return boolean 是否跳过（true=跳过，false=未跳过或未找到）
+function AnimationPlayer:IsBoneSkip(ragdoll, boneName)
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if not ctx or not ctx.boneMap then
+        log.warn("AnimationPlayer:IsBoneSkip no active context or boneMap for ragdoll: ", tostring(ragdoll))
+        return false
+    end
+
+    for _, bone in ipairs(ctx.boneMap) do
+        if bone.boneName == boneName then
+            return bone.skip or false
+        end
+    end
+
+    log.warn("AnimationPlayer:IsBoneSkip bone not found in boneMap: ", boneName)
+    return false
+end
+
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = AnimationPlayer
 return AnimationPlayer

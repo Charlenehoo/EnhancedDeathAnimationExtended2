@@ -97,6 +97,11 @@ function HoldWoundOverlay:Start(ragdoll, hitPos, hitPhysID)
     local handPhysID = ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone(handBoneName))
     if not handPhysID then return false end
 
+    if PlaybackCoordinator:IsBoneSkip(ragdoll, handBoneName) then
+        log.trace("HoldWoundOverlay: hand bone already skipped, aborting")
+        return false
+    end
+
     -- 仅控制手部骨骼（约束会将手固定在伤口处，主动画无需驱动）
     local controlledBones = { handBoneName }
     for _, boneName in ipairs(controlledBones) do

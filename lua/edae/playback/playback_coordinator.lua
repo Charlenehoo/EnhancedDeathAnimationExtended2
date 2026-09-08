@@ -180,6 +180,32 @@ function PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip, recursive)
     return true
 end
 
+--- 查询指定骨骼是否被跳过动画控制
+--- 优先返回当前活动动画的状态；若无活动上下文，则返回持久化设置
+--- @param ragdoll Entity 布娃娃实体
+--- @param boneName string 完整骨骼名
+--- @return boolean 是否跳过（true=跳过，false=未跳过或未设置）
+function PlaybackCoordinator:IsBoneSkip(ragdoll, boneName)
+    if not IsValid(ragdoll) then
+        log.warn("PlaybackCoordinator:IsBoneSkip invalid ragdoll")
+        return false
+    end
+
+    -- 1. 检查当前活动动画
+    local activeSkip = AnimationPlayer:IsBoneSkip(ragdoll, boneName)
+    if activeSkip then
+        return true
+    end
+
+    -- 2. 回退到持久化存储
+    local persistentSkips = store:Get(ragdoll, BONE_SKIP_KEY)
+    if persistentSkips and persistentSkips[boneName] then
+        return true
+    end
+
+    return false
+end
+
 -- 监听底层播放器结束事件，统一转发为 OnPlaybackStopped
 hook.Add(Constants.Events.OnAnimationFinished, MODULE_NAME .. "_OnAnimationFinished", function(ragdoll, animName, reason)
     hook.Run(Constants.Events.OnPlaybackStopped, ragdoll, reason)

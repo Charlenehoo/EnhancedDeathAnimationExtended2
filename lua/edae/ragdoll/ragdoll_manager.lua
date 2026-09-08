@@ -186,6 +186,10 @@ function Manager:OnStateChange(ragdoll, state, fromState)
         return -- 死亡不播放
     end
 
+    if state ~= STATE_ENUM.WRITHING then
+        HoldWoundOverlay:Stop(ragdoll)
+    end
+
     -- 启动新播放
     PlaybackCoordinator:Start(owner, ragdoll, state, nil)
 end
