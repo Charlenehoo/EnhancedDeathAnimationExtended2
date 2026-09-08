@@ -143,10 +143,13 @@ local function TwitchCoroutine(ragdoll, ctx)
     end
 
     while not shouldTerminate() do
-        -- 如果骨骼列表为空，立即停止
+        -- 如果骨骼列表为空（所有骨骼被抢占），等待直到重新获得或终止
         if #boneList == 0 then
-            stopReason = Constants.PlaybackReasons.Cancelled
-            break
+            Scheduler:WaitUntil(function()
+                return #boneList > 0 or shouldTerminate()
+            end, nil, 0.2) -- 每 0.2 秒检查一次
+            if shouldTerminate() then break end
+            continue       -- 重新进入循环检查
         end
 
         RunEffects(ctx)
@@ -227,6 +230,7 @@ local function TwitchCoroutine(ragdoll, ctx)
         end
     end
 
+    -- 先清理，再发射事件
     cleanUp(ctx)
     hook.Run(Constants.Events.OnTwitchFinished, ragdoll, stopReason)
 end
@@ -259,7 +263,6 @@ function TwitchController:Start(ragdoll, opts)
         bonesToRequest[boneName] = true
     end
 
-    -- 创建上下文（先不存储）
     local totalMass = GetTotalMass(ragdoll)
     local massFix = totalMass / 50
 
@@ -270,7 +273,7 @@ function TwitchController:Start(ragdoll, opts)
     local ctx = {
         ragdoll             = ragdoll,
         initialHealth       = initialHealth,
-        boneList            = validBoneList,
+        boneList            = {}, -- 初始化为空，将在申请后填充
         speedMode           = speedMode,
         massFix             = massFix,
         baseForce           = math.random(10, 15),
@@ -285,8 +288,9 @@ function TwitchController:Start(ragdoll, opts)
         boneControlOwnerID  = "Twitch_" .. ragdoll:EntIndex(),
     }
 
-    -- 申请骨骼控制权
     local ownerID = ctx.boneControlOwnerID
+
+    -- 申请骨骼控制权
     local acquired = BoneControlManager:RequestBones(
         ragdoll,
         ownerID,
@@ -295,35 +299,27 @@ function TwitchController:Start(ragdoll, opts)
         function() -- isActiveFunc
             return ctx.coro and coroutine.status(ctx.coro) ~= "dead"
         end,
-        nil,                      -- onGranted 无需额外操作（已通过 acquired 反映）
-        function(owner, boneName) -- onLost：被更高优先级抢占，从骨骼列表中移除
-            table.RemoveByValue(ctx.boneList, boneName)
-            if #ctx.boneList == 0 then
-                ctx.active = false
+        function(owner, boneName) -- onGranted：骨骼成功获得（可能来自等待队列）
+            if not table.HasValue(ctx.boneList, boneName) then
+                table.insert(ctx.boneList, boneName)
             end
         end,
-        nil -- onDeny 不需要特别处理
+        function(owner, boneName) -- onLost：骨骼被抢占
+            table.RemoveByValue(ctx.boneList, boneName)
+        end,
+        nil -- onDeny 无需特殊处理
     )
 
-    -- 根据实际获取结果过滤骨骼列表
-    local newBoneList = {}
+    -- 根据立即获得的结果初始化骨骼列表
+    ctx.boneList = {}
     for _, boneName in ipairs(validBoneList) do
         if acquired[boneName] then
-            table.insert(newBoneList, boneName)
+            table.insert(ctx.boneList, boneName)
         end
     end
-    ctx.boneList = newBoneList
 
-    if #ctx.boneList == 0 then
-        -- 没有获得任何骨骼控制权，清理已获得的（可能没有）并返回失败
-        BoneControlManager:ReleaseAllBones(ragdoll, ownerID)
-        return false
-    end
-
-    -- 存储上下文
+    -- 即使初始没有获得任何骨骼，也启动协程，让它等待
     store:Set(ragdoll, TWITCH_CTX_KEY, ctx)
-
-    -- 启动协程并保存引用
     ctx.coro = Scheduler:Start(TwitchCoroutine, ragdoll, ctx)
 
     return true
