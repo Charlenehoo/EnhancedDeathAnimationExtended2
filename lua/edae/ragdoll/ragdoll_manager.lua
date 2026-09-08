@@ -23,7 +23,9 @@ local RagdollPoseHelper   = include("edae/playback/pose_helper.lua")
 local PlaybackCoordinator = include("edae/playback/playback_coordinator.lua")
 local VoiceManager        = include("edae/ragdoll/voice_manager.lua")
 local ReviveManager       = include("edae/ragdoll/revive_manager.lua")
+local BoneControlManager  = include("edae/core/bone_control_manager.lua")
 local HoldWoundOverlay    = include("edae/overlay/hold_wound.lua")
+local helper              = include("edae/helper.lua")
 
 local store               = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -151,7 +153,26 @@ function Manager:OnTakeDamage(ragdoll, data)
     local damage = data.finalDamage or 0
     local died = HealthManager:Damage(ragdoll, damage)
     if data.hitBone and damage > 30 then
-        PlaybackCoordinator:SetBoneSkip(ragdoll, data.hitBone, true, false)
+        -- 获取该骨骼及其所有子骨骼
+        local boneNames = helper.GetBoneChain(ragdoll, data.hitBone)
+        if boneNames and #boneNames > 0 then
+            local bones = {}
+            for _, name in ipairs(boneNames) do
+                bones[name] = true
+            end
+
+            -- 申请永久控制权（优先级 100，高于基础动画 10）
+            BoneControlManager:RequestBones(
+                ragdoll,
+                "SevereDamage_" .. ragdoll:EntIndex() .. "_" .. data.hitBone, -- 唯一 ownerID
+                bones,
+                100,                                                          -- 优先级
+                function() return true end,                                   -- 永久有效
+                nil,                                                          -- onGranted 无需额外操作
+                nil,                                                          -- onLost 几乎不会发生
+                nil                                                           -- onDeny 无需处理
+            )
+        end
     end
 
     if currentState == STATE_ENUM.WRITHING and RagdollPoseHelper:IsFacingUp(ragdoll) and data.hitPos and data.hitPhysID then

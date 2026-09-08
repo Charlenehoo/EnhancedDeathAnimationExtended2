@@ -9,6 +9,7 @@ local PlaybackCoordinator = include("edae/playback/playback_coordinator.lua")
 local LifeCycleHandler    = include("edae/state/life_cycle_handler.lua")
 local HealthManager       = include("edae/core/health_manager.lua")
 local BoneControlManager  = include("edae/core/bone_control_manager.lua")
+local helper              = include("edae/helper.lua")
 
 include("edae/damage/damage_context_manager.lua")   -- 翻译活体伤害 → PostCreateRagdoll 事件
 include("edae/damage/ragdoll_damage_processor.lua") -- 翻译布娃娃伤害 → PostRagdollTakeDamage 事件
@@ -51,25 +52,7 @@ end
 
 -- 获取指定骨骼及其所有子骨骼的名称列表
 EnhancedDeathAnimationExtended.Interface.GetBoneChain           = function(ragdoll, rootBoneName)
-    local rootBoneID = ragdoll:LookupBone(rootBoneName)
-    if not rootBoneID then return {} end
-
-    local names = {}
-    local boneCount = ragdoll:GetBoneCount()
-    for boneID = 0, boneCount - 1 do
-        local currentID = boneID
-        while currentID and currentID ~= 0 do
-            if currentID == rootBoneID then
-                local name = ragdoll:GetBoneName(boneID)
-                if name and name ~= "__INVALIDBONE__" then
-                    names[#names + 1] = name
-                end
-                break
-            end
-            currentID = ragdoll:GetBoneParent(currentID)
-        end
-    end
-    return names
+    return helper.GetBoneChain(ragdoll, rootBoneName)
 end
 
 -- PreRagdollInitialized：在布娃娃初始化前触发，参数为 (owner, ragdoll, initFunc)

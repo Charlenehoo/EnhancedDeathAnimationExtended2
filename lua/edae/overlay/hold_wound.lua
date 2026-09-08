@@ -13,7 +13,7 @@ local Constants = include("edae/core/constants.lua")
 local log = include("edae/core/log/init.lua")
 local EntityDataStore = include("edae/core/entity_data_store.lua")
 local Scheduler = include("edae/core/coroutine_scheduler.lua")
-local PlaybackCoordinator = include("edae/playback/playback_coordinator.lua")
+local BoneControlManager = include("edae/core/bone_control_manager.lua")
 local fingerPoseSets = include("edae/data/finger_pose_sets.lua")
 
 local store = EntityDataStore:ForOwner(MODULE_NAME)
@@ -25,6 +25,7 @@ local CONSTRAINT_FORCELIMIT_INITIAL = 0
 local CONSTRAINT_FORCELIMIT_FINAL = 1000
 local DISTANCE_CHECK_INTERVAL = 0.2
 local MAX_DISTANCE_SQR = 150
+local BONE_CONTROL_PRIORITY = 50 -- 高于基础动画(10)，低于严重伤害(100)和肢解(200)
 
 -- 应用手指姿势
 local function ApplyFingerPose(ragdoll, handBoneName, poseSet)
@@ -71,8 +72,9 @@ local function Release(ragdoll)
         ctx.constraintEnt:Remove()
     end
 
-    for _, boneName in ipairs(ctx.controlledBones) do
-        PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, false)
+    -- 释放手部骨骼控制权
+    if ctx.boneControlOwnerID and ctx.controlledBones then
+        BoneControlManager:ReleaseBones(ragdoll, ctx.boneControlOwnerID, ctx.controlledBones)
     end
 
     store:Clear(ragdoll)
@@ -97,15 +99,25 @@ function HoldWoundOverlay:Start(ragdoll, hitPos, hitPhysID)
     local handPhysID = ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone(handBoneName))
     if not handPhysID then return false end
 
-    if PlaybackCoordinator:IsBoneSkip(ragdoll, handBoneName) then
-        log.trace("HoldWoundOverlay: hand bone already skipped, aborting")
-        return false
-    end
+    -- 申请手部骨骼控制权（合作式）
+    local ownerID = "HoldWound_" .. ragdoll:EntIndex()
+    local bonesToRequest = { [handBoneName] = true }
+    local acquired = BoneControlManager:RequestBones(
+        ragdoll,
+        ownerID,
+        bonesToRequest,
+        BONE_CONTROL_PRIORITY,
+        function() return true end, -- 该层存在期间始终有效
+        nil,                        -- onGranted 无需额外操作，成功后继续创建约束
+        function(owner, boneName)   -- onLost：被更高优先级抢占，立即释放
+            Release(ragdoll)
+        end,
+        nil -- onDeny：初次被拒绝，放弃启动
+    )
 
-    -- 仅控制手部骨骼（约束会将手固定在伤口处，主动画无需驱动）
-    local controlledBones = { handBoneName }
-    for _, boneName in ipairs(controlledBones) do
-        PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, true)
+    if not acquired[handBoneName] then
+        log.trace("HoldWoundOverlay: failed to acquire hand bone control, aborting")
+        return false
     end
 
     -- 应用紧握手指姿势
@@ -116,14 +128,14 @@ function HoldWoundOverlay:Start(ragdoll, hitPos, hitPhysID)
 
     -- 移动手到伤口位置
     if not MoveHandToWound(ragdoll, handPhysID, hitPos) then
-        Release(ragdoll)
+        BoneControlManager:ReleaseBones(ragdoll, ownerID, bonesToRequest)
         return false
     end
 
     -- 创建约束
     local constraintEnt = CreateWeld(ragdoll, handPhysID, hitPhysID)
     if not constraintEnt then
-        Release(ragdoll)
+        BoneControlManager:ReleaseBones(ragdoll, ownerID, bonesToRequest)
         return false
     end
 
@@ -131,7 +143,8 @@ function HoldWoundOverlay:Start(ragdoll, hitPos, hitPhysID)
     local ctx = {
         active = true,
         constraintEnt = constraintEnt,
-        controlledBones = controlledBones,
+        controlledBones = bonesToRequest,
+        boneControlOwnerID = ownerID,
         handPhysID = handPhysID,
         woundPhysID = hitPhysID,
         woundPhysObj = woundPhysObj,
