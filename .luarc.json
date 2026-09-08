@@ -15,10 +15,10 @@
     "continue"
   ],
   "workspace.library": [
-    "C:/Users/CharleneHoo/Dev/Gmod-reference/2026-05-29_06-23-16.lua/"
+    "C:/Users/CharleneHoo/Dev/Gmod/2026-03-31_16-30-01.lua"
   ],
   "workspace.checkThirdParty": false,
-    "diagnostics.disable": [
-        "param-type-mismatch"
-    ]
+  "diagnostics.disable": [
+    "param-type-mismatch"
+  ]
 }
