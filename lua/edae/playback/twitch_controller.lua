@@ -10,17 +10,18 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants        = include("edae/core/constants.lua")
-local log              = include("edae/core/log/init.lua")
-local Scheduler        = include("edae/core/coroutine_scheduler.lua")
-local HealthManager    = include("edae/core/health_manager.lua")
-local EntityDataStore  = include("edae/core/entity_data_store.lua")
+local Constants          = include("edae/core/constants.lua")
+local log                = include("edae/core/log/init.lua")
+local Scheduler          = include("edae/core/coroutine_scheduler.lua")
+local HealthManager      = include("edae/core/health_manager.lua")
+local EntityDataStore    = include("edae/core/entity_data_store.lua")
+local BoneControlManager = include("edae/core/bone_control_manager.lua")
 
-local store            = EntityDataStore:ForOwner(MODULE_NAME)
+local store              = EntityDataStore:ForOwner(MODULE_NAME)
 
-local TWITCH_CTX_KEY   = "TwitchContext"
+local TWITCH_CTX_KEY     = "TwitchContext"
 
-local TwitchController = {}
+local TwitchController   = {}
 
 -- 获取白名单内且具有有效物理对象的骨骼名称列表
 local function GetValidBoneList(ragdoll, whitelist)
@@ -91,6 +92,11 @@ end
 
 -- 安全清理：仅清除自己的上下文，防止误删新播放的上下文
 local function cleanUp(ctx)
+    -- 释放骨骼控制权
+    if ctx.boneControlOwnerID then
+        BoneControlManager:ReleaseAllBones(ctx.ragdoll, ctx.boneControlOwnerID)
+    end
+
     local currentCtx = store:Get(ctx.ragdoll, TWITCH_CTX_KEY)
     if currentCtx == ctx then
         store:Clear(ctx.ragdoll)
@@ -129,7 +135,6 @@ local function TwitchCoroutine(ragdoll, ctx)
         for _, waitFunc in ipairs(ctx.preWait) do
             waitFunc(ctx)
             if shouldTerminate() then
-                -- 预等待过程中可能被终止
                 cleanUp(ctx)
                 hook.Run(Constants.Events.OnTwitchFinished, ragdoll, stopReason)
                 return
@@ -138,6 +143,12 @@ local function TwitchCoroutine(ragdoll, ctx)
     end
 
     while not shouldTerminate() do
+        -- 如果骨骼列表为空，立即停止
+        if #boneList == 0 then
+            stopReason = Constants.PlaybackReasons.Cancelled
+            break
+        end
+
         RunEffects(ctx)
 
         local currentHealth = HealthManager:Get(ragdoll) or 0
@@ -216,7 +227,6 @@ local function TwitchCoroutine(ragdoll, ctx)
         end
     end
 
-    -- 先清理，再发射事件
     cleanUp(ctx)
     hook.Run(Constants.Events.OnTwitchFinished, ragdoll, stopReason)
 end
@@ -240,10 +250,16 @@ function TwitchController:Start(ragdoll, opts)
 
     if initialHealth <= 0 then return false end
 
-    local boneList = GetValidBoneList(ragdoll, whitelist)
-    if #boneList == 0 then return false end
-    table.Shuffle(boneList)
+    local validBoneList = GetValidBoneList(ragdoll, whitelist)
+    if #validBoneList == 0 then return false end
 
+    -- 转换为骨骼表
+    local bonesToRequest = {}
+    for _, boneName in ipairs(validBoneList) do
+        bonesToRequest[boneName] = true
+    end
+
+    -- 创建上下文（先不存储）
     local totalMass = GetTotalMass(ragdoll)
     local massFix = totalMass / 50
 
@@ -254,7 +270,7 @@ function TwitchController:Start(ragdoll, opts)
     local ctx = {
         ragdoll             = ragdoll,
         initialHealth       = initialHealth,
-        boneList            = boneList,
+        boneList            = validBoneList,
         speedMode           = speedMode,
         massFix             = massFix,
         baseForce           = math.random(10, 15),
@@ -262,14 +278,53 @@ function TwitchController:Start(ragdoll, opts)
         effects             = effects and table.Copy(effects) or nil,
         effectStates        = {},
         preWait             = preWait,
-        boneWhitelist       = whitelist, -- 缺失此行
+        boneWhitelist       = whitelist,
         requestedStopReason = nil,
-
         active              = true,
+        coro                = nil,
+        boneControlOwnerID  = "Twitch_" .. ragdoll:EntIndex(),
     }
 
+    -- 申请骨骼控制权
+    local ownerID = ctx.boneControlOwnerID
+    local acquired = BoneControlManager:RequestBones(
+        ragdoll,
+        ownerID,
+        bonesToRequest,
+        30,        -- 抽搐优先级：高于基础动画(10)，低于捂伤口(50)、严重伤害(100)、肢解(200)
+        function() -- isActiveFunc
+            return ctx.coro and coroutine.status(ctx.coro) ~= "dead"
+        end,
+        nil,                      -- onGranted 无需额外操作（已通过 acquired 反映）
+        function(owner, boneName) -- onLost：被更高优先级抢占，从骨骼列表中移除
+            table.RemoveByValue(ctx.boneList, boneName)
+            if #ctx.boneList == 0 then
+                ctx.active = false
+            end
+        end,
+        nil -- onDeny 不需要特别处理
+    )
+
+    -- 根据实际获取结果过滤骨骼列表
+    local newBoneList = {}
+    for _, boneName in ipairs(validBoneList) do
+        if acquired[boneName] then
+            table.insert(newBoneList, boneName)
+        end
+    end
+    ctx.boneList = newBoneList
+
+    if #ctx.boneList == 0 then
+        -- 没有获得任何骨骼控制权，清理已获得的（可能没有）并返回失败
+        BoneControlManager:ReleaseAllBones(ragdoll, ownerID)
+        return false
+    end
+
+    -- 存储上下文
     store:Set(ragdoll, TWITCH_CTX_KEY, ctx)
-    Scheduler:Start(TwitchCoroutine, ragdoll, ctx)
+
+    -- 启动协程并保存引用
+    ctx.coro = Scheduler:Start(TwitchCoroutine, ragdoll, ctx)
 
     return true
 end
