@@ -1,8 +1,8 @@
 -- lua/edae/core/constants.lua
-local Constants                                         = {}
-Constants.ADDON_NAME                                    = "EnhancedDeathAnimationExtended"
-Constants.RAGDOLL_CLASS                                 = "prop_ragdoll"
-Constants.Events                                        = {
+local Constants                                  = {}
+Constants.ADDON_NAME                             = "EnhancedDeathAnimationExtended"
+Constants.RAGDOLL_CLASS                          = "prop_ragdoll"
+Constants.Events                                 = {
     PostCreateRagdoll = "EDAE_PostCreateRagdoll",
     PreRagdollInitialized = "EDAE_PreRagdollInitialized",
     OnRagdollInitialized = "EDAE_RagdollInitialized",
@@ -15,7 +15,7 @@ Constants.Events                                        = {
     PostRagdollTakeDamage = "EDAE_PostRagdollTakeDamage",
 }
 
-Constants.PlaybackReasons                               = {
+Constants.PlaybackReasons                        = {
     CompletedNormally           = "CompletedNormally",
     Cancelled                   = "Cancelled",
     FailedByFall                = "FailedByFall",
@@ -24,26 +24,26 @@ Constants.PlaybackReasons                               = {
     InterruptedByHealthDepleted = "InterruptedByHealthDepleted",
 }
 
-Constants.NETWORK_STRING                                = {}
-Constants.NETWORK_STRING.Ragdoll                        = Constants.ADDON_NAME .. "_" .. "Ragdoll"
-Constants.NETWORK_STRING.PlayerSpawn                    = Constants.ADDON_NAME .. "_" .. "PlayerSpawn"
-Constants.NETWORK_STRING.PlayerRotateRagdoll            = Constants.ADDON_NAME .. "_" .. "PlayerRotateRagdoll"
-Constants.NETWORK_STRING.PlayerSelfRevive_Start         = Constants.ADDON_NAME .. "_" .. "PlayerSelfRevive_Start"
-Constants.NETWORK_STRING.PlayerSelfRevive_Cancel        = Constants.ADDON_NAME .. "_" .. "PlayerSelfRevive_Cancel"
+Constants.NETWORK_STRING                         = {}
+Constants.NETWORK_STRING.Ragdoll                 = Constants.ADDON_NAME .. "_" .. "Ragdoll"
+Constants.NETWORK_STRING.PlayerSpawn             = Constants.ADDON_NAME .. "_" .. "PlayerSpawn"
+Constants.NETWORK_STRING.PlayerRotateRagdoll     = Constants.ADDON_NAME .. "_" .. "PlayerRotateRagdoll"
+Constants.NETWORK_STRING.PlayerSelfRevive_Start  = Constants.ADDON_NAME .. "_" .. "PlayerSelfRevive_Start"
+Constants.NETWORK_STRING.PlayerSelfRevive_Cancel = Constants.ADDON_NAME .. "_" .. "PlayerSelfRevive_Cancel"
 
-Constants.EntityDataStore                               = {}
-Constants.EntityDataStore.STORAGE_KEY                   = Constants.ADDON_NAME .. "_" .. "EntityData"
-Constants.EntityDataStore.SUPER_OWNER                   = "ADMIN"
-Constants.EntityDataStore.DEFAULT_OWNER                 = "anonymous"
+Constants.EntityDataStore                        = {}
+Constants.EntityDataStore.STORAGE_KEY            = Constants.ADDON_NAME .. "_" .. "EntityData"
+Constants.EntityDataStore.SUPER_OWNER            = "ADMIN"
+Constants.EntityDataStore.DEFAULT_OWNER          = "anonymous"
 
-Constants.RagdollManager                                = {}
-Constants.RagdollManager.HEALTH_KEY                     = "Health"
-Constants.RagdollManager.OWNER_KEY                      = "Owner"
-Constants.RagdollManager.MAX_HEALTH                     = 100
+Constants.RagdollManager                         = {}
+Constants.RagdollManager.HEALTH_KEY              = "Health"
+Constants.RagdollManager.OWNER_KEY               = "Owner"
+Constants.RagdollManager.MAX_HEALTH              = 100
 
-Constants.LifeCycleHandler                              = {}
-Constants.LifeCycleHandler.STATE_KEY                    = "State"
-Constants.LifeCycleHandler.STATE_ENUM                   = {
+Constants.LifeCycleHandler                       = {}
+Constants.LifeCycleHandler.STATE_KEY             = "State"
+Constants.LifeCycleHandler.STATE_ENUM            = {
     FALLING       = "falling",
     CRAWLING      = "crawling",
     WRITHING      = "writhing",
@@ -53,9 +53,10 @@ Constants.LifeCycleHandler.STATE_ENUM                   = {
     GETTING_UP    = "getting_up",
     DROWNING      = "drowning",
 }
-Constants.LifeCycleHandler.CRAWL_CHANCE                 = 0.4
-Constants.LifeCycleHandler.WRITHE_CHANCE                = 0.3
-Constants.LifeCycleHandler.TWITCH_CHANCE                = 0.2
+Constants.LifeCycleHandler.CRAWL_CHANCE          = 0.2
+Constants.LifeCycleHandler.TWITCH_CHANCE         = 0.3
+Constants.LifeCycleHandler.WRITHE_CHANCE         = 0.4
+
 
 Constants.DamageContextManager                          = {}
 Constants.DamageContextManager.FLAG_ENUM                = {

@@ -23,6 +23,7 @@ local RagdollPoseHelper   = include("edae/playback/pose_helper.lua")
 local PlaybackCoordinator = include("edae/playback/playback_coordinator.lua")
 local VoiceManager        = include("edae/ragdoll/voice_manager.lua")
 local ReviveManager       = include("edae/ragdoll/revive_manager.lua")
+local HoldWoundOverlay    = include("edae/overlay/hold_wound.lua")
 
 local store               = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -142,7 +143,6 @@ function Manager:OnTakeDamage(ragdoll, data)
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
-    -- 爬行状态受击播放音效
     if (currentState == STATE_ENUM.CRAWLING or currentState == STATE_ENUM.DROWNING) and
         IsValid(owner) then
         VoiceManager:PlayDamageSound(owner)
@@ -150,10 +150,12 @@ function Manager:OnTakeDamage(ragdoll, data)
 
     local damage = data.finalDamage or 0
     local died = HealthManager:Damage(ragdoll, damage)
-
-    -- 根据命中骨骼禁用动画（示例）
     if data.hitBone and damage > 30 then
         PlaybackCoordinator:SetBoneSkip(ragdoll, data.hitBone, true, false)
+    end
+
+    if currentState == STATE_ENUM.WRITHING and RagdollPoseHelper:IsFacingUp(ragdoll) and data.hitPos and data.hitPhysID then
+        HoldWoundOverlay:Start(ragdoll, data.hitPos, data.hitPhysID)
     end
 
     if died then
