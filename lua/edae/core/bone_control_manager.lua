@@ -246,7 +246,8 @@ function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isAc
             end
         else
             -- 检查当前占用者是否活动
-            if not IsRecordActive(record, boneName) then -- 当前占用者失效，处理转让
+            if not IsRecordActive(record, boneName) then
+                -- 当前占用者失效，处理转让
                 ProcessNextWaiter(records, boneName)
                 -- 重新获取记录（可能已被修改）
                 record = records[boneName]
@@ -280,12 +281,14 @@ function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isAc
                         onDeny(ownerID, boneName)
                     end
                 end
-            elseif record.ownerID == ownerID then -- 自己已占用，视为成功
+            elseif record.ownerID == ownerID then
+                -- 自己已占用，视为成功
                 acquired[boneName] = true
                 if onGranted then
                     onGranted(ownerID, boneName)
                 end
-            elseif record.priority < priority then -- 抢占：当前占用者优先级较低
+            elseif record.priority < priority then
+                -- 抢占：当前占用者优先级较低
                 local oldOwnerID    = record.ownerID
                 local oldOnLost     = record.onLost
 
@@ -315,7 +318,8 @@ function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isAc
                     oldOnLost(oldOwnerID, boneName)
                 end
                 log.trace("BoneControlManager: owner ", ownerID, " preempted bone ", boneName, " from ", oldOwnerID)
-            else -- 优先级不够，加入等待队列并触发 onDeny
+            else
+                -- 优先级不够，加入等待队列并触发 onDeny
                 local waiter = {
                     ownerID      = ownerID,
                     priority     = priority,
