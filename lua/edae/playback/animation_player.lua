@@ -17,6 +17,7 @@ local helper                = include("edae/playback/helper.lua")
 local EntityDataStore       = include("edae/core/entity_data_store.lua")
 local HealthManager         = include("edae/core/health_manager.lua")
 local GroundStrategyBuilder = include("edae/playback/builders/ground_strategy_builder.lua")
+local BoneControlManager    = include("edae/core/bone_control_manager.lua")
 
 local store                 = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -34,6 +35,11 @@ local function cleanUp(ctx)
     local animationModel = ctx.animationModel
     if IsValid(animationModel) then
         animationModel:Remove()
+    end
+
+    -- 释放骨骼控制权
+    if ctx.boneControlOwnerID then
+        BoneControlManager:ReleaseAllBones(ctx.ragdoll, ctx.boneControlOwnerID)
     end
 
     -- 只有存储中的上下文还是当前 ctx 时才清除
@@ -315,6 +321,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         HitWallCount              = 0,
         coro                      = nil,
         active                    = true,
+        boneControlOwnerID        = nil, -- 骨骼控制管理器中的所有者 ID
     }
 
     if
@@ -333,6 +340,65 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     if ctx.enableRotate then
         ctx.effects = ctx.effects or {}
         table.insert(ctx.effects, BuildRotateEffect())
+    end
+
+    -- 集成 BoneControlManager：申请骨骼控制权
+    local ownerID = "BaseAnimation_" .. ragdoll:EntIndex()
+    ctx.boneControlOwnerID = ownerID
+
+    -- 收集需要控制的骨骼（排除 persistentSkipBones 中明确跳过的）
+    local allBones = {}
+    for _, bone in ipairs(ctx.boneMap) do
+        local skipPermanent = ctx.persistentSkipBones and ctx.persistentSkipBones[bone.boneName]
+        if not skipPermanent then
+            allBones[bone.boneName] = true
+        end
+    end
+
+    if table.Count(allBones) > 0 then
+        local isActiveFunc = function()
+            return ctx.coro and coroutine.status(ctx.coro) ~= "dead"
+        end
+
+        local function setBoneSkipByName(boneName, skip)
+            for _, bone in ipairs(ctx.boneMap) do
+                if bone.boneName == boneName then
+                    bone.skip = skip
+                    break
+                end
+            end
+        end
+
+        local acquired = BoneControlManager:RequestBones(
+            ragdoll,
+            ownerID,
+            allBones,
+            10,                       -- 基础动画优先级
+            isActiveFunc,
+            function(owner, boneName) -- onGranted
+                setBoneSkipByName(boneName, false)
+            end,
+            function(owner, boneName) -- onLost
+                setBoneSkipByName(boneName, true)
+            end,
+            nil -- onDeny（可选，无需处理，因为会根据 acquired 初始化）
+        )
+
+        -- 初始化 skip 状态：未获得的骨骼立即 skip
+        for _, bone in ipairs(ctx.boneMap) do
+            if ctx.persistentSkipBones and ctx.persistentSkipBones[bone.boneName] then
+                bone.skip = true
+            elseif not acquired[bone.boneName] then
+                bone.skip = true
+            else
+                bone.skip = false
+            end
+        end
+    else
+        -- 没有需要控制的骨骼（全部被持久跳过）
+        for _, bone in ipairs(ctx.boneMap) do
+            bone.skip = true
+        end
     end
 
     local coro = Scheduler:Start(playAnimationCoroutine, ctx)
@@ -385,12 +451,13 @@ function AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
     return self:Rotate(ragdoll, targetYaw, nil, maxTurnSpeed)
 end
 
---- 设置指定骨骼是否跳过动画控制
+--- 设置指定骨骼是否跳过动画控制（已弃用，请使用 BoneControlManager）
 --- @param ragdoll Entity 布娃娃实体
 --- @param boneName string 完整骨骼名（如 "ValveBiped.Bip01_Head1"）
 --- @param skip boolean 是否跳过（true=跳过，false=恢复控制）
 --- @return boolean 是否成功找到并修改了该骨骼
 function AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
+    log.warn("AnimationPlayer:SetBoneSkip is deprecated. Use BoneControlManager instead.")
     local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
     if not ctx or not ctx.boneMap then
         log.warn("AnimationPlayer:SetBoneSkip no active context or boneMap for ragdoll: ", tostring(ragdoll))
@@ -400,23 +467,21 @@ function AnimationPlayer:SetBoneSkip(ragdoll, boneName, skip)
     for _, bone in ipairs(ctx.boneMap) do
         if bone.boneName == boneName then
             bone.skip = skip and true or false
-            log.trace("AnimationPlayer:SetBoneSkip set bone '", boneName, "' skip = ", tostring(bone.skip))
             return true
         end
     end
 
-    log.warn("AnimationPlayer:SetBoneSkip bone not found in boneMap: ", boneName)
     return false
 end
 
---- 查询指定骨骼是否被跳过动画控制
+--- 查询指定骨骼是否被跳过动画控制（已弃用）
 --- @param ragdoll Entity 布娃娃实体
 --- @param boneName string 完整骨骼名（如 "ValveBiped.Bip01_Head1"）
 --- @return boolean 是否跳过（true=跳过，false=未跳过或未找到）
 function AnimationPlayer:IsBoneSkip(ragdoll, boneName)
+    log.warn("AnimationPlayer:IsBoneSkip is deprecated.")
     local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
     if not ctx or not ctx.boneMap then
-        log.warn("AnimationPlayer:IsBoneSkip no active context or boneMap for ragdoll: ", tostring(ragdoll))
         return false
     end
 
@@ -426,7 +491,6 @@ function AnimationPlayer:IsBoneSkip(ragdoll, boneName)
         end
     end
 
-    log.warn("AnimationPlayer:IsBoneSkip bone not found in boneMap: ", boneName)
     return false
 end
 
