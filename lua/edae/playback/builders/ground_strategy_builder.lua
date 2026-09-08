@@ -18,11 +18,12 @@ local RagdollPoseHelper     = include("edae/playback/pose_helper.lua")
 
 local GroundStrategyBuilder = {}
 
--- 向下追踪地面
-local function traceGroundBelow(startPos, filterEntities)
+-- 地面追踪，可指定向下探测距离
+local function traceGroundBelow(startPos, filterEntities, downDistance)
+    downDistance = downDistance or 100 -- 默认 100
     local trace = util.TraceLine({
         start = startPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_UP_OFFSET,
-        endpos = startPos + Constants.ANIMATION_PLAYER.GROUND_TRACE_DOWN_OFFSET,
+        endpos = startPos + Vector(0, 0, -downDistance),
         mask = MASK_SOLID,
         filter = filterEntities
     })
@@ -160,6 +161,37 @@ local function drowningRepositionStrategy(ctx)
     return animationModel:GetPos() + delta
 end
 
+-- 挣扎状态专用骨骼策略：无墙壁检测，地面探测更深
+local function writheBoneStrategy(ctx, bone, amBonePos, amBoneAngle)
+    local ragdoll = ctx.ragdoll
+    local animationModel = ctx.animationModel
+
+    -- 1. 地面追踪（深度 -1000）
+    local refer = Vector(amBonePos.x, amBonePos.y, animationModel:GetPos().z)
+    local groundPos = traceGroundBelow(refer, { ragdoll, animationModel }, 1000)
+    if not groundPos then
+        bone.Fall = true
+        ctx.FallCount = ctx.FallCount + 1
+        return false, nil
+    end
+
+    -- 2. 高度修正（与默认相同）
+    local hitDist = refer.z - groundPos.z
+    local diff = hitDist - bone.lastHitZ
+    bone.lastAddZ = diff + bone.lastAddZ
+    bone.lastHitZ = hitDist
+
+    if diff >= Constants.ANIMATION_PLAYER.FALL_HEIGHT_THRESHOLD then
+        bone.Fall = true
+        ctx.FallCount = ctx.FallCount + 1
+        return false, nil
+    end
+
+    -- 3. 计算目标位置（省略墙壁检测）
+    local bone_pos = amBonePos - Vector(0, 0, bone.lastAddZ)
+    return true, bone_pos
+end
+
 --- 默认初始定位策略：FALLING/DROWNING 使用所有者位置，其他状态使用布娃娃自身位置
 --- @param state string 当前状态
 --- @param owner Entity|nil 布娃娃所有者
@@ -189,6 +221,8 @@ function GroundStrategyBuilder:Build(state)
     if state == Constants.LifeCycleHandler.STATE_ENUM.DROWNING then
         boneStrategy = drowningBoneStrategy
         repositionStrategy = drowningRepositionStrategy
+    elseif state == Constants.LifeCycleHandler.STATE_ENUM.WRITHING then
+        boneStrategy = writheBoneStrategy -- 挣扎专用
     end
 
     return {
