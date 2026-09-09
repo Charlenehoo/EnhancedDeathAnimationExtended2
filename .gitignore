@@ -1,1 +1,4 @@
 .luarc.json
+*.txt
+*.pyc
+scan_outpu*
