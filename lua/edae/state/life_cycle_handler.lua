@@ -29,6 +29,63 @@ local PlaybackReasons    = Constants.PlaybackReasons
 
 local LifeCycleHandler   = {}
 
+local defaultProbTable   = {
+    [STATE_ENUM.CRAWLING]  = Constants.LifeCycleHandler.CRAWL_CHANCE,
+    [STATE_ENUM.WRITHING]  = Constants.LifeCycleHandler.WRITHE_CHANCE,
+    [STATE_ENUM.TWITCHING] = Constants.LifeCycleHandler.TWITCH_CHANCE,
+    [STATE_ENUM.DEAD]      = 1 - (Constants.LifeCycleHandler.CRAWL_CHANCE +
+        Constants.LifeCycleHandler.WRITHE_CHANCE +
+        Constants.LifeCycleHandler.TWITCH_CHANCE),
+}
+
+--- 根据概率表随机选择一个状态
+--- 概率表应为绝对概率，所有值之和应 <= 1，剩余概率自动归为 DEAD
+--- 若概率表无效（非表、包含负数、包含未知状态、总和为 0），返回 nil
+--- @param probTable table|nil 状态 -> 概率 的映射
+--- @return string|nil 选中的状态，若概率表无效则返回 nil
+local function selectStateByProbTable(probTable)
+    -- 校验：概率表必须是表
+    if type(probTable) ~= "table" then
+        log.warn("selectStateByProbTable: probTable is not a table, got ", type(probTable))
+        return nil
+    end
+
+    -- 校验：每个状态必须有效，概率必须是非负数
+    local total = 0
+    for state, prob in pairs(probTable) do
+        if type(prob) ~= "number" or prob < 0 then
+            log.warn("selectStateByProbTable: invalid probability for state '", tostring(state), "' = ", tostring(prob))
+            return nil
+        end
+        if not table.HasValue(STATE_ENUM, state) then
+            log.warn("selectStateByProbTable: unknown state key '", tostring(state), "' in probTable")
+            return nil
+        end
+        total = total + prob
+    end
+
+    -- 总和必须大于 0，否则无法选择
+    if total <= 0 then
+        log.warn("selectStateByProbTable: total probability is zero or negative, cannot select state")
+        return nil
+    end
+
+    -- 生成 [0, 1) 的随机数
+    local rand = math.random()
+
+    -- 按顺序累加概率，找到随机数落入的区间
+    local cumulative = 0
+    for state, prob in pairs(probTable) do
+        cumulative = cumulative + prob
+        if rand < cumulative then
+            return state
+        end
+    end
+
+    -- 若随机数超过了所有列出概率的总和（即总和 < 1），剩余概率归为 DEAD
+    return STATE_ENUM.DEAD
+end
+
 --- 获取当前状态
 --- @param ragdoll Entity
 --- @return string
@@ -115,47 +172,29 @@ function LifeCycleHandler:HandleEvent(ragdoll, reason)
     -- 血量耗尽：任何非 DEAD 状态直接死亡
     if reason == PlaybackReasons.InterruptedByHealthDepleted then
         newState = STATE_ENUM.DEAD
-    elseif currentState == STATE_ENUM.FALLING then
-        if reason == PlaybackReasons.CompletedNormally then
-            -- 概率转移
-            local rand = math.random()
-            if rand < CRAWL_CHANCE then
-                newState = STATE_ENUM.CRAWLING
-            elseif rand < CRAWL_CHANCE + WRITHE_CHANCE then
-                newState = STATE_ENUM.WRITHING
-            elseif rand < CRAWL_CHANCE + WRITHE_CHANCE + TWITCH_CHANCE then
-                newState = STATE_ENUM.TWITCHING
-            else
-                newState = STATE_ENUM.DEAD
-            end
-        elseif reason == PlaybackReasons.FailedByFall or reason == PlaybackReasons.FailedByHitWall then
+    elseif currentState == STATE_ENUM.FALLING or currentState == STATE_ENUM.DROWNING then
+        local probTable = store:Get(ragdoll, "ProbTable")
+        newState = selectStateByProbTable(probTable)
+            or selectStateByProbTable(defaultProbTable)
+            or STATE_ENUM.DEAD
+    elseif currentState == STATE_ENUM.CRAWLING or currentState == STATE_ENUM.WRITHING then
+        if reason == PlaybackReasons.FailedByFall or reason == PlaybackReasons.FailedByHitWall then
+            newState = STATE_ENUM.TWITCHING
+        elseif reason == PlaybackReasons.InterruptedBySelfRevive then
+            newState = STATE_ENUM.SELF_REVIVING
+        elseif reason == PlaybackReasons.CompletedNormally then
+            newState = currentState
+        else
             newState = STATE_ENUM.DEAD
-        end
-    elseif currentState == STATE_ENUM.CRAWLING then
-        if reason == PlaybackReasons.FailedByFall or reason == PlaybackReasons.FailedByHitWall then
-            newState = STATE_ENUM.TWITCHING
-        elseif reason == PlaybackReasons.InterruptedBySelfRevive then
-            newState = STATE_ENUM.SELF_REVIVING
-        elseif reason == PlaybackReasons.CompletedNormally then
-            -- 循环动画自然结束，保持原状态（重新播放）
-            newState = currentState
-        end
-    elseif currentState == STATE_ENUM.WRITHING then
-        if reason == PlaybackReasons.FailedByFall or reason == PlaybackReasons.FailedByHitWall then
-            newState = STATE_ENUM.TWITCHING
-        elseif reason == PlaybackReasons.InterruptedBySelfRevive then
-            newState = STATE_ENUM.SELF_REVIVING
-        elseif reason == PlaybackReasons.CompletedNormally then
-            newState = currentState
         end
     elseif currentState == STATE_ENUM.TWITCHING then
         if reason == PlaybackReasons.InterruptedBySelfRevive then
             newState = STATE_ENUM.SELF_REVIVING
         elseif reason == PlaybackReasons.CompletedNormally then
-            newState = currentState -- 抽搐自然结束保持
+            newState = currentState
+        else
+            newState = STATE_ENUM.DEAD
         end
-    elseif currentState == STATE_ENUM.DROWNING then
-        newState = STATE_ENUM.DEAD
     elseif currentState == STATE_ENUM.SELF_REVIVING then
         if reason == PlaybackReasons.CompletedNormally then
             newState = STATE_ENUM.GETTING_UP
@@ -164,12 +203,11 @@ function LifeCycleHandler:HandleEvent(ragdoll, reason)
             if prevState and prevState ~= STATE_ENUM.SELF_REVIVING then
                 newState = prevState
             else
-                newState = STATE_ENUM.CRAWLING -- 安全回退
+                newState = STATE_ENUM.WRITHING
             end
         elseif reason == PlaybackReasons.FailedByFall or reason == PlaybackReasons.FailedByHitWall then
-            -- 自救动画失败，回退前一状态
             local prevState = getPreviousState(ragdoll)
-            newState = prevState or STATE_ENUM.CRAWLING
+            newState = prevState or STATE_ENUM.WRITHING
         end
     elseif currentState == STATE_ENUM.GETTING_UP then
         if reason == PlaybackReasons.CompletedNormally then

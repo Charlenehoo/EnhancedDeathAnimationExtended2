@@ -30,7 +30,7 @@ MortalityEvaluator.RULES = {
         name = "drowning",
         condition = function(ctx) return ctx.isDrown end,
         decision = STATE_ENUM.DROWNING,
-        probTable = nil,
+        probTable = { [STATE_ENUM.DEAD] = 1.0 },
     },
 }
 
