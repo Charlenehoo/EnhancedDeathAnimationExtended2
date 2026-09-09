@@ -63,7 +63,6 @@ local function setState(ragdoll, newState)
     savePreviousState(ragdoll, oldState)
 
     store:Set(ragdoll, STATE_KEY, newState)
-    log.trace("LifeCycleHandler: state changed for ", ragdoll, ": ", oldState, " -> ", newState)
 
     hook.Run(Constants.Events.OnRagdollStateChange, ragdoll, newState, oldState)
 end
@@ -186,6 +185,9 @@ function LifeCycleHandler:HandleEvent(ragdoll, reason)
 
     -- 如果确定了新状态且与当前不同，则执行转移
     if newState and newState ~= currentState then
+        log.debug("LifeCycleHandler: state transition for ", ragdoll, ": ", currentState, " -> ", newState, " (reason: ",
+            reason, ")")
+
         setState(ragdoll, newState)
     end
 end

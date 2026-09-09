@@ -7,7 +7,7 @@ end
 
 
 local log = include("edae/core/log/log.lua")
-log.level = "trace"
+log.level = "debug"
 
 
 _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] = log
