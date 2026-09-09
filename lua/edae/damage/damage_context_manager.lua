@@ -23,9 +23,9 @@ local DMG_INFO_KEY           = "DmgInfo"
 
 -- 移动历史队列相关
 local MOVE_HISTORY_KEY       = "MoveHistory"
-local MOVE_HISTORY_WINDOW    = 6.0 -- 只回看最近 2 秒内的记录
-local MOVE_HISTORY_MAX_ENTRY = 20  -- 最多保留 20 条，防止无限增长
-local MOVE_WEIGHT_EXPONENT   = 0.2 -- 可调整，越小越强调早期数据
+local MOVE_HISTORY_WINDOW    = 3.0
+local MOVE_HISTORY_MAX_ENTRY = 10
+local MOVE_WEIGHT_EXPONENT   = 0.5 -- 权重指数，越小越强调早期数据
 
 local DamageContextManager   = {}
 
@@ -103,7 +103,7 @@ end
 --- 基于移动历史队列判断是否应标记 MOVING
 --- 要求死亡瞬间实体必须在地面上（IsOnGround）
 --- NPC 使用窗口内最大速度平方 >= 150^2
---- 玩家使用线性加权平均速度平方 >= 当前 WalkSpeed^2
+--- 玩家使用加权平均速度平方 >= 当前 WalkSpeed^2
 --- @param owner Entity
 --- @return boolean shouldMarkMoving
 local function ShouldMarkMoving(owner)
@@ -114,8 +114,20 @@ local function ShouldMarkMoving(owner)
     local now = CurTime()
     local cutoff = now - MOVE_HISTORY_WINDOW
 
+    -- 打印完整历史队列，便于分析
+    log.trace("ShouldMarkMoving - owner: ", owner, ", now: ", now, ", cutoff: ", cutoff)
+    log.trace("ShouldMarkMoving - history entries (total ", #history, "):")
+    for i, rec in ipairs(history) do
+        local age = now - rec.time
+        local inWindow = rec.time >= cutoff
+        local ratio = inWindow and ((rec.time - cutoff) / MOVE_HISTORY_WINDOW) or 0
+        local weight = inWindow and (ratio ^ MOVE_WEIGHT_EXPONENT) or 0
+        log.trace(string.format("  [%d] time=%.3f (age=%.3f) speedSqr=%.1f inWindow=%s ratio=%.3f weight=%.3f",
+            i, rec.time, age, rec.speedSqr, tostring(inWindow), ratio, weight))
+    end
+
     if owner:IsPlayer() then
-        -- 玩家：线性加权平均速度平方（越近权重越大）
+        -- 玩家：加权平均速度平方（越近权重越大，但通过幂指数调整早期数据影响力）
         local weightedSum = 0
         local weightTotal = 0
         for _, rec in ipairs(history) do
@@ -126,11 +138,17 @@ local function ShouldMarkMoving(owner)
                 weightTotal = weightTotal + weight
             end
         end
-        if weightTotal <= 0 then return false end
+        if weightTotal <= 0 then
+            log.trace("ShouldMarkMoving - no valid history entries in window, result: false")
+            return false
+        end
 
         local avgSpeedSqr = weightedSum / weightTotal
         local walkSpeedSqr = owner:GetWalkSpeed() ^ 2
-        return avgSpeedSqr >= walkSpeedSqr
+        local result = avgSpeedSqr >= walkSpeedSqr
+        log.trace(string.format("ShouldMarkMoving - player weighted avg speedSqr=%.1f, walkSpeedSqr=%.1f, result=%s",
+            avgSpeedSqr, walkSpeedSqr, tostring(result)))
+        return result
     else
         -- NPC：窗口内最大速度平方 >= 150^2
         local maxSpeedSqr = 0
@@ -139,7 +157,10 @@ local function ShouldMarkMoving(owner)
                 maxSpeedSqr = rec.speedSqr
             end
         end
-        return maxSpeedSqr >= 150 * 150
+        local result = maxSpeedSqr >= 150 * 150
+        log.trace(string.format("ShouldMarkMoving - NPC max speedSqr=%.1f, threshold=22500, result=%s",
+            maxSpeedSqr, tostring(result)))
+        return result
     end
 end
 
@@ -208,14 +229,6 @@ function DamageContextManager:Update(ent, hitgroup, dmginfo)
     end
 
     store:Set(ent, MOVE_HISTORY_KEY, history)
-
-    log.trace("Updated damage context for ", ent, ": flags=", flags,
-        ", hitgroup=", hitgroup,
-        ", drown=", band(flags, FLAG_ENUM.DROWN) ~= 0,
-        ", neck=", band(flags, FLAG_ENUM.NECK) ~= 0,
-        ", shotgun=", band(flags, FLAG_ENUM.SHOTGUN) ~= 0,
-        ", back=", band(flags, FLAG_ENUM.BACK) ~= 0,
-        ", pelvis=", band(flags, FLAG_ENUM.PELVIS) ~= 0)
 end
 
 ---@param ent Entity
@@ -241,7 +254,21 @@ local function handleCreateRagdoll(owner, ragdoll)
     -- 在清除存储前，根据移动历史队列决定 MOVING 标志
     if ShouldMarkMoving(owner) then
         context.flags = bor(context.flags, FLAG_ENUM.MOVING)
+        context.isMoving = true -- 同步更新便捷字段，避免下游拿到旧值
     end
+
+    -- 打印最终决策信息
+    log.trace("Final damage context for ragdoll creation: flags=", context.flags,
+        ", isMoving=", tostring(context.isMoving),
+        ", isBurn=", tostring(context.isBurn),
+        ", isBlast=", tostring(context.isBlast),
+        ", isClub=", tostring(context.isClub),
+        ", isBullet=", tostring(context.isBullet),
+        ", isDrown=", tostring(context.isDrown),
+        ", neckShot=", tostring(context.neckShot),
+        ", shotgunShot=", tostring(context.shotgunShot),
+        ", backShot=", tostring(context.backShot),
+        ", pelvisShot=", tostring(context.pelvisShot))
 
     -- 清除所有存储
     DamageContextManager:Clear(owner)
