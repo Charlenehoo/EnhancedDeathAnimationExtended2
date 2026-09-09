@@ -1,6 +1,8 @@
 -- lua/edae/helper.lua
 -- 通用辅助函数模块，供各子系统使用
 
+local BoneHierarchyCache = include("edae/core/bone_hierarchy_cache.lua")
+
 local helper = {}
 
 --- 从稠密表（数组）中随机选择一个元素
@@ -18,25 +20,7 @@ end
 --- @param rootBoneName string
 --- @return table 骨骼名数组
 function helper.GetBoneChain(ragdoll, rootBoneName)
-    local rootBoneID = ragdoll:LookupBone(rootBoneName)
-    if not rootBoneID then return {} end
-
-    local names = {}
-    local boneCount = ragdoll:GetBoneCount()
-    for boneID = 0, boneCount - 1 do
-        local currentID = boneID
-        while currentID and currentID ~= 0 do
-            if currentID == rootBoneID then
-                local name = ragdoll:GetBoneName(boneID)
-                if name and name ~= "__INVALIDBONE__" then
-                    names[#names + 1] = name
-                end
-                break
-            end
-            currentID = ragdoll:GetBoneParent(currentID)
-        end
-    end
-    return names
+    return BoneHierarchyCache.GetBoneChain(ragdoll, rootBoneName)
 end
 
 return helper

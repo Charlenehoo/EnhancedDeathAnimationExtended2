@@ -23,9 +23,9 @@ local DMG_INFO_KEY           = "DmgInfo"
 
 -- 移动历史队列相关
 local MOVE_HISTORY_KEY       = "MoveHistory"
-local MOVE_HISTORY_WINDOW    = 2.0 -- 只回看最近 2 秒内的记录
+local MOVE_HISTORY_WINDOW    = 6.0 -- 只回看最近 2 秒内的记录
 local MOVE_HISTORY_MAX_ENTRY = 20  -- 最多保留 20 条，防止无限增长
-local MOVE_WEIGHT_EXPONENT   = 0.5 -- 可调整，越小越强调早期数据
+local MOVE_WEIGHT_EXPONENT   = 0.2 -- 可调整，越小越强调早期数据
 
 local DamageContextManager   = {}
 

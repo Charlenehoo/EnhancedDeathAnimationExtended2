@@ -17,6 +17,8 @@ local TwitchController    = include("edae/playback/twitch_controller.lua")
 local AnimationAssembler  = include("edae/playback/assemblers/animation_assembler.lua")
 local TwitchAssembler     = include("edae/playback/assemblers/twitch_assembler.lua")
 local EntityDataStore     = include("edae/core/entity_data_store.lua")
+local helper              = include("edae/helper.lua")
+
 local store               = EntityDataStore:ForOwner(MODULE_NAME)
 local BONE_SKIP_KEY       = "PersistentSkipBones"
 
@@ -119,32 +121,6 @@ function PlaybackCoordinator:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
     return AnimationPlayer:RotateBy(ragdoll, deltaYaw, maxTurnSpeed)
 end
 
---- 递归获取指定骨骼及其所有子骨骼的完整名称列表
---- @param ragdoll Entity
---- @param rootBoneName string
---- @return table 骨骼名数组
-local function getBoneAndChildrenNames(ragdoll, rootBoneName)
-    local rootBoneID = ragdoll:LookupBone(rootBoneName)
-    if not rootBoneID then return {} end
-
-    local names = {}
-    local boneCount = ragdoll:GetBoneCount()
-    for boneID = 0, boneCount - 1 do
-        local currentID = boneID
-        while currentID and currentID ~= 0 do
-            if currentID == rootBoneID then
-                local name = ragdoll:GetBoneName(boneID)
-                if name and name ~= "__INVALIDBONE__" then
-                    names[#names + 1] = name
-                end
-                break
-            end
-            currentID = ragdoll:GetBoneParent(currentID)
-        end
-    end
-    return names
-end
-
 function PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip, recursive)
     if not IsValid(ragdoll) then
         log.warn("PlaybackCoordinator:SetBoneSkip invalid ragdoll")
@@ -156,7 +132,7 @@ function PlaybackCoordinator:SetBoneSkip(ragdoll, boneName, skip, recursive)
     -- 确定需要更新的骨骼名称列表
     local boneNamesToUpdate
     if recursive then
-        boneNamesToUpdate = getBoneAndChildrenNames(ragdoll, boneName)
+        boneNamesToUpdate = helper.GetBoneChain(ragdoll, boneName)
         if #boneNamesToUpdate == 0 then
             log.warn("PlaybackCoordinator:SetBoneSkip no valid bones found for root: ", boneName)
             return false
