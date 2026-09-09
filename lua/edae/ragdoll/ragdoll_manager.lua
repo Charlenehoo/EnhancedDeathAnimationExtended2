@@ -133,7 +133,7 @@ function Manager:OnCreate(owner, ragdoll, damageContext, initState, probTable)
 
     -- 触发布娃娃初始化完成事件
     log.trace("Manager:OnCreate - firing OnRagdollInitialized event")
-    hook.Run(Events.OnRagdollInitialized, ragdoll, owner)
+    hook.Run(Events.OnRagdollInitialized, ragdoll, owner, initState)
 end
 
 --- @param ragdoll Entity Ragdoll
@@ -145,7 +145,10 @@ function Manager:OnTakeDamage(ragdoll, data)
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
-    if (currentState == STATE_ENUM.CRAWLING or currentState == STATE_ENUM.DROWNING) and
+    if (currentState == STATE_ENUM.CRAWLING or
+            currentState == STATE_ENUM.DROWNING or
+            currentState == STATE_ENUM.SELF_REVIVING or
+            currentState == STATE_ENUM.GETTING_UP) and
         IsValid(owner) then
         VoiceManager:PlayDamageSound(owner)
     end
@@ -195,7 +198,11 @@ function Manager:OnStateChange(ragdoll, state, fromState)
     -- 语音处理
     if state == STATE_ENUM.DEAD then
         VoiceManager:StopAll(owner)
-        if fromState == STATE_ENUM.CRAWLING then
+        if (fromState == STATE_ENUM.CRAWLING or
+                fromState == STATE_ENUM.DROWNING or
+                fromState == STATE_ENUM.SELF_REVIVING or
+                fromState == STATE_ENUM.GETTING_UP) and
+            IsValid(owner) then
             VoiceManager:PlayDeathSound(owner)
         end
     else
