@@ -38,14 +38,14 @@ function helper.EnableMotion(ctx, enable)
 end
 
 function helper.FillShadowParamsTemplate(ctx)
-    local shadowParams = table.Copy(shadowParams.Default)
+    local shadowParamsCopy = table.Copy(shadowParams.Default)
     if ctx.shadowParamsTemplate then
         for k, v in pairs(ctx.shadowParamsTemplate) do
-            shadowParams[k] = v
+            shadowParamsCopy[k] = v
         end
     end
-    ctx.shadowParamsTemplate = shadowParams
-    ctx.baseShadowParams = table.Copy(shadowParams) -- 保存初始值
+    ctx.shadowParamsTemplate = shadowParamsCopy
+    ctx.baseShadowParams = table.Copy(shadowParamsCopy) -- 保存初始值
     return true
 end
 
@@ -95,27 +95,6 @@ function helper.MakeBoneMap(ctx)
 
     ctx.ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
     ctx.totalBones = #ctx.boneMap
-    return true
-end
-
-    -- 在循环结束后，应用显式持久化跳过设置
-    if ctx.persistentSkipBones then
-        for _, bone in ipairs(ctx.boneMap) do
-            local skipValue = ctx.persistentSkipBones[bone.boneName]
-            if skipValue ~= nil then
-                bone.skip = skipValue
-            end
-        end
-    end
-
-    if #ctx.boneMap == 0 then
-        log.warn("Cannot make bone map")
-        return false
-    end
-
-    ctx.totalBones = #ctx.boneMap -- 或者后面动态计算有效骨骼数
-    log.trace("Bone map created with ", #ctx.boneMap, " bones (",
-        ctx.boneWhitelist and "whitelist applied" or "no whitelist", ")")
     return true
 end
 
