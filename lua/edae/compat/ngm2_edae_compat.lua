@@ -43,8 +43,7 @@ if SERVER then
                 200,                                     -- 最高优先级
                 function() return true end,              -- isActiveFunc：一直有效
                 nil,                                     -- onGranted：无需额外操作
-                nil,                                     -- onLost：几乎不会发生
-                nil                                      -- onDeny：初次失败也可忽略
+                nil                                      -- onLost：几乎不会发生
             )
         end
 

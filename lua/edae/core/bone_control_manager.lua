@@ -7,6 +7,14 @@
 --   - 使用 EntityDataStore 将数据存储在 ragdoll 实体上，随实体销毁自动清理。
 -- 使用方式：
 --   BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isActiveFunc, onGranted, onLost)
+-- 接口说明：
+--   - `ownerID` 必须稳定，同一逻辑申请者请勿使用变化的 ID（例如每次事件都生成新 ID），否则会导致等待队列无限增长。
+--   - `priority` 数值越大优先级越高。
+--   - `isActiveFunc` 用于判断申请者是否仍然活跃（如协程是否存活），若不活跃则自动释放其控制权。
+--   - `onGranted` 在控制权首次授予时触发（包括立即获得或从等待队列中被授予）。重复申请同一骨骼且已经拥有控制权时不会触发。
+--   - `onLost` 在失去控制权时触发（被抢占或主动释放）。
+--   - 同一 `ownerID` 对同一骨骼的重复申请将被忽略（不会重复入队，也不会触发任何回调），若需更新回调请先释放旧申请再重新提交。
+--   - 返回值 `acquired` 是一个表，键为骨骼名，值为 `true`，表示本次调用成功获得（或已拥有）控制权的骨骼集合。
 
 local MODULE_NAME = "BoneControlManager"
 
@@ -100,6 +108,19 @@ local function InsertWaiter(waiters, waiter)
     if not inserted then
         table.insert(waiters, waiter)
     end
+end
+
+--- 检查等待队列中是否已存在相同 ownerID 的等待者
+---@param waiters BoneWaiter[]
+---@param ownerID string|number
+---@return boolean
+local function HasWaiterWithOwnerID(waiters, ownerID)
+    for _, w in ipairs(waiters) do
+        if w.ownerID == ownerID then
+            return true
+        end
+    end
+    return false
 end
 
 --- 处理骨骼的占用转让（当占用者失效或主动释放时调用）
@@ -204,15 +225,14 @@ end)
 --- 若骨骼空闲，立即授予；若当前占用者优先级较低，则抢占；若优先级不够，则加入等待队列。
 --- 当前占用者失效时会自动释放并授予等待队列中的最高优先级者。
 ---@param ragdoll Entity 布娃娃实体
----@param ownerID string|number 申请者唯一标识
+---@param ownerID string|number 申请者唯一标识（必须稳定，同一逻辑申请者请勿使用变化的 ID）
 ---@param bones table<string, boolean> 请求的骨骼名称集合
 ---@param priority number 优先级，数字越大越高
 ---@param isActiveFunc fun(ownerID: string|number, boneName: string): boolean|nil 申请者活动性谓词，用于判断是否还活跃（如协程是否存活）
----@param onGranted fun(ownerID: string|number, boneName: string)|nil 成功获得骨骼时回调
+---@param onGranted fun(ownerID: string|number, boneName: string)|nil 成功获得骨骼时回调（仅在控制权从无到有时触发一次）
 ---@param onLost fun(ownerID: string|number, boneName: string)|nil 将来失去骨骼时回调（被抢占或主动释放时调用）
----@param onDeny fun(ownerID: string|number, boneName: string)|nil 初次申请被拒绝（即未立即获得控制权）时回调
----@return table<string, boolean> 实际立即成功占用的骨骼集合
-function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isActiveFunc, onGranted, onLost, onDeny)
+---@return table<string, boolean> 实际成功占用（或已拥有）的骨骼集合
+function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isActiveFunc, onGranted, onLost)
     if not IsValid(ragdoll) or not ownerID or not bones or not priority then
         log.warn("BoneControlManager:RequestBones - invalid arguments")
         return {}
@@ -263,43 +283,40 @@ function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isAc
                         onGranted(ownerID, boneName)
                     end
                 elseif record.ownerID == ownerID then
+                    -- 重复申请，但之前已经拥有，不再触发回调
                     acquired[boneName] = true
-                    if onGranted then
-                        onGranted(ownerID, boneName)
-                    end
                 else
-                    -- 被更高优先级等待者获得，当前申请者加入等待队列并触发 onDeny
-                    local waiter = {
-                        ownerID      = ownerID,
-                        priority     = priority,
-                        isActiveFunc = isActiveFunc,
-                        onGranted    = onGranted,
-                        onLost       = onLost,
-                    }
-                    InsertWaiter(record.waiters, waiter)
-                    if onDeny then
-                        onDeny(ownerID, boneName)
+                    -- 被更高优先级等待者获得，当前申请者加入等待队列（去重）
+                    if not HasWaiterWithOwnerID(record.waiters, ownerID) then
+                        local waiter = {
+                            ownerID      = ownerID,
+                            priority     = priority,
+                            isActiveFunc = isActiveFunc,
+                            onGranted    = onGranted,
+                            onLost       = onLost,
+                        }
+                        InsertWaiter(record.waiters, waiter)
                     end
                 end
             elseif record.ownerID == ownerID then
-                -- 自己已占用，视为成功
+                -- 自己已占用，视为成功，但不触发 onGranted（控制权未跳变）
                 acquired[boneName] = true
-                if onGranted then
-                    onGranted(ownerID, boneName)
-                end
             elseif record.priority < priority then
                 -- 抢占：当前占用者优先级较低
-                local oldOwnerID    = record.ownerID
-                local oldOnLost     = record.onLost
+                local oldOwnerID = record.ownerID
+                local oldOnLost  = record.onLost
 
-                -- 将旧占用者放入等待队列
-                local oldWaiter     = {
-                    ownerID      = oldOwnerID,
-                    priority     = record.priority,
-                    isActiveFunc = record.isActiveFunc or DefaultIsActive,
-                    onGranted    = nil,
-                    onLost       = oldOnLost,
-                }
+                -- 将旧占用者放入等待队列（去重）
+                if not HasWaiterWithOwnerID(record.waiters, oldOwnerID) then
+                    local oldWaiter = {
+                        ownerID      = oldOwnerID,
+                        priority     = record.priority,
+                        isActiveFunc = record.isActiveFunc or DefaultIsActive,
+                        onGranted    = nil,
+                        onLost       = oldOnLost,
+                    }
+                    InsertWaiter(record.waiters, oldWaiter)
+                end
 
                 -- 更新当前占用者
                 record.ownerID      = ownerID
@@ -307,10 +324,7 @@ function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isAc
                 record.isActiveFunc = isActiveFunc
                 record.onLost       = onLost
 
-                -- 将旧占用者插入等待队列
-                InsertWaiter(record.waiters, oldWaiter)
-
-                acquired[boneName] = true
+                acquired[boneName]  = true
                 if onGranted then
                     onGranted(ownerID, boneName)
                 end
@@ -319,17 +333,16 @@ function BoneControlManager:RequestBones(ragdoll, ownerID, bones, priority, isAc
                 end
                 log.trace("BoneControlManager: owner ", ownerID, " preempted bone ", boneName, " from ", oldOwnerID)
             else
-                -- 优先级不够，加入等待队列并触发 onDeny
-                local waiter = {
-                    ownerID      = ownerID,
-                    priority     = priority,
-                    isActiveFunc = isActiveFunc,
-                    onGranted    = onGranted,
-                    onLost       = onLost,
-                }
-                InsertWaiter(record.waiters, waiter)
-                if onDeny then
-                    onDeny(ownerID, boneName)
+                -- 优先级不够，加入等待队列（去重）
+                if not HasWaiterWithOwnerID(record.waiters, ownerID) then
+                    local waiter = {
+                        ownerID      = ownerID,
+                        priority     = priority,
+                        isActiveFunc = isActiveFunc,
+                        onGranted    = onGranted,
+                        onLost       = onLost,
+                    }
+                    InsertWaiter(record.waiters, waiter)
                 end
                 log.trace("BoneControlManager: owner ", ownerID, " queued for bone ", boneName)
             end

@@ -29,25 +29,27 @@ if SERVER then
         local kmRagdollAlreadyFired = {}
 
         -- 拦截 EDAE 预初始化：阻止默认，保存句柄
-        hook.Add("EDAE_PreRagdollInitialized", "BSMod_EDAE_DelayInit", function(owner, ragdoll, initFunc)
-            if not IsValid(owner) then return end
+        -- 新签名：(initFunc, owner, ragdoll, damageContext, decision, probTable)
+        hook.Add("EDAE_PreRagdollInitialized", "BSMod_EDAE_DelayInit",
+            function(initFunc, owner, ragdoll, damageContext, decision, probTable)
+                if not IsValid(owner) then return end
 
-            if owner.bsmod_killed_by_killmove then
-                if kmRagdollAlreadyFired[ragdoll] then
-                    kmRagdollAlreadyFired[ragdoll] = nil
-                    if initFunc then
-                        initFunc(GetKillMoveInitialState(), nil)
+                if owner.bsmod_killed_by_killmove then
+                    if kmRagdollAlreadyFired[ragdoll] then
+                        kmRagdollAlreadyFired[ragdoll] = nil
+                        if initFunc then
+                            initFunc(GetKillMoveInitialState(), nil)
+                        end
+                    else
+                        pendingInits[ragdoll] = {
+                            owner = owner,
+                            initFunc = initFunc
+                        }
                     end
-                else
-                    pendingInits[ragdoll] = {
-                        owner = owner,
-                        initFunc = initFunc
-                    }
+                    -- 始终阻止 EDAE 默认初始化
+                    return true
                 end
-                -- 始终阻止 EDAE 默认初始化
-                return true
-            end
-        end)
+            end)
 
         -- 监听 KMRagdoll：BSMod 定位完成后调用保存的初始化函数
         hook.Add("KMRagdoll", "BSMod_EDAE_TriggerInit", function(entity, ragdoll, animName)

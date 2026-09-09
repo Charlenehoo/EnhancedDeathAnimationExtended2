@@ -359,7 +359,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     end
 
     -- 集成 BoneControlManager：申请骨骼控制权
-    local ownerID = "BaseAnimation_" .. ragdoll:EntIndex()
+    local ownerID = MODULE_NAME
     ctx.boneControlOwnerID = ownerID
 
     -- 收集需要控制的骨骼（排除 persistentSkipBones 中明确跳过的）
@@ -396,8 +396,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
             end,
             function(owner, boneName) -- onLost
                 setBoneSkipByName(boneName, true)
-            end,
-            nil -- onDeny（可选，无需处理，因为会根据 acquired 初始化）
+            end
         )
 
         -- 初始化 skip 状态：未获得的骨骼立即 skip

@@ -100,7 +100,7 @@ function HoldWoundOverlay:Start(ragdoll, hitPos, hitPhysID)
     if not handPhysID then return false end
 
     -- 申请手部骨骼控制权（合作式）
-    local ownerID = "HoldWound_" .. ragdoll:EntIndex()
+    local ownerID = MODULE_NAME
     local bonesToRequest = { [handBoneName] = true }
     local acquired = BoneControlManager:RequestBones(
         ragdoll,
@@ -111,8 +111,7 @@ function HoldWoundOverlay:Start(ragdoll, hitPos, hitPhysID)
         nil,                        -- onGranted 无需额外操作，成功后继续创建约束
         function(owner, boneName)   -- onLost：被更高优先级抢占，立即释放
             Release(ragdoll)
-        end,
-        nil -- onDeny：初次被拒绝，放弃启动
+        end
     )
 
     if not acquired[handBoneName] then

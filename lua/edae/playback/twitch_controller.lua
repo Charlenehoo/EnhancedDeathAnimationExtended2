@@ -285,7 +285,7 @@ function TwitchController:Start(ragdoll, opts)
         requestedStopReason = nil,
         active              = true,
         coro                = nil,
-        boneControlOwnerID  = "Twitch_" .. ragdoll:EntIndex(),
+        boneControlOwnerID  = MODULE_NAME,
     }
 
     local ownerID = ctx.boneControlOwnerID
@@ -306,8 +306,7 @@ function TwitchController:Start(ragdoll, opts)
         end,
         function(owner, boneName) -- onLost：骨骼被抢占
             table.RemoveByValue(ctx.boneList, boneName)
-        end,
-        nil -- onDeny 无需特殊处理
+        end
     )
 
     -- 根据立即获得的结果初始化骨骼列表

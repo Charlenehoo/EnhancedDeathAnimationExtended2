@@ -164,13 +164,12 @@ function Manager:OnTakeDamage(ragdoll, data)
             -- 申请永久控制权（优先级 100，高于基础动画 10）
             BoneControlManager:RequestBones(
                 ragdoll,
-                "SevereDamage_" .. ragdoll:EntIndex() .. "_" .. data.hitBone, -- 唯一 ownerID
+                MODULE_NAME,
                 bones,
-                100,                                                          -- 优先级
-                function() return true end,                                   -- 永久有效
-                nil,                                                          -- onGranted 无需额外操作
-                nil,                                                          -- onLost 几乎不会发生
-                nil                                                           -- onDeny 无需处理
+                100,                        -- 优先级
+                function() return true end, -- 永久有效
+                nil,                        -- onGranted 无需额外操作
+                nil                         -- onLost 几乎不会发生
             )
         end
     end
@@ -248,12 +247,12 @@ local function handlePostCreateRagdoll(owner, ragdoll, damageContext, decision, 
     log.trace("RagdollManager: firing PreRagdollInitialized hook...")
     local result = hook.Run(
         Events.PreRagdollInitialized,
+        initFunc,
         owner,
         ragdoll,
         damageContext,
         decision,
-        probTable,
-        initFunc
+        probTable
     )
     log.trace("RagdollManager: PreRagdollInitialized hook returned: ", tostring(result))
 
