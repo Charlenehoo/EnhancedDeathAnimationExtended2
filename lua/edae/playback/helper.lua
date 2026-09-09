@@ -1,5 +1,6 @@
 local log = include("edae/core/log/init.lua")
 local shadowParams = include("edae/data/shadow_params.lua") -- 文件顶部添加
+local RagdollBoneCache = include("edae/core/ragdoll_bone_cache.lua")
 
 local helper = {}
 
@@ -50,42 +51,52 @@ end
 
 function helper.MakeBoneMap(ctx)
     local ragdoll = ctx.ragdoll
-    local ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
-    if not ragdollPhysicsObjectCount or ragdollPhysicsObjectCount < 1 then return false end
-    ctx.ragdollPhysicsObjectCount = ragdollPhysicsObjectCount
+    local animationModel = ctx.animationModel
+
+    local boneDataMap = RagdollBoneCache.GetBoneDataMap(ragdoll)
+    if not boneDataMap then return false end
 
     ctx.boneMap = {}
-    for ragdollPhysObjNum = 0, ragdollPhysicsObjectCount - 1 do
-        local ragdollBoneID = ragdoll:TranslatePhysBoneToBone(ragdollPhysObjNum)
-        if not ragdollBoneID then continue end
-
-        local boneName = ragdoll:GetBoneName(ragdollBoneID)
-        if not boneName or boneName == "__INVALIDBONE__" then continue end
-
-        local amBoneID = ctx.animationModel:LookupBone(boneName)
-        if not amBoneID then continue end -- 动画模型没有该骨骼，无法驱动，直接忽略
-
-        local ragdollPhysObj = ragdoll:GetPhysicsObjectNum(ragdollPhysObjNum)
-        if not IsValid(ragdollPhysObj) then continue end
-
-        -- 判断是否跳过：白名单存在且不含此骨骼，则跳过
-        local skip = (ctx.boneWhitelist ~= nil) and (not ctx.boneWhitelist[boneName])
-
-        local data = {
-            boneName = boneName,
-            amBoneID = amBoneID,
-            ragdollPhysObj = ragdollPhysObj,
-            ragdollBoneID = ragdollBoneID,
-
-            skip = skip, -- 新增 skip 标志，初始由白名单决定
-
-            Fall = false,
-            HitWall = false,
-            lastHitZ = 0,
-            lastAddZ = 0,
-        }
-        table.insert(ctx.boneMap, data)
+    for boneName, boneData in pairs(boneDataMap) do
+        local amBoneID = animationModel:LookupBone(boneName)
+        if amBoneID then
+            local ragdollPhysObj = boneData.physObj
+            if IsValid(ragdollPhysObj) then
+                local skip = (ctx.boneWhitelist ~= nil) and (not ctx.boneWhitelist[boneName])
+                local data = {
+                    boneName = boneName,
+                    amBoneID = amBoneID,
+                    ragdollPhysObj = ragdollPhysObj,
+                    ragdollBoneID = boneData.boneID,
+                    skip = skip,
+                    Fall = false,
+                    HitWall = false,
+                    lastHitZ = 0,
+                    lastAddZ = 0,
+                }
+                table.insert(ctx.boneMap, data)
+            end
+        end
     end
+
+    -- 应用持久化跳过设置
+    if ctx.persistentSkipBones then
+        for _, bone in ipairs(ctx.boneMap) do
+            if ctx.persistentSkipBones[bone.boneName] then
+                bone.skip = true
+            end
+        end
+    end
+
+    if #ctx.boneMap == 0 then
+        log.warn("Cannot make bone map")
+        return false
+    end
+
+    ctx.ragdollPhysicsObjectCount = ragdoll:GetPhysicsObjectCount()
+    ctx.totalBones = #ctx.boneMap
+    return true
+end
 
     -- 在循环结束后，应用显式持久化跳过设置
     if ctx.persistentSkipBones then

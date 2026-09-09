@@ -15,6 +15,7 @@ local EntityDataStore = include("edae/core/entity_data_store.lua")
 local Scheduler = include("edae/core/coroutine_scheduler.lua")
 local BoneControlManager = include("edae/core/bone_control_manager.lua")
 local fingerPoseSets = include("edae/data/finger_pose_sets.lua")
+local RagdollBoneCache = include("edae/core/ragdoll_bone_cache.lua")
 
 local store = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -96,7 +97,10 @@ function HoldWoundOverlay:Start(ragdoll, hitPos, hitPhysID)
     -- 根据伤口相对方向选择手（简单规则）
     local handSide = (hitPos - ragdoll:GetPos()):Dot(ragdoll:GetRight()) > 0 and "left" or "right"
     local handBoneName = handSide == "left" and "ValveBiped.Bip01_L_Hand" or "ValveBiped.Bip01_R_Hand"
-    local handPhysID = ragdoll:TranslateBoneToPhysBone(ragdoll:LookupBone(handBoneName))
+    local boneDataMap = RagdollBoneCache.GetBoneDataMap(ragdoll)
+    local handData = boneDataMap[handBoneName]
+    if not handData or not handData.physID then return false end
+    local handPhysID = handData.physID
     if not handPhysID then return false end
 
     -- 申请手部骨骼控制权（合作式）

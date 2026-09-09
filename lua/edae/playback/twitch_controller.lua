@@ -16,6 +16,7 @@ local Scheduler          = include("edae/core/coroutine_scheduler.lua")
 local HealthManager      = include("edae/core/health_manager.lua")
 local EntityDataStore    = include("edae/core/entity_data_store.lua")
 local BoneControlManager = include("edae/core/bone_control_manager.lua")
+local RagdollBoneCache   = include("edae/core/ragdoll_bone_cache.lua")
 
 local store              = EntityDataStore:ForOwner(MODULE_NAME)
 
@@ -25,18 +26,11 @@ local TwitchController   = {}
 
 -- 获取白名单内且具有有效物理对象的骨骼名称列表
 local function GetValidBoneList(ragdoll, whitelist)
+    local boneDataMap = RagdollBoneCache.GetBoneDataMap(ragdoll)
     local valid = {}
-    local count = ragdoll:GetPhysicsObjectCount()
-    for i = 0, count - 1 do
-        local boneID = ragdoll:TranslatePhysBoneToBone(i)
-        if boneID then
-            local boneName = ragdoll:GetBoneName(boneID)
-            if whitelist[boneName] then
-                local phyObj = ragdoll:GetPhysicsObjectNum(i)
-                if IsValid(phyObj) then
-                    table.insert(valid, boneName)
-                end
-            end
+    for boneName, boneData in pairs(boneDataMap) do
+        if whitelist[boneName] and IsValid(boneData.physObj) then
+            table.insert(valid, boneName)
         end
     end
     return valid

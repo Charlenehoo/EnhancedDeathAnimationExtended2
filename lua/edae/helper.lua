@@ -1,7 +1,8 @@
 -- lua/edae/helper.lua
 -- 通用辅助函数模块，供各子系统使用
 
-local BoneHierarchyCache = include("edae/core/bone_hierarchy_cache.lua")
+-- 文件顶部添加
+local RagdollBoneCache = include("edae/core/ragdoll_bone_cache.lua")
 
 local helper = {}
 
@@ -20,7 +21,7 @@ end
 --- @param rootBoneName string
 --- @return table 骨骼名数组
 function helper.GetBoneChain(ragdoll, rootBoneName)
-    return BoneHierarchyCache.GetBoneChain(ragdoll, rootBoneName)
+    return RagdollBoneCache.GetBoneChain(ragdoll, rootBoneName)
 end
 
 return helper

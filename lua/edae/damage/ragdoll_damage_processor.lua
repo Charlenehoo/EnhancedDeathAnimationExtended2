@@ -11,6 +11,7 @@ end
 
 local Constants            = include("edae/core/constants.lua")
 local log                  = include("edae/core/log/init.lua")
+local RagdollBoneCache     = include("edae/core/ragdoll_bone_cache.lua")
 
 local Processor            = {}
 
@@ -58,27 +59,20 @@ local function GetClosestBone(ragdoll, damagePos)
 
     local closest = { boneName = "unknown", boneID = -1, physID = -1, hitPos = damagePos }
     local minDistSqr = math.huge
-    local physCount = ragdoll:GetPhysicsObjectCount()
 
-    for i = 0, physCount - 1 do
-        local physObj = ragdoll:GetPhysicsObjectNum(i)
-        if IsValid(physObj) then
-            local boneID = ragdoll:TranslatePhysBoneToBone(i)
-            if boneID then
-                local boneName = ragdoll:GetBoneName(boneID)
-                if boneName and boneName ~= "__INVALIDBONE__" then
-                    local bonePos = physObj:GetPos()
-                    local distSqr = bonePos:DistToSqr(damagePos)
-                    if distSqr < minDistSqr then
-                        minDistSqr = distSqr
-                        closest = {
-                            boneName = boneName,
-                            boneID   = boneID,
-                            physID   = i,
-                            hitPos   = damagePos,
-                        }
-                    end
-                end
+    local boneDataMap = RagdollBoneCache.GetBoneDataMap(ragdoll)
+    for boneName, boneData in pairs(boneDataMap) do
+        if boneData.physObj then
+            local bonePos = boneData.physObj:GetPos()
+            local distSqr = bonePos:DistToSqr(damagePos)
+            if distSqr < minDistSqr then
+                minDistSqr = distSqr
+                closest = {
+                    boneName = boneName,
+                    boneID   = boneData.boneID,
+                    physID   = boneData.physID or -1,
+                    hitPos   = damagePos,
+                }
             end
         end
     end
