@@ -6,24 +6,30 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
-local Constants            = include("edae/core/constants.lua")
-local log                  = include("edae/core/log/init.lua")
-local EntityDataStore      = include("edae/core/entity_data_store.lua")
-local MortalityEvaluator   = include("edae/state/mortality_evaluator.lua")
+local Constants              = include("edae/core/constants.lua")
+local log                    = include("edae/core/log/init.lua")
+local EntityDataStore        = include("edae/core/entity_data_store.lua")
+local MortalityEvaluator     = include("edae/state/mortality_evaluator.lua")
 
-local store                = EntityDataStore:ForOwner(MODULE_NAME)
+local store                  = EntityDataStore:ForOwner(MODULE_NAME)
 
 -- 标志位枚举（共享）
-local FLAG_ENUM            = Constants.DamageContextManager.FLAG_ENUM
+local FLAG_ENUM              = Constants.DamageContextManager.FLAG_ENUM
 
 -- 存储键（模块私有）
-local FLAG_KEY             = "Flag"
-local HIT_GROUP_KEY        = "HitGroup"
-local DMG_INFO_KEY         = "DmgInfo"
+local FLAG_KEY               = "Flag"
+local HIT_GROUP_KEY          = "HitGroup"
+local DMG_INFO_KEY           = "DmgInfo"
 
-local DamageContextManager = {}
+-- 移动历史队列相关
+local MOVE_HISTORY_KEY       = "MoveHistory"
+local MOVE_HISTORY_WINDOW    = 2.0 -- 只回看最近 2 秒内的记录
+local MOVE_HISTORY_MAX_ENTRY = 20  -- 最多保留 20 条，防止无限增长
+local MOVE_WEIGHT_EXPONENT   = 0.5 -- 可调整，越小越强调早期数据
 
-local band, bor            = bit.band, bit.bor
+local DamageContextManager   = {}
+
+local band, bor              = bit.band, bit.bor
 
 ---@param ent Entity
 ---@param hitgroup number
@@ -41,25 +47,19 @@ local function computeDamageFlags(ent, hitgroup, dmginfo)
         flags = bor(flags, FLAG_ENUM.BLAST)
     end
 
-    if ent:IsOnGround() then
-        if ent:IsNPC() and ent:GetIdealMoveSpeed() > 150 then
-            flags = bor(flags, FLAG_ENUM.MOVING)
-        elseif ent:IsPlayer() and ent:GetVelocity():LengthSqr() >= math.pow(ent:GetWalkSpeed(), 2) then
-            flags = bor(flags, FLAG_ENUM.MOVING)
-        end
-    end
+    -- MOVING 标志不再在此处计算，交由死亡时基于历史队列统一处理
 
     if dmginfo:GetDamageType() == DMG_CLUB or dmginfo:GetDamageType() == DMG_CRUSH then
         flags = bor(flags, FLAG_ENUM.CLUB)
     end
 
-    -- ===== 新增：溺水伤害 =====
+    -- ===== 溺水伤害 =====
     if dmginfo:GetDamageType() == DMG_DROWN or ent:WaterLevel() > 1 then
         flags = bor(flags, FLAG_ENUM.DROWN)
     end
 
     -- 默认子弹类型：当没有其他类型标志时设置
-    local typeFlags = bor(FLAG_ENUM.BURN, FLAG_ENUM.BLAST, FLAG_ENUM.MOVING, FLAG_ENUM.CLUB, FLAG_ENUM.DROWN)
+    local typeFlags = bor(FLAG_ENUM.BURN, FLAG_ENUM.BLAST, FLAG_ENUM.CLUB, FLAG_ENUM.DROWN)
     if band(flags, typeFlags) == 0 then
         flags = bor(flags, FLAG_ENUM.BULLET)
     end
@@ -100,6 +100,49 @@ local function computeDamageFlags(ent, hitgroup, dmginfo)
     return flags
 end
 
+--- 基于移动历史队列判断是否应标记 MOVING
+--- 要求死亡瞬间实体必须在地面上（IsOnGround）
+--- NPC 使用窗口内最大速度平方 >= 150^2
+--- 玩家使用线性加权平均速度平方 >= 当前 WalkSpeed^2
+--- @param owner Entity
+--- @return boolean shouldMarkMoving
+local function ShouldMarkMoving(owner)
+    if not IsValid(owner) then return false end
+    if not owner:IsOnGround() then return false end
+
+    local history = store:Get(owner, MOVE_HISTORY_KEY) or {}
+    local now = CurTime()
+    local cutoff = now - MOVE_HISTORY_WINDOW
+
+    if owner:IsPlayer() then
+        -- 玩家：线性加权平均速度平方（越近权重越大）
+        local weightedSum = 0
+        local weightTotal = 0
+        for _, rec in ipairs(history) do
+            if rec.time >= cutoff then
+                local ratio = (rec.time - cutoff) / MOVE_HISTORY_WINDOW
+                local weight = ratio ^ MOVE_WEIGHT_EXPONENT
+                weightedSum = weightedSum + rec.speedSqr * weight
+                weightTotal = weightTotal + weight
+            end
+        end
+        if weightTotal <= 0 then return false end
+
+        local avgSpeedSqr = weightedSum / weightTotal
+        local walkSpeedSqr = owner:GetWalkSpeed() ^ 2
+        return avgSpeedSqr >= walkSpeedSqr
+    else
+        -- NPC：窗口内最大速度平方 >= 150^2
+        local maxSpeedSqr = 0
+        for _, rec in ipairs(history) do
+            if rec.time >= cutoff and rec.speedSqr > maxSpeedSqr then
+                maxSpeedSqr = rec.speedSqr
+            end
+        end
+        return maxSpeedSqr >= 150 * 150
+    end
+end
+
 ---@param ent Entity
 ---@return table | nil context if any else nil
 function DamageContextManager:Get(ent)
@@ -124,7 +167,7 @@ function DamageContextManager:Get(ent)
     context.isMoving    = band(flags, FLAG_ENUM.MOVING) ~= 0
     context.isClub      = band(flags, FLAG_ENUM.CLUB) ~= 0
     context.isBullet    = band(flags, FLAG_ENUM.BULLET) ~= 0
-    context.isDrown     = band(flags, FLAG_ENUM.DROWN) ~= 0 -- <-- 新增
+    context.isDrown     = band(flags, FLAG_ENUM.DROWN) ~= 0
     context.neckShot    = band(flags, FLAG_ENUM.NECK) ~= 0
     context.shotgunShot = band(flags, FLAG_ENUM.SHOTGUN) ~= 0
     context.backShot    = band(flags, FLAG_ENUM.BACK) ~= 0
@@ -145,6 +188,26 @@ function DamageContextManager:Update(ent, hitgroup, dmginfo)
     store:Set(ent, FLAG_KEY, flags)
     store:Set(ent, HIT_GROUP_KEY, hitgroup)
     store:Set(ent, DMG_INFO_KEY, dmginfo)
+
+    -- 记录移动历史
+    local history = store:Get(ent, MOVE_HISTORY_KEY) or {}
+    local now = CurTime()
+    local speedSqr = ent:GetVelocity():LengthSqr()
+
+    table.insert(history, { time = now, speedSqr = speedSqr })
+
+    -- 移除窗口之外的旧记录
+    local cutoff = now - MOVE_HISTORY_WINDOW
+    while #history > 0 and history[1].time < cutoff do
+        table.remove(history, 1)
+    end
+
+    -- 限制最大长度
+    while #history > MOVE_HISTORY_MAX_ENTRY do
+        table.remove(history, 1)
+    end
+
+    store:Set(ent, MOVE_HISTORY_KEY, history)
 
     log.trace("Updated damage context for ", ent, ": flags=", flags,
         ", hitgroup=", hitgroup,
@@ -174,6 +237,13 @@ local function handleCreateRagdoll(owner, ragdoll)
     if ragdoll:GetClass() ~= Constants.RAGDOLL_CLASS then return end
 
     local context = DamageContextManager:Get(owner)
+
+    -- 在清除存储前，根据移动历史队列决定 MOVING 标志
+    if ShouldMarkMoving(owner) then
+        context.flags = bor(context.flags, FLAG_ENUM.MOVING)
+    end
+
+    -- 清除所有存储
     DamageContextManager:Clear(owner)
 
     local decision, probTable = MortalityEvaluator:Evaluate(context)
