@@ -73,11 +73,11 @@ Constants.LifeCycleHandler.WRITHE_CHANCE         = 0.4
 -- ============================================================================
 local boneControlPriorities                      = {
     -- EDAE 内部 owner（名字应与实际 RequestBones 传入的 ownerID 一致）
-    AnimationPlayer  = 10,    -- 基础动画
-    TwitchController = 30,    -- 物理抽搐
-    HoldWoundOverlay = 50,    -- 捂伤口
-    RagdollManager   = 100,   -- 严重伤害时的骨骼锁定
-    StiffOverlay     = 100,   -- 僵直
+    AnimationPlayer  = 10,  -- 基础动画
+    TwitchController = 30,  -- 物理抽搐
+    HoldWoundOverlay = 50,  -- 捂伤口
+    RagdollManager   = 100, -- 严重伤害时的骨骼锁定
+    StiffOverlay     = 100, -- 僵直
 }
 
 do
@@ -89,6 +89,7 @@ do
     end
     boneControlPriorities.MAX_LOCAL = maxLocal
 end
+Constants.BoneControlPriority = boneControlPriorities
 
 
 Constants.DamageContextManager                          = {}
@@ -151,10 +152,10 @@ Constants.VOICE                                         = {
             { category = "calloutsextra", key = "mandown",    priority = 3, interrupt = false, interval = 5 },
         },
         [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = {
-            { category = "external", key = "overkill", priority = 3, interrupt = false },
+            { category = "external", key = "bubble", priority = 3, interrupt = false },
         },
         [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = {
-            { category = "external", key = "overkill", priority = 3, interrupt = false },
+            { category = "external", key = "bubble", priority = 3, interrupt = false },
         },
     },
 
@@ -167,8 +168,8 @@ Constants.VOICE                                         = {
         [Constants.LifeCycleHandler.STATE_ENUM.DROWNING]      = { category = "main", key = "crithealth", priority = 10, interrupt = false },
         [Constants.LifeCycleHandler.STATE_ENUM.SELF_REVIVING] = { category = "main", key = "crithealth", priority = 10, interrupt = false },
         [Constants.LifeCycleHandler.STATE_ENUM.GETTING_UP]    = { category = "main", key = "crithealth", priority = 10, interrupt = false },
-        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING]      = { category = "external", key = "bubble", priority = 10, interrupt = false },
-        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING]     = { category = "external", key = "bubble", priority = 10, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING]      = { category = "external", key = "overkill", priority = 10, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING]     = { category = "external", key = "overkill", priority = 10, interrupt = false },
     },
 }
 

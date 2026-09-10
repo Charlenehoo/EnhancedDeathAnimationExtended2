@@ -214,6 +214,13 @@ function LifeCycleHandler:HandleEvent(ragdoll, reason)
             -- 起身完成，请求复活
             hook.Run(Constants.Events.OnReviveRequested, ragdoll)
             -- 不需要再设置状态，复活会移除实体
+        elseif reason == PlaybackReasons.Cancelled then
+            local prevState = getPreviousState(ragdoll)
+            if prevState and prevState ~= STATE_ENUM.SELF_REVIVING then
+                newState = prevState
+            else
+                newState = STATE_ENUM.WRITHING
+            end
         elseif reason == PlaybackReasons.FailedByFall or reason == PlaybackReasons.FailedByHitWall then
             newState = STATE_ENUM.CRAWLING
         else
