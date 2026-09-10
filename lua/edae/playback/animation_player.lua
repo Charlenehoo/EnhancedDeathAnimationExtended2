@@ -172,6 +172,14 @@ local function playAnimationCoroutine(ctx)
     local stopReason = Constants.PlaybackReasons.CompletedNormally
 
     local function shouldTerminate()
+        -- ========================================================================
+        -- 硬条件：逻辑层面的终止，暂停期间也检查
+        -- ------------------------------------------------------------------------
+        -- 暂停只冻结"表现"（CSC、动画时间轴），不冻结"逻辑"。
+        -- 所以实体失效、外部 Stop、血量耗尽这三类条件在暂停期间仍然生效，
+        -- 从而保证：暂停期间被外部打死、被删除实体、被 Stop，状态机都能正常推进。
+        -- ========================================================================
+
         if not IsValid(ragdoll) or not IsValid(animationModel) then
             stopReason = Constants.PlaybackReasons.FailedByFall
             return true
@@ -180,6 +188,28 @@ local function playAnimationCoroutine(ctx)
         if not ctx.active then
             stopReason = ctx.requestedStopReason or Constants.PlaybackReasons.Cancelled
             return true
+        end
+
+        if HealthManager:IsDead(ragdoll) then
+            stopReason = Constants.PlaybackReasons.InterruptedByHealthDepleted
+            return true
+        end
+
+        -- ========================================================================
+        -- 软条件：依赖 CSC 循环产生的计数或 activeBoneCount，暂停期间跳过
+        -- ------------------------------------------------------------------------
+        -- 理由：
+        --   * FallCount / HitWallCount 由 CSC 循环累积，暂停期间不增长；
+        --     暂停前若已 >= 阈值，早就该终止；暂停前若 < 阈值，暂停后仍 < 阈值。
+        --     所以跳过不影响语义。
+        --   * activeBoneCount 会因骨骼抢占而改变。例如 StiffOverlay 暂停
+        --     AnimationPlayer 并抢走全部骨骼后，所有骨骼 skip = true，
+        --     activeBoneCount 变成 0，导致 HitWallCount (>= 0) 恒成立，
+        --     播放器会被误判为"撞墙"而提前终止——这不是我们想要的。
+        -- ========================================================================
+
+        if ctx.paused then
+            return false
         end
 
         if ctx.FallCount >= Constants.ANIMATION_PLAYER.FALL_LIMIT then
@@ -195,11 +225,6 @@ local function playAnimationCoroutine(ctx)
         end
         if ctx.HitWallCount >= activeBoneCount then
             stopReason = Constants.PlaybackReasons.FailedByHitWall
-            return true
-        end
-
-        if HealthManager:IsDead(ragdoll) then
-            stopReason = Constants.PlaybackReasons.InterruptedByHealthDepleted
             return true
         end
 
