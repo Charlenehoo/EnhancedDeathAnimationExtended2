@@ -26,19 +26,17 @@ local EVENT_VOICE_STOPPED = Constants.Events.VoiceStopped
 --   因此可以在真正播放前精确预测本次将播放的文件路径。
 -- ============================================================
 
-local installed           = false
-
 local function InstallVoiceWrapper()
-    if installed then return end
-
     if not TFAVOX_PlayVoicePriority or not TFAVOX_GetSoundTableSound then
         log.warn("[VoiceManager] TFAVOX not available, lipsync capture disabled.")
         return
     end
 
-    -- 防止同一 Lua 状态下重复包装（例如 lua_openscript reload 本文件时）
-    if TFAVOX_PlayVoicePriority._edae_wrapped then
-        installed = true
+    -- 检测重复包装：如果当前 TFAVOX_PlayVoicePriority 就是我们上次安装的包装版，
+    -- 说明本文件在同一 Lua 状态下被重载，无需再次包装。
+    -- 函数是值，不能直接挂字段，所以把引用存在 _G 上。
+    if _G.__EDAE_TFAVOX_WrappedFn == TFAVOX_PlayVoicePriority then
+        log.info("[VoiceManager] Voice wrapper already installed, skip.")
         return
     end
 
@@ -68,8 +66,9 @@ local function InstallVoiceWrapper()
         end
     end
 
-    TFAVOX_PlayVoicePriority._edae_wrapped = true
-    installed = true
+    -- 记录本次安装的包装函数引用，用于后续重载检测
+    _G.__EDAE_TFAVOX_WrappedFn = TFAVOX_PlayVoicePriority
+
     log.info("[VoiceManager] TFAVOX_PlayVoicePriority wrapped for lipsync capture.")
 end
 
