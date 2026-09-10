@@ -26,7 +26,8 @@ local CONSTRAINT_FORCELIMIT_INITIAL = 0
 local CONSTRAINT_FORCELIMIT_FINAL = 1000
 local DISTANCE_CHECK_INTERVAL = 0.2
 local MAX_DISTANCE_SQR = 150
-local BONE_CONTROL_PRIORITY = 50 -- 高于基础动画(10)，低于严重伤害(100)和肢解(200)
+-- 优先级来自 Constants，见 core/constants.lua 的 BoneControlPriority 表
+local BONE_CONTROL_PRIORITY = Constants.BoneControlPriority.HoldWoundOverlay
 
 -- 应用手指姿势
 local function ApplyFingerPose(ragdoll, handBoneName, poseSet)

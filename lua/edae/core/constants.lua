@@ -60,6 +60,36 @@ Constants.LifeCycleHandler.CRAWL_CHANCE          = 0.2
 Constants.LifeCycleHandler.TWITCH_CHANCE         = 0.3
 Constants.LifeCycleHandler.WRITHE_CHANCE         = 0.4
 
+-- ============================================================================
+-- 骨骼控制优先级
+-- 供 BoneControlManager 使用。数字越大优先级越高。
+--
+-- 契约：
+--   * MAX_LOCAL 由本表内所有数字自动计算得出，等于 EDAE 内部所有 owner 的最大优先级。
+--   * 外部兼容模块（如 ngm2_edae_compat）应使用 MAX_LOCAL + 1 及以上。
+--   * EDAE 内部新增 owner 时，只要优先级不超过当前 MAX_LOCAL，
+--     则外部兼容模块"永远高于内部所有 owner"的契约始终成立。
+--   * 如确需突破 MAX_LOCAL，必须同步通知外部兼容模块，因为契约会被打破。
+-- ============================================================================
+local boneControlPriorities                      = {
+    -- EDAE 内部 owner（名字应与实际 RequestBones 传入的 ownerID 一致）
+    AnimationPlayer  = 10,    -- 基础动画
+    TwitchController = 30,    -- 物理抽搐
+    HoldWoundOverlay = 50,    -- 捂伤口
+    RagdollManager   = 100,   -- 严重伤害时的骨骼锁定
+    StiffOverlay     = 100,   -- 僵直
+}
+
+do
+    local maxLocal = 0
+    for _, v in pairs(boneControlPriorities) do
+        if type(v) == "number" and v > maxLocal then
+            maxLocal = v
+        end
+    end
+    boneControlPriorities.MAX_LOCAL = maxLocal
+end
+
 
 Constants.DamageContextManager                          = {}
 Constants.DamageContextManager.FLAG_ENUM                = {

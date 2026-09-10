@@ -485,9 +485,9 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
             ragdoll,
             ownerID,
             allBones,
-            10,                       -- 基础动画优先级
+            Constants.BoneControlPriority.AnimationPlayer, -- 基础动画优先级
             isActiveFunc,
-            function(owner, boneName) -- onGranted
+            function(owner, boneName)                      -- onGranted
                 setBoneSkipByName(boneName, false)
             end,
             function(owner, boneName) -- onLost

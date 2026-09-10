@@ -25,6 +25,7 @@ local VoiceManager        = include("edae/ragdoll/voice_manager.lua")
 local ReviveManager       = include("edae/ragdoll/revive_manager.lua")
 local BoneControlManager  = include("edae/core/bone_control_manager.lua")
 local HoldWoundOverlay    = include("edae/overlay/hold_wound.lua")
+local StiffOverlay        = include("edae/overlay/stiff.lua")
 local helper              = include("edae/helper.lua")
 
 local store               = EntityDataStore:ForOwner(MODULE_NAME)
@@ -35,9 +36,9 @@ local Events              = Constants.Events
 
 local Manager             = {}
 
--- ============================================================
+-- ============================================================================
 -- 对外委托接口
--- ============================================================
+-- ============================================================================
 
 --- 获取布娃娃血量
 --- @param ragdoll Entity
@@ -61,9 +62,9 @@ function Manager:IsFacingUp(ragdoll)
     return RagdollPoseHelper:IsFacingUp(ragdoll)
 end
 
--- ============================================================
+-- ============================================================================
 -- 自救/取消自救接口（由 PlayerProxy 调用）
--- ============================================================
+-- ============================================================================
 
 --- 请求开始自救
 --- @param ply Player
@@ -85,9 +86,9 @@ function Manager:CancelSelfRevive(ply)
     PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.Cancelled)
 end
 
--- ============================================================
+-- ============================================================================
 -- 事件处理方法
--- ============================================================
+-- ============================================================================
 
 --- 布娃娃创建时初始化（由 OnMortalityEvaluated 事件调用）
 --- @param owner Entity 布娃娃所有者（NPC 或玩家）
@@ -162,15 +163,15 @@ function Manager:OnTakeDamage(ragdoll, data)
                 bones[name] = true
             end
 
-            -- 申请永久控制权（优先级 100，高于基础动画 10）
+            -- 申请永久控制权（优先级来自 Constants）
             BoneControlManager:RequestBones(
                 ragdoll,
                 MODULE_NAME,
                 bones,
-                100,                        -- 优先级
-                function() return true end, -- 永久有效
-                nil,                        -- onGranted 无需额外操作
-                nil                         -- onLost 几乎不会发生
+                Constants.BoneControlPriority.RagdollManager,
+                function() return true end,
+                nil,
+                nil
             )
         end
     end
@@ -181,6 +182,19 @@ function Manager:OnTakeDamage(ragdoll, data)
 
     if died then
         PlaybackCoordinator:Stop(ragdoll, PlaybackReasons.InterruptedByHealthDepleted)
+    end
+
+    -- 爆头僵直：hitGroup 由 RagdollDamageProcessor 从最近骨骼名映射而来。
+    -- 上游扩展 BONE_TO_HITGROUP 后，此处无需再感知具体骨骼名。
+    -- 无论是否致死都触发：模拟中枢神经受损后的短暂僵住。
+    -- 因为 StiffOverlay 是异步启动的（Scheduler:Start），本帧 died 的 Stop
+    -- 会先把播放器状态清干净，下一帧 StiffOverlay 才 Pause——生命周期闭环。
+    if data.hitGroup == HITGROUP_HEAD then
+        log.trace("Manager:OnTakeDamage - headshot detected, applying stiff overlay on ", tostring(ragdoll))
+        StiffOverlay:Start(ragdoll, {
+            duration   = 3.0,
+            angleLimit = 12.0, -- 比默认 8.0 稍宽：爆头僵直应保留少量身体活动
+        })
     end
 end
 
@@ -219,9 +233,9 @@ function Manager:OnStateChange(ragdoll, state, fromState)
     PlaybackCoordinator:Start(owner, ragdoll, state, nil)
 end
 
--- ============================================================
+-- ============================================================================
 -- 事件订阅
--- ============================================================
+-- ============================================================================
 
 ---comment
 ---@param owner Entity

@@ -12,6 +12,7 @@ end
 local Constants            = include("edae/core/constants.lua")
 local log                  = include("edae/core/log/init.lua")
 local RagdollBoneCache     = include("edae/core/ragdoll_bone_cache.lua")
+local BONE_TO_HITGROUP     = include("edae/data/bone_hitgroups.lua")
 
 local Processor            = {}
 
@@ -25,6 +26,20 @@ local IGNORED_DAMAGE_TYPES = {
 local DAMAGE_MODIFIERS     = {
     -- [DMG_BULLET] = 0.8,
 }
+
+--- 根据骨骼名称映射到 HITGROUP_*
+--- 查找表定义在 edae/data/bone_hitgroups.lua。
+--- 基于 ValveBiped 标准命名。非标准模型或未列出的骨骼返回 nil。
+--- @param boneName string|nil
+--- @return number|nil
+local function MapBoneToHitGroup(boneName)
+    if not boneName then return nil end
+    return BONE_TO_HITGROUP[boneName]
+end
+
+-- ============================================================================
+-- 内部辅助
+-- ============================================================================
 
 --- 判断是否应忽略该伤害
 --- @param dmginfo CTakeDamageInfo
@@ -78,15 +93,6 @@ local function GetClosestBone(ragdoll, damagePos)
     end
 
     return closest
-end
-
---- 可选：根据骨骼名称映射到 HITGROUP_*
---- @param boneName string
---- @return number|nil
-local function MapBoneToHitGroup(boneName)
-    -- 可在此扩展，例如：
-    -- if boneName == "ValveBiped.Bip01_Head1" then return HITGROUP_HEAD end
-    return nil
 end
 
 --- 处理一次布娃娃伤害，生成结构化事件数据（不包含 ragdoll 和 dmginfo）

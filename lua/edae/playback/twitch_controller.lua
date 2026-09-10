@@ -371,8 +371,8 @@ function TwitchController:Start(ragdoll, opts)
         ragdoll,
         ownerID,
         bonesToRequest,
-        30,        -- 抽搐优先级：高于基础动画(10)，低于捂伤口(50)、严重伤害(100)、肢解(200)
-        function() -- isActiveFunc
+        Constants.BoneControlPriority.TwitchController, -- 抽搐优先级：高于基础动画(10)，低于捂伤口(50)、严重伤害(100)、肢解(200)
+        function()                                      -- isActiveFunc
             return ctx.coro and coroutine.status(ctx.coro) ~= "dead"
         end,
         function(owner, boneName) -- onGranted：骨骼成功获得（可能来自等待队列）
