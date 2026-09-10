@@ -26,6 +26,13 @@ local EVENT_VOICE_STOPPED = Constants.Events.VoiceStopped
 --   因此可以在真正播放前精确预测本次将播放的文件路径。
 -- ============================================================
 
+local function NormalizeVoiceKey(actualFile)
+    local key = actualFile:lower()
+    key = key:gsub("^sound/", "")
+    key = key:gsub("%.wav$", ""):gsub("%.mp3$", ""):gsub("%.ogg$", "")
+    return key
+end
+
 local function InstallVoiceWrapper()
     if not TFAVOX_PlayVoicePriority or not TFAVOX_GetSoundTableSound then
         log.warn("[VoiceManager] TFAVOX not available, lipsync capture disabled.")
@@ -62,7 +69,7 @@ local function InstallVoiceWrapper()
         orig(ply, sndtbl, priority, command)
 
         if actualFile and string.find(actualFile, "%.%w+$") then
-            hook.Run(EVENT_VOICE_PLAYED, ply, actualFile)
+            hook.Run(EVENT_VOICE_PLAYED, ply, actualFile, NormalizeVoiceKey(actualFile))
         end
     end
 

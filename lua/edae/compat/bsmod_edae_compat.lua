@@ -30,7 +30,7 @@ if SERVER then
 
         -- 拦截 EDAE 预初始化：阻止默认，保存句柄
         -- 新签名：(initFunc, owner, ragdoll, damageContext, decision, probTable)
-        hook.Add("EDAE_PreRagdollInitialized", "BSMod_EDAE_DelayInit",
+        hook.Add("EDAE_PreRagdollInitialized", "NGM2_Block_EDA_Init",
             function(initFunc, owner, ragdoll, damageContext, decision, probTable)
                 if not IsValid(owner) then return end
 
