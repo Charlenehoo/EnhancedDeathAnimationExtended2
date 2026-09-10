@@ -1,4 +1,4 @@
-请查收 Gmod MOD EDAE 及其子系统 NPC Monotor 的扫描, 仅回复收到. 生成时间：{{ timestamp }} | 分片 {{ part_index }}/{{ num_parts }} | 本片文件数：{{ files_in_part }} | 总文件数：{{ total_files }}
+生成时间：{{ timestamp }} | 分片 {{ part_index }}/{{ num_parts }} | 本片文件数：{{ files_in_part }} | 总文件数：{{ total_files }}
 edae/data/*
 edae/compat/*
 .scanignore
