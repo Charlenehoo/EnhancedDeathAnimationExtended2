@@ -2,6 +2,7 @@
 -- 动画播放器：负责创建动画模型，驱动布娃娃骨骼跟随动画
 -- 底层只提供 Stop(ragdoll, reason) 接口，语义化别名（如 Cancel）由上层 Coordinator 提供
 -- 停止后先清理上下文，再发出 OnAnimationFinished 事件
+-- 支持 Pause / Resume：冻结动画模型时间轴，同时跳过 CSC；支持多源暂停（引用计数）
 
 local MODULE_NAME = "AnimationPlayer"
 
@@ -64,6 +65,80 @@ function AnimationPlayer:Stop(ragdoll, reason)
 
     ctx.requestedStopReason = reason or Constants.PlaybackReasons.Cancelled
     ctx.active = false
+    return true
+end
+
+--- 暂停动画播放（引用计数式）
+--- 首次暂停会冻结动画模型时间轴（SetPlaybackRate=0）并记录暂停起始时间；
+--- 之后再次 Pause 只会增加计数，不会重复冻结。
+--- 暂停期间主循环会跳过动画结束时间检查，避免长时间暂停导致动画被判定为“自然结束”。
+--- @param ragdoll Entity
+--- @return boolean 是否成功暂停
+function AnimationPlayer:Pause(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("AnimationPlayer:Pause invalid ragdoll")
+        return false
+    end
+
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if not ctx then
+        log.trace("AnimationPlayer:Pause no active context for ragdoll: ", tostring(ragdoll))
+        return false
+    end
+
+    ctx.pauseCount = (ctx.pauseCount or 0) + 1
+
+    if ctx.pauseCount == 1 then
+        ctx.paused         = true
+        ctx.pauseStartTime = CurTime()
+        if IsValid(ctx.animationModel) then
+            ctx.animationModel:Fire("SetPlaybackRate", 0)
+        end
+        log.trace("AnimationPlayer:Pause ragdoll ", tostring(ragdoll), " paused")
+    end
+
+    return true
+end
+
+--- 恢复动画播放（引用计数式）
+--- 只有计数归零才真正恢复；恢复时会补偿 animationEndTime，
+--- 使“暂停时长”不计入动画的总播放窗口。
+--- @param ragdoll Entity
+--- @return boolean 是否成功恢复
+function AnimationPlayer:Resume(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("AnimationPlayer:Resume invalid ragdoll")
+        return false
+    end
+
+    local ctx = store:Get(ragdoll, Constants.ANIMATION_PLAYER.CONEXT_KEY)
+    if not ctx or not ctx.pauseCount or ctx.pauseCount <= 0 then
+        log.trace("AnimationPlayer:Resume no active pause for ragdoll: ", tostring(ragdoll))
+        return false
+    end
+
+    ctx.pauseCount = ctx.pauseCount - 1
+
+    if ctx.pauseCount == 0 then
+        local pauseDuration = CurTime() - (ctx.pauseStartTime or CurTime())
+
+        -- 补偿动画结束时间：暂停期间 CurTime 继续走，会把“剩余播放窗口”错误地吃掉
+        if ctx.animationEndTime then
+            ctx.animationEndTime = ctx.animationEndTime + pauseDuration
+        end
+
+        ctx.paused         = false
+        ctx.pauseStartTime = nil
+
+        if IsValid(ctx.animationModel) then
+            -- 恢复时使用当前生效的播放速率（可能被血量驱动减慢过）
+            local rate = ctx.currentPlaybackRate or ctx.basePlaybackRate or 1.0
+            ctx.animationModel:Fire("SetPlaybackRate", rate)
+        end
+
+        log.trace("AnimationPlayer:Resume ragdoll ", tostring(ragdoll), " resumed after ", pauseDuration, "s")
+    end
+
     return true
 end
 
@@ -166,6 +241,7 @@ local function playAnimationCoroutine(ctx)
             local r = math.ease.InOutCubic(rate)
 
             local newPlaybackRate = math.max(ctx.basePlaybackRate * r * math.Rand(0.8, 1.2), 0.1)
+            ctx.currentPlaybackRate = newPlaybackRate -- 记录，供 Resume 恢复
             ctx.animationDuration = ctx.baseAnimationDuration / newPlaybackRate
             ctx.animationModel:Fire("SetPlaybackRate", newPlaybackRate)
 
@@ -184,7 +260,20 @@ local function playAnimationCoroutine(ctx)
         ctx.animationEndTime = CurTime() + ctx.animationDuration
 
         -- 内层循环：播放单次动画
-        while not shouldTerminate() and CurTime() < ctx.animationEndTime do
+        -- 条件拆开：先检查终止，再检查暂停，最后检查动画结束
+        while not shouldTerminate() do
+            -- 暂停状态：仅 yield，不检查动画结束时间，不执行效果器和 CSC
+            -- Resume 时会补偿 animationEndTime，因此这里不需要额外记录已流失的时间
+            if ctx.paused then
+                coroutine.yield()
+                continue
+            end
+
+            -- 动画结束检查：只有在未暂停时才生效
+            if CurTime() >= ctx.animationEndTime then
+                break
+            end
+
             -- 执行效果器
             if ctx.effects then
                 for idx, effect in ipairs(ctx.effects) do
@@ -294,12 +383,13 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         return false
     end
 
-    opts = opts or {}
+    opts            = opts or {}
 
     -- 如果未提供 groundPos，则直接使用布娃娃位置（不应发生，因为 Assembler 总会传入）
     local groundPos = opts.groundPos or ragdoll:GetPos()
+    local baseRate  = opts.basePlaybackRate or 1.0
 
-    local ctx = {
+    local ctx       = {
         ragdoll                   = ragdoll,
         animationName             = animationName,
         totalLoops                = opts.totalLoops or Constants.ANIMATION_PLAYER.DEFAULT_TOTAL_LOOPS,
@@ -307,7 +397,8 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         yaw                       = opts.yaw or ragdoll:GetAngles().yaw,
         animationModelName        = opts.animationModelName or Constants.ANIMATION_PLAYER.DEFAULT_ANIMATION_MODEL_NAME,
         enableHealthBasedSlowdown = opts.enableHealthBasedSlowdown or false,
-        basePlaybackRate          = opts.basePlaybackRate or 1.0,
+        basePlaybackRate          = baseRate,
+        currentPlaybackRate       = baseRate, -- 当前生效速率，暂停恢复时使用
         preWait                   = opts.preWait,
         boneWhitelist             = opts.boneWhitelist,
         persistentSkipBones       = opts.persistentSkipBones,
@@ -338,6 +429,11 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         coro                      = nil,
         active                    = true,
         boneControlOwnerID        = nil, -- 骨骼控制管理器中的所有者 ID
+
+        -- 暂停相关
+        paused                    = false,
+        pauseCount                = 0,
+        pauseStartTime            = nil,
     }
 
     if
