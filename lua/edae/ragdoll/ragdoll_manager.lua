@@ -145,12 +145,10 @@ function Manager:OnTakeDamage(ragdoll, data)
     local owner = store:Get(ragdoll, Constants.RagdollManager.OWNER_KEY)
     local currentState = LifeCycleHandler:GetState(ragdoll)
 
-    if (currentState == STATE_ENUM.CRAWLING or
-            currentState == STATE_ENUM.DROWNING or
-            currentState == STATE_ENUM.SELF_REVIVING or
-            currentState == STATE_ENUM.GETTING_UP) and
-        IsValid(owner) then
-        VoiceManager:PlayDamageSound(owner)
+    local onDamageCfg = Constants.VOICE.ON_DAMAGE and Constants.VOICE.ON_DAMAGE[currentState]
+    if onDamageCfg and IsValid(owner) then
+        VoiceManager:Play(owner, onDamageCfg.category, onDamageCfg.key,
+            onDamageCfg.priority, onDamageCfg.interrupt)
     end
 
     local damage = data.finalDamage or 0

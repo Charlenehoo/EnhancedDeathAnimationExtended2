@@ -113,17 +113,32 @@ Constants.VOICE                                         = {
     INTERVAL = 3,
     PRIORITY = 3,
     INTERRUPT = false,
+
+    -- 状态持续的语音效果器（由 EffectBuilder 消费，按 interval 循环播放）
     CONFIG = {
         [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING] = {
             { category = "main",          key = "crithealth", priority = 3, interrupt = false },
             { category = "calloutsextra", key = "mandown",    priority = 3, interrupt = false, interval = 5 },
         },
         [Constants.LifeCycleHandler.STATE_ENUM.WRITHING] = {
-            { category = "external", key = "bubble", priority = 3, interrupt = false },
+            { category = "external", key = "overkill", priority = 3, interrupt = false },
         },
         [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING] = {
             { category = "external", key = "overkill", priority = 3, interrupt = false },
         },
+    },
+
+    -- 受击瞬间的语音响应（由 RagdollManager:OnTakeDamage 消费，每次受击触发）
+    -- bubble     ：气管充血时的短促叫喊，用于 WRITHING / TWITCHING 的受击反馈
+    -- crithealth ：痛呼，用于其他濒死状态的受击反馈
+    -- 未列出的状态（FALLING / DEAD）受击时不发声
+    ON_DAMAGE = {
+        [Constants.LifeCycleHandler.STATE_ENUM.CRAWLING]      = { category = "main", key = "crithealth", priority = 10, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.DROWNING]      = { category = "main", key = "crithealth", priority = 10, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.SELF_REVIVING] = { category = "main", key = "crithealth", priority = 10, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.GETTING_UP]    = { category = "main", key = "crithealth", priority = 10, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.WRITHING]      = { category = "external", key = "bubble", priority = 10, interrupt = false },
+        [Constants.LifeCycleHandler.STATE_ENUM.TWITCHING]     = { category = "external", key = "bubble", priority = 10, interrupt = false },
     },
 }
 
