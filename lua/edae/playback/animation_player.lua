@@ -14,7 +14,7 @@ end
 local Constants             = include("edae/core/constants.lua")
 local log                   = include("edae/core/log/init.lua")
 local Scheduler             = include("edae/core/coroutine_scheduler.lua")
-local helper                = include("edae/playback/helper.lua")
+local helper                = include("edae/playback/animation_player/internal.lua")
 local EntityDataStore       = include("edae/core/entity_data_store.lua")
 local HealthManager         = include("edae/core/health_manager.lua")
 local GroundStrategyBuilder = include("edae/playback/builders/ground_strategy_builder.lua")
@@ -33,10 +33,7 @@ end
 
 -- 安全清理：仅清除自己的上下文，防止误删新播放的上下文
 local function cleanUp(ctx)
-    local animationModel = ctx.animationModel
-    if IsValid(animationModel) then
-        animationModel:Remove()
-    end
+    helper.ReleaseAnimationModel(ctx)
 
     -- 释放骨骼控制权
     if ctx.boneControlOwnerID then
@@ -462,7 +459,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     }
 
     if
-        not helper.CreateAnimationModel(ctx) or
+        not helper.AcquireAnimationModel(ctx) or
         not helper.CheckAnimationName(ctx) or
         not alignAnimationModel(ctx) or
         not helper.MakeBoneMap(ctx) or
@@ -472,7 +469,7 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
         return false
     end
 
-    ctx.anchorPosGetter = helper.CreateAnchorPositionGetter(ctx.animationModel, ragdoll)
+    ctx.anchorPosGetter = helper.CreateAnchorPositionGetter(ctx)
 
     if ctx.enableRotate then
         ctx.effects = ctx.effects or {}
