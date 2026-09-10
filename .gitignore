@@ -1,4 +1,15 @@
 .luarc.json
 *.txt
+
+scan_output*
+
+# Lipsync 生成数据（由 lipsync_gen.py 从音频源生成）
+lua/death_face/lipsync/
+
+# 但保留 .gitkeep 之类的占位文件（如果需要）
+!lua/death_face/lipsync/.gitkeep
+
+# Python 工具产物
+__pycache__/
 *.pyc
-scan_outpu*
+.tools/venv/
