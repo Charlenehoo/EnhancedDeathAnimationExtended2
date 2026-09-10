@@ -37,15 +37,16 @@ local BONE_CONTROL_PRIORITY = Constants.BoneControlPriority.StiffOverlay
 
 -- 默认参数
 local DEFAULT_OPTIONS       = {
-    duration    = 3.0,   -- 僵直持续时间（秒）
-    angleLimit  = 8.0,   -- 关节角度限制（度），越小越僵直
-    forcelimit  = 1000,  -- 约束力上限
-    torquelimit = 1000,  -- 约束力矩上限
-    friction    = 1.0,   -- 约束摩擦（0~1）
-    onlyrotate  = 0,     -- 是否只限制旋转不限制位置
-    nocollide   = 1,     -- 是否禁用父子间碰撞
-    threshold   = 40,    -- Watch 模式：触发僵直的累计伤害阈值
-    healthRatio = nil,   -- Watch 模式：或者血量低于最大值的比例时触发
+    duration    = 3.0,  -- 僵直持续时间（秒）
+    angleLimit  = 8.0,  -- 关节角度限制（度），越小越僵直
+    forcelimit  = 1000, -- 约束力上限
+    torquelimit = 1000, -- 约束力矩上限
+    friction    = 1.0,  -- 约束摩擦（0~1）
+    onlyrotate  = 0,    -- 是否只限制旋转不限制位置
+    nocollide   = 1,    -- 是否禁用父子间碰撞
+    threshold   = 40,   -- Watch 模式：触发僵直的累计伤害阈值
+    healthRatio = nil,  -- Watch 模式：或者血量低于最大值的比例时触发
+    cooldown    = nil,  -- Watch 模式：两次触发之间的冷却时间，默认 duration + 2
 }
 
 -- ============================================================================
@@ -176,6 +177,7 @@ local function stiffCoroutine(ragdoll, opts)
         function() return true end,
         nil,
         function()
+            -- 被更高优先级抢占（如 NGM2 肢解 101）：整层释放
             Release(ragdoll)
         end
     )
@@ -244,19 +246,50 @@ function StiffOverlay:IsActive(ragdoll)
     return store:Get(ragdoll, STORAGE_KEY) ~= nil
 end
 
+--- 监听指定布娃娃的受击事件，在满足条件时自动触发僵直。
+---
+--- 语义：
+---   * 仅监听 target ragdoll 自身的 PostRagdollTakeDamage 事件，
+---     其他布娃娃的受击事件会被忽略。
+---   * 累计伤害达到 threshold，或血量低于 initialMaxHealth * healthRatio 时触发。
+---   * 触发后累计伤害归零，并进入 cooldown 冷却期。
+---   * 返回的句柄调用 Cancel() 可停止监听，但不会影响已经施加的僵直效果。
+---     （若需立即停止僵直，请另行调用 StiffOverlay:Stop(ragdoll)。）
+---
+--- @param ragdoll Entity 目标布娃娃
+--- @param opts table|nil 选项（duration / angleLimit / threshold / healthRatio / cooldown 等）
+--- @return table 句柄 { Cancel = function() end, _coro = thread|nil }
 function StiffOverlay:Watch(ragdoll, opts)
-    local mergedOpts = MergeOptions(opts)
-    local accumulated = 0
-    local cooldownUntil = 0
-    local canceled = false
+    if not IsValid(ragdoll) then
+        return {
+            Cancel = function() end,
+        }
+    end
+
+    local mergedOpts       = MergeOptions(opts)
+    local accumulated      = 0
+    local cooldownUntil    = 0
+    local canceled         = false
 
     local initialMaxHealth = HealthManager:Get(ragdoll) or 100
+    if initialMaxHealth <= 0 then initialMaxHealth = 100 end
 
-    local coro = Scheduler:Start(function()
+    local cooldown = mergedOpts.cooldown or (mergedOpts.duration + 2)
+
+    local coro     = Scheduler:Start(function()
         while not canceled and IsValid(ragdoll) do
-            local _, data = Scheduler:WaitForEvent(Constants.Events.PostRagdollTakeDamage)
-            if canceled or not IsValid(ragdoll) then break end
+            local eventRagdoll, data = Scheduler:WaitForEvent(Constants.Events.PostRagdollTakeDamage)
 
+            if canceled or not IsValid(ragdoll) then
+                break
+            end
+
+            -- 只处理目标 ragdoll 自身的受击事件，忽略其他实体
+            if eventRagdoll ~= ragdoll then
+                continue
+            end
+
+            -- 冷却期内不累计伤害，直接忽略
             if CurTime() < cooldownUntil then
                 continue
             end
@@ -270,12 +303,13 @@ function StiffOverlay:Watch(ragdoll, opts)
                 and health <= initialMaxHealth * mergedOpts.healthRatio
 
             if byDamage or byHealth then
+                -- 若当前没有僵直层，施加；已经存在则跳过（避免打断）
                 if not store:Get(ragdoll, STORAGE_KEY) then
                     StiffOverlay:Start(ragdoll, mergedOpts)
                 end
 
-                accumulated = 0
-                cooldownUntil = CurTime() + (mergedOpts.cooldown or mergedOpts.duration + 2)
+                accumulated   = 0
+                cooldownUntil = CurTime() + cooldown
             end
         end
     end)

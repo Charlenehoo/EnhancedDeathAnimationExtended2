@@ -14,7 +14,7 @@ end
 local Constants             = include("edae/core/constants.lua")
 local log                   = include("edae/core/log/init.lua")
 local Scheduler             = include("edae/core/coroutine_scheduler.lua")
-local helper                = include("edae/playback/animation_player/internal.lua")
+local internal              = include("edae/playback/animation_player/internal.lua")
 local EntityDataStore       = include("edae/core/entity_data_store.lua")
 local HealthManager         = include("edae/core/health_manager.lua")
 local GroundStrategyBuilder = include("edae/playback/builders/ground_strategy_builder.lua")
@@ -33,7 +33,7 @@ end
 
 -- 安全清理：仅清除自己的上下文，防止误删新播放的上下文
 local function cleanUp(ctx)
-    helper.ReleaseAnimationModel(ctx)
+    internal.ReleaseAnimationModel(ctx)
 
     -- 释放骨骼控制权
     if ctx.boneControlOwnerID then
@@ -139,7 +139,7 @@ function AnimationPlayer:Resume(ragdoll)
     return true
 end
 
--- 旋转效果器：每帧检查旋转目标并调用 Helper 中的旋转算法
+-- 旋转效果器：每帧检查旋转目标并调用 internal 中的旋转算法
 local function BuildRotateEffect()
     return {
         name = "rotate_control",
@@ -147,7 +147,7 @@ local function BuildRotateEffect()
             return ctx.rotateTargetYaw ~= nil or ctx.rotateTargetPos ~= nil
         end,
         action = function(ctx, state)
-            helper.RotateAnimationModel(
+            internal.RotateAnimationModel(
                 ctx,
                 ctx.rotateTargetYaw,
                 ctx.rotateTargetPos,
@@ -228,10 +228,10 @@ local function playAnimationCoroutine(ctx)
         return false
     end
 
-    helper.EnableMotion(ctx, false)
+    internal.EnableMotion(ctx, false)
     coroutine.yield()
 
-    helper.EnableMotion(ctx, true)
+    internal.EnableMotion(ctx, true)
     coroutine.yield()
 
     if ctx.preWait then
@@ -459,17 +459,17 @@ function AnimationPlayer:Play(ragdoll, animationName, opts)
     }
 
     if
-        not helper.AcquireAnimationModel(ctx) or
-        not helper.CheckAnimationName(ctx) or
+        not internal.AcquireAnimationModel(ctx) or
+        not internal.CheckAnimationName(ctx) or
         not alignAnimationModel(ctx) or
-        not helper.MakeBoneMap(ctx) or
-        not helper.FillShadowParamsTemplate(ctx)
+        not internal.MakeBoneMap(ctx) or
+        not internal.FillShadowParamsTemplate(ctx)
     then
         cleanUp(ctx)
         return false
     end
 
-    ctx.anchorPosGetter = helper.CreateAnchorPositionGetter(ctx)
+    ctx.anchorPosGetter = internal.CreateAnchorPositionGetter(ctx)
 
     if ctx.enableRotate then
         ctx.effects = ctx.effects or {}

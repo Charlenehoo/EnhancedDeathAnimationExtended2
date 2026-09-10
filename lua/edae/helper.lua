@@ -7,7 +7,7 @@ local RagdollBoneCache = include("edae/core/ragdoll_bone_cache.lua")
 local helper = {}
 
 -- 返回 x 的符号：正数返回 1，负数返回 -1，零返回 0
-function helper.sign(x)
+function helper.Sign(x)
     if x > 0 then
         return 1
     elseif x < 0 then
