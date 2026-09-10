@@ -5,12 +5,13 @@ if _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME] then
     return _EnhancedDeathAnimationExtendedSingletons[MODULE_NAME]
 end
 
+local Constants           = include("edae/core/constants.lua")
 local log                 = include("edae/core/log/init.lua")
 
 local VoiceManager        = {}
 
-local EVENT_VOICE_PLAYED  = "EDAE_VoicePlayed"
-local EVENT_VOICE_STOPPED = "EDAE_VoiceStopped"
+local EVENT_VOICE_PLAYED  = Constants.Events.VoicePlayed
+local EVENT_VOICE_STOPPED = Constants.Events.VoiceStopped
 
 -- ============================================================
 -- 包装 TFAVOX_PlayVoicePriority 以捕获实际文件名

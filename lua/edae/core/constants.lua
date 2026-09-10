@@ -13,6 +13,9 @@ Constants.Events                                 = {
     OnReviveRequested = "EDAE_OnReviveRequested",
 
     PostRagdollTakeDamage = "EDAE_PostRagdollTakeDamage",
+
+    VoicePlayed = "EDAE_VoicePlayed",
+    VoiceStopped = "EDAE_VoiceStopped",
 }
 
 Constants.PlaybackReasons                        = {
