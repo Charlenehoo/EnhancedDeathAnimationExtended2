@@ -1,6 +1,7 @@
 -- lua/edae/playback/builders/effect_builder.lua
 -- 效果器构建模块：根据状态和所有者构建表现效果器数组（血迹、语音、血量衰减）
 -- 该模块不直接操作状态机，血量衰减导致死亡时只发出专门事件，由门面处理后续停止逻辑
+-- 语音统一走 VoiceManager（SSOT），由包装器广播 VoicePlayed 事件供 lipsync 等消费者使用
 
 local MODULE_NAME = "EffectBuilder"
 
@@ -12,6 +13,7 @@ end
 local Constants     = include("edae/core/constants.lua")
 local log           = include("edae/core/log/init.lua")
 local HealthManager = include("edae/core/health_manager.lua")
+local VoiceManager  = include("edae/ragdoll/voice_manager.lua")
 
 local STATE_ENUM    = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -100,6 +102,7 @@ local function BuildBloodEffect(ragdoll, state)
 end
 
 --- 构建语音效果器数组
+--- 统一通过 VoiceManager 播放，包装器会广播 VoicePlayed 事件
 --- @param owner Entity|nil 布娃娃所有者
 --- @param state string 当前状态
 --- @return table|nil 效果器数组
@@ -129,11 +132,10 @@ local function BuildVoiceEffects(owner, state)
                     return CurTime() >= (effectState.nextTime or 0)
                 end,
                 action = function(ctx, effectState)
-                    if TFAVOX_PlayVoicePriority and IsValid(owner) then
-                        local sounds = owner.TFAVOX_Sounds
-                        if sounds and sounds[category] and sounds[category][soundKey] then
-                            TFAVOX_PlayVoicePriority(owner, sounds[category][soundKey], priority, interrupt)
-                        end
+                    -- 统一入口：内部会检查 owner.TFAVOX_Sounds 是否存在对应声音
+                    -- 不存在时静默返回 false，无需在此重复判断
+                    if IsValid(owner) then
+                        VoiceManager:Play(owner, category, soundKey, priority, interrupt)
                     end
                     effectState.nextTime = CurTime() + interval
                 end
