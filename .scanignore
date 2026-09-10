@@ -1,3 +1,5 @@
 scan.py
 .scanignore
 .gitignore
+lang_map.json
+scan_ext.json
