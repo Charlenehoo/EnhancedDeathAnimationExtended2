@@ -2,6 +2,7 @@
 -- 物理抽搐控制器：通过向布娃娃骨骼施加随机力来模拟抽搐
 -- 底层只提供 Stop(ragdoll, reason) 接口，语义化别名由上层 Coordinator 提供
 -- 停止后先清理上下文，再发出 OnTwitchFinished 事件
+-- 支持 Pause / Resume：暂停施力调度与效果器执行；支持多源暂停（引用计数）
 
 local MODULE_NAME = "TwitchController"
 
@@ -50,20 +51,35 @@ local function GetTotalMass(ragdoll)
 end
 
 -- 模拟原始 ApplyForce 的多帧施加效果（连续 10 帧）
-local function ApplyForceOverFrames(ragdoll, boneName, forceVec)
+-- 接受 ctx 以便在暂停时中断施力序列（暂停期间不消耗帧计数，恢复后继续）
+local function ApplyForceOverFrames(ctx, boneName, forceVec)
+    local ragdoll = ctx.ragdoll
+    if not IsValid(ragdoll) then return end
+
     local boneID = ragdoll:LookupBone(boneName)
     if not boneID then return end
     local phyID = ragdoll:TranslateBoneToPhysBone(boneID)
     local phyObj = ragdoll:GetPhysicsObjectNum(phyID)
     if not IsValid(phyObj) then return end
 
-    for i = 1, 10 do
+    local frame = 0
+    local maxFrames = 10
+
+    while frame < maxFrames do
         if not IsValid(ragdoll) or not IsValid(phyObj) then break end
-        phyObj:ApplyForceOffset(forceVec, phyObj:GetPos())
-        phyObj:ApplyForceCenter(Vector(0, 0, forceVec.z * 0.1))
-        phyObj:AddAngleVelocity(-phyObj:GetAngleVelocity() / 10)
-        if i < 10 then
+
+        if ctx.paused then
+            -- 暂停期间不施加力，也不消耗帧计数；等下一帧再检查
             coroutine.yield({ type = "time", targetTime = CurTime() + FrameTime() })
+        else
+            phyObj:ApplyForceOffset(forceVec, phyObj:GetPos())
+            phyObj:ApplyForceCenter(Vector(0, 0, forceVec.z * 0.1))
+            phyObj:AddAngleVelocity(-phyObj:GetAngleVelocity() / 10)
+
+            frame = frame + 1
+            if frame < maxFrames then
+                coroutine.yield({ type = "time", targetTime = CurTime() + FrameTime() })
+            end
         end
     end
 end
@@ -95,6 +111,61 @@ local function cleanUp(ctx)
     if currentCtx == ctx then
         store:Clear(ctx.ragdoll)
     end
+end
+
+--- 暂停抽搐（引用计数式）
+--- 首次暂停会让主循环停止施力调度与效果器执行；
+--- 之后再次 Pause 只增加计数，不重复作用。
+--- 暂停期间正在进行的 ApplyForceOverFrames 序列会被中断（不施加后续帧的力），
+--- 恢复后从暂停的帧计数继续。
+--- @param ragdoll Entity
+--- @return boolean 是否成功暂停
+function TwitchController:Pause(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("TwitchController:Pause invalid ragdoll")
+        return false
+    end
+
+    local ctx = store:Get(ragdoll, TWITCH_CTX_KEY)
+    if not ctx then
+        log.trace("TwitchController:Pause no active context for ragdoll: ", tostring(ragdoll))
+        return false
+    end
+
+    ctx.pauseCount = (ctx.pauseCount or 0) + 1
+
+    if ctx.pauseCount == 1 then
+        ctx.paused = true
+        log.trace("TwitchController:Pause ragdoll ", tostring(ragdoll), " paused")
+    end
+
+    return true
+end
+
+--- 恢复抽搐（引用计数式）
+--- 只有计数归零才真正恢复。
+--- @param ragdoll Entity
+--- @return boolean 是否成功恢复
+function TwitchController:Resume(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("TwitchController:Resume invalid ragdoll")
+        return false
+    end
+
+    local ctx = store:Get(ragdoll, TWITCH_CTX_KEY)
+    if not ctx or not ctx.pauseCount or ctx.pauseCount <= 0 then
+        log.trace("TwitchController:Resume no active pause for ragdoll: ", tostring(ragdoll))
+        return false
+    end
+
+    ctx.pauseCount = ctx.pauseCount - 1
+
+    if ctx.pauseCount == 0 then
+        ctx.paused = false
+        log.trace("TwitchController:Resume ragdoll ", tostring(ragdoll), " resumed")
+    end
+
+    return true
 end
 
 local function TwitchCoroutine(ragdoll, ctx)
@@ -137,6 +208,13 @@ local function TwitchCoroutine(ragdoll, ctx)
     end
 
     while not shouldTerminate() do
+        -- 暂停检查（优先级最高）：暂停期间不施力、不执行效果器
+        -- 用 0.05 秒节流等待，避免每帧唤醒造成不必要的开销
+        if ctx.paused then
+            Scheduler:Wait(0.05)
+            continue
+        end
+
         -- 如果骨骼列表为空（所有骨骼被抢占），等待直到重新获得或终止
         if #boneList == 0 then
             Scheduler:WaitUntil(function()
@@ -171,7 +249,7 @@ local function TwitchCoroutine(ragdoll, ctx)
 
         -- 根据模式执行
         if speedMode == "High" then
-            ApplyForceOverFrames(ragdoll, boneName, forceVec)
+            ApplyForceOverFrames(ctx, boneName, forceVec)
 
             if math.Rand(0, 1) > 0.5 then
                 currentIndex = currentIndex + 1
@@ -181,7 +259,7 @@ local function TwitchCoroutine(ragdoll, ctx)
                 end
                 Scheduler:Wait(0.01)
                 if not shouldTerminate() then
-                    ApplyForceOverFrames(ragdoll, boneList[currentIndex], forceVec)
+                    ApplyForceOverFrames(ctx, boneList[currentIndex], forceVec)
                 end
             end
 
@@ -207,7 +285,7 @@ local function TwitchCoroutine(ragdoll, ctx)
                     Scheduler:Wait(math.Rand(0.05, 0.15))
                     if shouldTerminate() then break end
                 end
-                ApplyForceOverFrames(ragdoll, boneName, forceVec)
+                ApplyForceOverFrames(ctx, boneName, forceVec)
 
                 currentIndex = currentIndex + 1
                 if currentIndex > #boneList then
@@ -217,7 +295,7 @@ local function TwitchCoroutine(ragdoll, ctx)
                 boneName = boneList[currentIndex]
                 Scheduler:Wait(0.01)
                 if not shouldTerminate() then
-                    ApplyForceOverFrames(ragdoll, boneName, forceVec)
+                    ApplyForceOverFrames(ctx, boneName, forceVec)
                 end
             end
             Scheduler:Wait(delay)
@@ -280,6 +358,10 @@ function TwitchController:Start(ragdoll, opts)
         active              = true,
         coro                = nil,
         boneControlOwnerID  = MODULE_NAME,
+
+        -- 暂停相关
+        paused              = false,
+        pauseCount          = 0,
     }
 
     local ownerID = ctx.boneControlOwnerID

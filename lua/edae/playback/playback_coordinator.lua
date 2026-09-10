@@ -1,7 +1,8 @@
 -- lua/edae/playback/playback_coordinator.lua
--- 统一播放协调器：封装动画播放和物理抽搐的差异，对上层提供一致的 Start/Stop/Rotate 接口
+-- 统一播放协调器：封装动画播放和物理抽搐的差异，对上层提供一致的 Start/Stop/Rotate/Pause/Resume 接口
 -- 负责将底层结束事件统一转发为 OnPlaybackStopped 事件
 -- 旋转方法透传给 AnimationPlayer，用于玩家在爬行/挣扎等状态下控制布娃娃朝向
+-- Pause/Resume 维护独立的 pauseCount，屏蔽底层播放器差异，并保证跨播放器切换时暂停状态继承
 
 local MODULE_NAME = "PlaybackCoordinator"
 
@@ -21,6 +22,7 @@ local helper              = include("edae/helper.lua")
 
 local store               = EntityDataStore:ForOwner(MODULE_NAME)
 local BONE_SKIP_KEY       = "PersistentSkipBones"
+local PAUSE_KEY           = "PlaybackPauseCount"
 
 local STATE_ENUM          = Constants.LifeCycleHandler.STATE_ENUM
 
@@ -43,6 +45,8 @@ function PlaybackCoordinator:Start(owner, ragdoll, state, damageContext)
         return false
     end
 
+    local started = false
+
     if state == STATE_ENUM.TWITCHING then
         -- 物理抽搐：使用 TwitchAssembler
         local twitchOpts = TwitchAssembler:Assemble(ragdoll, state, owner)
@@ -50,7 +54,7 @@ function PlaybackCoordinator:Start(owner, ragdoll, state, damageContext)
             log.warn("PlaybackCoordinator:Start TwitchAssembler failed for state '", state, "'")
             return false
         end
-        return TwitchController:Start(ragdoll, twitchOpts)
+        started = TwitchController:Start(ragdoll, twitchOpts)
     else
         -- 骨骼动画：使用 AnimationAssembler
         local animationName, animationOpts = AnimationAssembler:Assemble(ragdoll, state, damageContext, owner)
@@ -63,13 +67,29 @@ function PlaybackCoordinator:Start(owner, ragdoll, state, damageContext)
         if persistentSkipBones then
             animationOpts.persistentSkipBones = persistentSkipBones
         end
-        return AnimationPlayer:Play(ragdoll, animationName, animationOpts)
+        started = AnimationPlayer:Play(ragdoll, animationName, animationOpts)
     end
+
+    -- 暂停状态继承：如果 Coordinator 处于暂停状态，新启动的播放器也要暂停
+    -- 这保证跨播放器切换时，调用方的"暂停意图"不会丢失
+    if started then
+        local pauseCount = store:Get(ragdoll, PAUSE_KEY) or 0
+        if pauseCount > 0 then
+            -- 同步 Pause 两个底层播放器（只有活动那个会真正暂停）
+            -- 时机安全：底层 Play/Start 返回后，ctx 已写入 store，Pause 能正常命中
+            AnimationPlayer:Pause(ragdoll)
+            TwitchController:Pause(ragdoll)
+            log.trace("PlaybackCoordinator:Start new playback while paused (count=", pauseCount, ")")
+        end
+    end
+
+    return started
 end
 
 --- 停止播放
 --- 会同时尝试停止动画和抽搐（各自检查是否有活动上下文）
 --- 如果两者均无活动上下文，则手动触发 OnPlaybackStopped 事件，确保状态机仍能收到停止原因
+--- 同时清空暂停计数：停止意味着"这个播放生命周期结束"，暂停不再有意义
 --- @param ragdoll Entity
 --- @param reason string 停止原因，使用 Constants.PlaybackReasons 中的值
 function PlaybackCoordinator:Stop(ragdoll, reason)
@@ -80,6 +100,9 @@ function PlaybackCoordinator:Stop(ragdoll, reason)
         return
     end
 
+    -- 清空暂停计数（先于事件触发，让事件处理者看到"未暂停"状态）
+    store:Set(ragdoll, PAUSE_KEY, 0)
+
     local animStopped = AnimationPlayer:Stop(ragdoll, reason)
     local twitchStopped = TwitchController:Stop(ragdoll, reason)
 
@@ -88,6 +111,78 @@ function PlaybackCoordinator:Stop(ragdoll, reason)
         log.trace("PlaybackCoordinator:Stop no active playback, emitting OnPlaybackStopped manually")
         hook.Run(Constants.Events.OnPlaybackStopped, ragdoll, reason)
     end
+end
+
+--- 暂停播放（引用计数式）
+--- 屏蔽底层播放器差异：
+---   - AnimationPlayer 冻结动画模型时间轴 + 跳过 CSC
+---   - TwitchController 冻结施力序列进度 + 跳过效果器
+--- 调用方无需知道当前是哪个播放器，也无需知道跨播放器切换时的状态继承。
+--- @param ragdoll Entity
+--- @return boolean 是否成功增加暂停计数
+function PlaybackCoordinator:Pause(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("PlaybackCoordinator:Pause invalid ragdoll")
+        return false
+    end
+
+    local count = store:Get(ragdoll, PAUSE_KEY) or 0
+    count = count + 1
+    store:Set(ragdoll, PAUSE_KEY, count)
+
+    if count == 1 then
+        -- 首次暂停：透传给两个底层播放器
+        -- 只有当前活动的那一个会真正暂停，另一个返回 false（无害）
+        local animPaused = AnimationPlayer:Pause(ragdoll)
+        local twitchPaused = TwitchController:Pause(ragdoll)
+
+        if not animPaused and not twitchPaused then
+            log.trace("PlaybackCoordinator:Pause no active playback for ragdoll: ", tostring(ragdoll))
+            -- 即使当前没有活动播放器，pauseCount 仍保留
+            -- 以便后续 Start 时自动继承暂停状态
+        end
+    end
+
+    return true
+end
+
+--- 恢复播放（引用计数式）
+--- 只有计数归零才真正恢复两个底层播放器。
+--- 与 Pause 对称：调用方只需保证 Pause/Resume 配对。
+--- @param ragdoll Entity
+--- @return boolean 是否成功减少暂停计数
+function PlaybackCoordinator:Resume(ragdoll)
+    if not IsValid(ragdoll) then
+        log.warn("PlaybackCoordinator:Resume invalid ragdoll")
+        return false
+    end
+
+    local count = store:Get(ragdoll, PAUSE_KEY) or 0
+    if count <= 0 then
+        log.trace("PlaybackCoordinator:Resume no active pause for ragdoll: ", tostring(ragdoll))
+        return false
+    end
+
+    count = count - 1
+    store:Set(ragdoll, PAUSE_KEY, count)
+
+    if count == 0 then
+        -- 恢复两个底层播放器（只有活动那个会真正恢复）
+        AnimationPlayer:Resume(ragdoll)
+        TwitchController:Resume(ragdoll)
+    end
+
+    return true
+end
+
+--- 查询布娃娃当前是否处于暂停状态
+--- @param ragdoll Entity
+--- @return boolean
+function PlaybackCoordinator:IsPaused(ragdoll)
+    if not IsValid(ragdoll) then
+        return false
+    end
+    return (store:Get(ragdoll, PAUSE_KEY) or 0) > 0
 end
 
 --- 请求布娃娃旋转到指定方向或背对指定位置
